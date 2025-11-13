@@ -11,14 +11,19 @@ import cmocean
 from importlib import reload
 
 # Custom functions
-import PlotFigure
-reload(PlotFigure)          
-from PlotFigure import plot_map 
+import PlotMaps
+reload(PlotMaps)          
+from PlotMaps import plot_map 
+
+import AggregateMonthly
+reload(AggregateMonthly)          
+from AggregateMonthly import preprocess_eobs_monthly 
 
 #%% User inputs
 
 var = 'Tg'
-months = None
+data = 'Eobs' # Include options for ERA5 and KNMI (and also aggregate)
+months = [12,1,2]
 years = [1970, None]
 lats = [35, 72]
 lons = [-12, 35]
@@ -58,48 +63,18 @@ except ValueError:
     client = Client(n_workers=1, threads_per_worker=8, processes=False)
 
 input_file_data = os.path.join('/nobackup/users/walj/eobs', datasets[var]['file'])
-data_raw = xr.open_dataset(input_file_data, chunks='auto')
 
-if isinstance(lats, (list, tuple)) and len(lats) == 2:
-    lat_slice = slice(*lats)          
-elif lats is None:
-    lat_slice = slice(None)
-
-if isinstance(lons, (list, tuple)) and len(lons) == 2:
-    lon_slice = slice(*lons)   
-elif lons is None:
-    lon_slice = slice(None)
-
-time_sel = data_raw.time
-if months is not None:
-    time_sel = time_sel.where(time_sel.dt.month.isin(months), drop=True)
-if years is not None:
-    if len(years) == 2 and any(v is None for v in years):
-        if years[0] is not None:
-            time_sel = time_sel.where(time_sel.dt.year >= years[0], drop=True)
-        if years[1] is not None:
-            time_sel = time_sel.where(time_sel.dt.year <= years[1], drop=True)
-    else:
-        time_sel = time_sel.where(time_sel.dt.year.isin(years), drop=True)
-
-var_name = datasets[var]['variable']
-
-data = (
-    data_raw[var_name]
-      .sel(latitude=lat_slice, longitude=lon_slice, time=time_sel)
-      .astype('float32')                       
-      .chunk({'time': 180, 'latitude': 200, 'longitude': 200})  
-      .persist()                                
+data = preprocess_eobs_monthly(
+    file_path=input_file_data,
+    var_name=datasets[var]['variable'],
+    months=months,
+    years=years,
+    lats=lats,
+    lons=lons,
+    chunks_time=180,
+    chunks_lat=200,
+    chunks_lon=200
 )
-
-dt = pd.DatetimeIndex(data['time'].values)
-days_in_year = np.where(dt.is_leap_year, 366, 365)
-t_years = xr.DataArray(
-    dt.year + (dt.dayofyear - 1) / days_in_year,
-    coords={'time': data['time']}
-)
-
-data = data.assign_coords(t_years=t_years)
 
 lat_vals = data['latitude'].values
 lon_vals = data['longitude'].values
@@ -141,7 +116,3 @@ plot_map(
     show_x_ticks=False,
     show_y_ticks=False
 )
-
-#%%
-
-# Figure for specifically de Bilt!
