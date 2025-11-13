@@ -1,7 +1,6 @@
 import numpy as np
 import xarray as xr
 import pandas as pd
-from dask.distributed import Client, get_client
 
 def preprocess_eobs_monthly(
     file_path,
@@ -66,3 +65,6 @@ def preprocess_eobs_monthly(
     )
 
     return data_monthly
+
+# To do:
+# - Add options for different datasets (ERA5, KNMI)
