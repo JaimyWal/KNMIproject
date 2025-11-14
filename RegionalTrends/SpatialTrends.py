@@ -15,25 +15,29 @@ import PlotMaps
 reload(PlotMaps)          
 from PlotMaps import plot_map 
 
-import AggregateMonthly
-reload(AggregateMonthly)          
-from AggregateMonthly import preprocess_eobs_monthly 
+import ProcessEobs
+reload(ProcessEobs)          
+from ProcessEobs import preprocess_eobs_monthly 
+
+import ProcessERA5
+reload(ProcessERA5)          
+from ProcessERA5 import preprocess_era5 
 
 #%% User inputs
 
 var = 'Tg'
-data = 'Eobs' # Include options for ERA5 and KNMI (and also aggregate)
-months = [12,1,2]
-years = [1970, None]
+data_source = 'ERA5'
+resolution = 'Fine'
+
+months = [6, 7, 8]
+years = [1970, 2024]
 lats = [35, 72]
 lons = [-12, 35]
 
-#%% Data loading and processing
+#%% Dataset configurations
 
-datasets = {
+base_var_cfg = {
     'Tg': {
-        'file': 'tg_ens_mean_0.1deg_reg_v31.0e.nc',
-        'variable': 'tg',
         'label_mean': r'Temperature (°C)',
         'label_trend': r'Trend (°C / decade)',
         'cmap_mean': 'Spectral_r',
@@ -41,11 +45,9 @@ datasets = {
         'crange_mean': (-5, 20),
         'crange_trend': (-1, 1),
         'extreme_mean': ('xkcd:purple', 'xkcd:pink'),
-        'extreme_trend': ('xkcd:purple', 'xkcd:orange')
+        'extreme_trend': ('xkcd:purple', 'xkcd:orange'),
     },
     'P': {
-        'file': 'rr_ens_mean_0.1deg_reg_v31.0e.nc',
-        'variable': 'rr',
         'label_mean': 'Precipitation (mm)',
         'label_trend': 'Trend (mm / decade)',
         'cmap_mean': cmocean.cm.rain,
@@ -53,43 +55,108 @@ datasets = {
         'crange_mean': (0, 5),
         'crange_trend': (-0.5, 0.5),
         'extreme_mean': (None, 'xkcd:blue'),
-        'extreme_trend': ('xkcd:purple', 'xkcd:orange')
-    }
+        'extreme_trend': ('xkcd:purple', 'xkcd:orange'),
+    },
 }
+
+var_name_cfg = {
+    'Eobs': {
+        'Tg': 'tg',
+        'P': 'rr',
+    },
+    'ERA5': {
+        'Tg': 't2m',
+        'P': 'tp',
+    },
+}
+
+file_cfg = {
+    'Eobs': {
+        'Fine': {
+            'Tg': 'tg_ens_mean_0.1deg_reg_v31.0e.nc',
+            'P':  'rr_ens_mean_0.1deg_reg_v31.0e.nc',
+        },
+        'Coarse': {
+            'Tg': 'tg_ens_mean_0.25deg_reg_v31.0e.nc',
+            'P':  'rr_ens_mean_0.25deg_reg_v31.0e.nc',
+        },
+    },
+    'ERA5': {
+        'Fine': {
+            # both variables in one file
+            'Tg': 'era5_fine.nc',
+            'P':  'era5_fine.nc',
+        },
+        'Coarse': {
+            'Tg': 'era5_coarse_t2m.nc',
+            'P':  'era5_coarse_tp.nc',
+        },
+    },
+}
+
+base_dir_cfg = {
+    'Eobs': '/nobackup/users/walj/eobs',
+    'ERA5': '/nobackup/users/walj/era5',
+}
+
+cfg = {
+    **base_var_cfg[var],
+    'variable': var_name_cfg[data_source][var],
+    'file': file_cfg[data_source][resolution][var],
+    'base_dir': base_dir_cfg[data_source],
+}
+
+#%% Data loading and processing
 
 try:
     client = get_client()
 except ValueError:
     client = Client(n_workers=1, threads_per_worker=8, processes=False)
 
-input_file_data = os.path.join('/nobackup/users/walj/eobs', datasets[var]['file'])
+input_file_data = os.path.join(cfg['base_dir'], cfg['file'])
 
-data = preprocess_eobs_monthly(
-    file_path=input_file_data,
-    var_name=datasets[var]['variable'],
-    months=months,
-    years=years,
-    lats=lats,
-    lons=lons,
-    chunks_time=180,
-    chunks_lat=200,
-    chunks_lon=200
-)
+if data_source == 'Eobs':
+    data = preprocess_eobs_monthly(
+        file_path=input_file_data,
+        var_name=cfg['variable'],
+        months=months,
+        years=years,
+        lats=lats,
+        lons=lons,
+        chunks_time=180,
+        chunks_lat=200,
+        chunks_lon=200,
+    )
+elif data_source == 'ERA5':
+    data = preprocess_era5(
+        file_path=input_file_data,
+        var_name=cfg['variable'],
+        months=months,
+        years=years,
+        lats=lats,
+        lons=lons,
+        chunks_time=180,
+        chunks_lat=200,
+        chunks_lon=200,
+    )
 
 lat_vals = data['latitude'].values
 lon_vals = data['longitude'].values
 
 #%% Calculate mean and plot
 
-data_avg = data.mean(dim='time').compute()
+if data_source == 'Eobs':
+    data_avg = data.mean(dim='time').compute()
+elif data_source == 'ERA5':
+    data_avg = data.mean(dim='valid_time').compute() - 273.15
 
 plot_map(data_avg, 
          lon_vals, 
          lat_vals, 
-         datasets[var]['crange_mean'], 
-         datasets[var]['label_mean'], 
-         datasets[var]['cmap_mean'], 
-         extreme_colors=datasets[var]['extreme_mean'],
+         cfg['crange_mean'], 
+         cfg['label_mean'], 
+         cfg['cmap_mean'], 
+         extreme_colors=cfg['extreme_mean'],
          c_ticks=5,
          show_x_ticks=False,
          show_y_ticks=False
@@ -97,7 +164,11 @@ plot_map(data_avg,
 
 #%% Linear trends and plot
 
-data_t = data.swap_dims({'time': 't_years'}).sortby('t_years')
+if data_source == 'Eobs':
+    data_t = data.swap_dims({'time': 't_years'}).sortby('t_years')
+elif data_source == 'ERA5':
+    data_t = data.swap_dims({'valid_time': 't_years'}).sortby('t_years')
+
 fits = data_t.polyfit(dim='t_years', deg=1, skipna=True)
 
 slope = fits.polyfit_coefficients.sel(degree=1)
@@ -108,10 +179,10 @@ plot_map(
     trend_decade,
     lon_vals,
     lat_vals,
-    crange=datasets[var]['crange_trend'],
-    label=datasets[var]['label_trend'],
-    cmap=datasets[var]['cmap_trend'],
-    extreme_colors=datasets[var]['extreme_trend'],
+    crange=cfg['crange_trend'],
+    label=cfg['label_trend'],
+    cmap=cfg['cmap_trend'],
+    extreme_colors=cfg['extreme_trend'],
     c_ticks=10,
     show_x_ticks=False,
     show_y_ticks=False

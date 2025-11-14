@@ -17,35 +17,38 @@ def preprocess_eobs_monthly(
 
     if isinstance(lats, (list, tuple)) and len(lats) == 2:
         lat_slice = slice(*lats)
-    elif lats is None:
+    else:
         lat_slice = slice(None)
 
     if isinstance(lons, (list, tuple)) and len(lons) == 2:
         lon_slice = slice(*lons)
-    elif lons is None:
+    else:
         lon_slice = slice(None)
 
-    time_sel = data_raw.time
+    data_monthly_full = (
+        data_raw[var_name]
+        .sel(latitude=lat_slice, longitude=lon_slice)
+        .astype('float32')
+        .resample(time='MS')
+        .mean('time')
+    )
+
+    time_sel = data_monthly_full.time
 
     if months is not None:
         time_sel = time_sel.where(time_sel.dt.month.isin(months), drop=True)
 
-    if years is not None:
-        if isinstance(years, (list, tuple)) and len(years) == 2 and any(v is None for v in years):
-            if years[0] is not None:
-                time_sel = time_sel.where(time_sel.dt.year >= years[0], drop=True)
-            if years[1] is not None:
-                time_sel = time_sel.where(time_sel.dt.year <= years[1], drop=True)
+    if years is not None and isinstance(years, (list, tuple)):
+        if len(years) == 2:
+            start, end = years
+            if start is not None:
+                time_sel = time_sel.where(time_sel.dt.year >= start, drop=True)
+            if end is not None:
+                time_sel = time_sel.where(time_sel.dt.year <= end, drop=True)
         else:
             time_sel = time_sel.where(time_sel.dt.year.isin(years), drop=True)
 
-    data_daily = (
-        data_raw[var_name]
-        .sel(latitude=lat_slice, longitude=lon_slice, time=time_sel)
-        .astype('float32')
-    )
-
-    data_monthly = data_daily.resample(time='MS').mean('time')
+    data_monthly = data_monthly_full.sel(time=time_sel)
 
     dt = pd.DatetimeIndex(data_monthly['time'].values)
     days_in_year = np.where(dt.is_leap_year, 366, 365)
@@ -65,6 +68,3 @@ def preprocess_eobs_monthly(
     )
 
     return data_monthly
-
-# To do:
-# - Add options for different datasets (ERA5, KNMI)
