@@ -15,20 +15,29 @@ def preprocess_eobs_monthly(
 
     data_raw = xr.open_dataset(file_path, chunks='auto')
 
+    da = data_raw[var_name].astype('float32')
+
+    latitudes = data_raw['latitude'].values
+    longitudes = data_raw['longitude'].values
+
     if isinstance(lats, (list, tuple)) and len(lats) == 2:
         lat_slice = slice(*lats)
-    else:
-        lat_slice = slice(None)
+        da = da.sel(latitude=lat_slice)
+    elif isinstance(lats, (int, float, np.floating)):
+        lat_idx = np.abs(latitudes - float(lats)).argmin()
+        nearest_lat = float(latitudes[lat_idx])
+        da = da.sel(latitude=slice(nearest_lat, nearest_lat))
 
     if isinstance(lons, (list, tuple)) and len(lons) == 2:
         lon_slice = slice(*lons)
-    else:
-        lon_slice = slice(None)
+        da = da.sel(longitude=lon_slice)
+    elif isinstance(lons, (int, float, np.floating)):
+        lon_idx = np.abs(longitudes - float(lons)).argmin()
+        nearest_lon = float(longitudes[lon_idx])
+        da = da.sel(longitude=slice(nearest_lon, nearest_lon))
 
     data_monthly_full = (
-        data_raw[var_name]
-        .sel(latitude=lat_slice, longitude=lon_slice)
-        .astype('float32')
+        da
         .resample(time='MS')
         .mean('time')
     )

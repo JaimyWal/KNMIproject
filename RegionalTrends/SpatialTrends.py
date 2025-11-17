@@ -5,6 +5,7 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 import colormaps as cmaps
+import matplotlib.pyplot as plt
 import os
 from dask.distributed import Client, get_client
 import cmocean
@@ -29,17 +30,19 @@ var = 'Tg'
 data_source = 'ERA5'
 resolution = 'Fine'
 
-months = [6, 7, 8]
-years = [1970, 2024]
+months = [10, 11, 12, 1, 2, 3]
+years = [1961, 2000]
 lats = [35, 72]
 lons = [-12, 35]
 
+# RACMO toevoegen?
+
 #%% Dataset configurations
 
-base_var_cfg = {
+plot_cfg = {
     'Tg': {
         'label_mean': r'Temperature (°C)',
-        'label_trend': r'Trend (°C / decade)',
+        'label_trend': r'Absolute trend (°C / decade)',
         'cmap_mean': 'Spectral_r',
         'cmap_trend': cmaps.temp_19lev,
         'crange_mean': (-5, 20),
@@ -49,13 +52,13 @@ base_var_cfg = {
     },
     'P': {
         'label_mean': 'Precipitation (mm)',
-        'label_trend': 'Trend (mm / decade)',
+        'label_trend': 'Relative trend (% / decade)',
         'cmap_mean': cmocean.cm.rain,
-        'cmap_trend': cmaps.temp_19lev,
+        'cmap_trend': plt.get_cmap('BrBG', 20),
         'crange_mean': (0, 5),
-        'crange_trend': (-0.5, 0.5),
-        'extreme_mean': (None, 'xkcd:blue'),
-        'extreme_trend': ('xkcd:purple', 'xkcd:orange'),
+        'crange_trend': (-15, 15),
+        'extreme_mean': (None, 'xkcd:purple'),
+        'extreme_trend': ('xkcd:orange', 'xkcd:purple'),
     },
 }
 
@@ -100,7 +103,7 @@ base_dir_cfg = {
 }
 
 cfg = {
-    **base_var_cfg[var],
+    **plot_cfg[var],
     'variable': var_name_cfg[data_source][var],
     'file': file_cfg[data_source][resolution][var],
     'base_dir': base_dir_cfg[data_source],
@@ -145,35 +148,34 @@ lon_vals = data['longitude'].values
 
 #%% Calculate mean and plot
 
-if data_source == 'Eobs':
-    data_avg = data.mean(dim='time').compute()
-elif data_source == 'ERA5':
-    data_avg = data.mean(dim='valid_time').compute() - 273.15
+data_avg = data.mean(dim='time').compute()
 
-plot_map(data_avg, 
-         lon_vals, 
-         lat_vals, 
-         cfg['crange_mean'], 
-         cfg['label_mean'], 
-         cfg['cmap_mean'], 
-         extreme_colors=cfg['extreme_mean'],
-         c_ticks=5,
-         show_x_ticks=False,
-         show_y_ticks=False
-)
+# plot_map(data_avg, 
+#          lon_vals, 
+#          lat_vals, 
+#          cfg['crange_mean'], 
+#          cfg['label_mean'], 
+#          cfg['cmap_mean'], 
+#          extreme_colors=cfg['extreme_mean'],
+#          c_ticks=5,
+#          show_x_ticks=False,
+#          show_y_ticks=False
+# )
 
 #%% Linear trends and plot
 
-if data_source == 'Eobs':
-    data_t = data.swap_dims({'time': 't_years'}).sortby('t_years')
-elif data_source == 'ERA5':
-    data_t = data.swap_dims({'valid_time': 't_years'}).sortby('t_years')
+data_t = data.swap_dims({'time': 't_years'}).sortby('t_years')
 
 fits = data_t.polyfit(dim='t_years', deg=1, skipna=True)
 
 slope = fits.polyfit_coefficients.sel(degree=1)
 
 trend_decade = (slope*10).astype('float32').compute()
+
+if var == 'Tg':
+    trend_decade = trend_decade
+elif var == 'P':
+    trend_decade = (trend_decade / data_avg)*100
 
 plot_map(
     trend_decade,
