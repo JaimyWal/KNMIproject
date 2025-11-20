@@ -57,19 +57,9 @@ def preprocess_eobs_monthly(
         else:
             time_sel = time_sel.where(time_sel.dt.year.isin(years), drop=True)
 
-    data_monthly = data_monthly_full.sel(time=time_sel)
-
-    dt = pd.DatetimeIndex(data_monthly['time'].values)
-    days_in_year = np.where(dt.is_leap_year, 366, 365)
-
-    t_years = xr.DataArray(
-        dt.year + (dt.dayofyear - 1) / days_in_year,
-        coords={'time': data_monthly['time']},
-    )
-
     data_monthly = (
-        data_monthly
-        .assign_coords(t_years=t_years)
+        data_monthly_full
+        .sel(time=time_sel)
         .chunk({'time': chunks_time,
                 'latitude': chunks_lat,
                 'longitude': chunks_lon})

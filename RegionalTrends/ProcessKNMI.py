@@ -7,16 +7,16 @@ def preprocess_knmi_monthly(
     var_name,
     months=None,
     years=None,
-    scale_factor=0.1,
-):
+    scale_factor=0.1):
+    
     # Find header line and its line number
     with open(file_path, 'r') as f:
         header = None
         header_line_no = None
-        for i, line in enumerate(f):
+        for ii, line in enumerate(f):
             if line.startswith('# STN'):
                 header = line[2:].strip()  # drop '# '
-                header_line_no = i
+                header_line_no = ii
                 break
 
     col_names = [c.strip() for c in header.split(',')]
@@ -62,19 +62,11 @@ def preprocess_knmi_monthly(
     # Aggregate to monthly means (start of month, like 'MS')
     series_monthly = series.resample('MS').mean()
 
-    # Build t_years coordinate
-    dt = pd.DatetimeIndex(series_monthly.index)
-    days_in_year = np.where(dt.is_leap_year, 366, 365)
-    t_years = dt.year + (dt.dayofyear - 1) / days_in_year
-
     data_monthly = xr.DataArray(
         series_monthly.values.astype('float32'),
-        coords={
-            'time': series_monthly.index,
-            't_years': ('time', t_years),
-        },
+        coords={'time': series_monthly.index},
         dims=['time'],
-        name=var_name,
+        name=var_name
     )
 
     return data_monthly

@@ -22,9 +22,9 @@ from ProcessKNMI import preprocess_knmi_monthly
 
 #%% User inputs
 
-var = 'P'
-location = 'Bilt'
-resolution = 'Coarse'
+var = 'Tg'
+location = 'Cabauw'
+resolution = 'Fine'
 
 months = None
 years = [1970, 2024]
@@ -176,6 +176,16 @@ for src, c in cfg.items():
             years=years,
         ).squeeze()
 
+# Yearly aggregates:
+data_year = {}
+
+for src in data_all.keys():
+    da_year = data_all[src].resample(time='YS').mean()
+    year_coord = da_year['time'].dt.year.astype(float)
+    data_year[src] = (da_year
+                      .assign_coords(year=year_coord)
+                      .sortby('year'))
+
 #%% Monthly data
 
 colors = {
@@ -184,47 +194,36 @@ colors = {
     'KNMI': 'xkcd:green',
 }
 
-fig, ax = plt.subplots(1, figsize=(12, 8))
+# fig, ax = plt.subplots(1, figsize=(12, 8))
 
-for src in ['Eobs', 'ERA5', 'KNMI']:
+# for src in ['Eobs', 'ERA5', 'KNMI']:
 
-    ax.plot(data_all[src].time, data_all[src].values, 
-            c=colors[src], alpha=0.8, linewidth=2, label=src)
+#     ax.plot(data_all[src].time, data_all[src].values, 
+#             c=colors[src], alpha=0.8, linewidth=2, label=src)
     
-ax.grid()
-ax.set_xlabel('Year', fontsize=28)
-ax.set_ylabel(plot_cfg[var]['ylabel_monthly'], fontsize=28)
-ax.tick_params(axis='both', labelsize=20, length=6)
+# ax.grid()
+# ax.set_xlabel('Year', fontsize=28)
+# ax.set_ylabel(plot_cfg[var]['ylabel_monthly'], fontsize=28)
+# ax.tick_params(axis='both', labelsize=20, length=6)
 
-if plot_cfg[var]['ylim_monthly'] is not None:
-    ax.set_ylim(*plot_cfg[var]['ylim_monthly'])
-# ax.set_xlim(pd.Timestamp(f'{years[0]}-01-01'),
-#             pd.Timestamp(f'{years[1]}-12-31'))
+# if plot_cfg[var]['ylim_monthly'] is not None:
+#     ax.set_ylim(*plot_cfg[var]['ylim_monthly'])
+# # ax.set_xlim(pd.Timestamp(f'{years[0]}-01-01'),
+# #             pd.Timestamp(f'{years[1]}-12-31'))
 
-leg=ax.legend(fontsize=22, handlelength=1.5, handletextpad=0.4, loc='upper left')
-for line in leg.get_lines():
-    line.set_linewidth(4.0)
+# leg=ax.legend(fontsize=22, handlelength=1.5, handletextpad=0.4, loc='upper left')
+# for line in leg.get_lines():
+#     line.set_linewidth(4.0)
 
 #%% Yearly trends
 
-data_year = {}
 data_fits = {}
 
-for src, da in data_all.items():
-    da_year = da.resample(time='YS').mean()
-    data_year[src] = da_year
+for src in data_year.keys():
 
-    year_coord = da_year['time'].dt.year.astype(float)
-    
-    da_year_y = (
-        da_year
-        .assign_coords(year=year_coord)
-        .swap_dims({'time': 'year'})
-        .sortby('year')
-    )
+    fit = data_year[src].polyfit(dim='year', deg=1, skipna=True)
+    data_fits[src] = fit
 
-    fits = da_year_y.polyfit(dim='year', deg=1, skipna=True)
-    data_fits[src] = fits
 
 fig, ax = plt.subplots(1, figsize=(12, 8))
 
@@ -246,8 +245,8 @@ for src in ['Eobs', 'ERA5', 'KNMI']:
         label=label,
     )
 
-    years_plot = data_year[src]['time'].dt.year.astype(float)
-    trend_vals = intercept + slope * years_plot
+    years_plot = data_year[src]['year']
+    trend_vals = intercept + slope*years_plot
 
     ax.plot(
         data_year[src].time,
@@ -275,7 +274,8 @@ for line in leg.get_lines():
 
 
 # Ik zie nauwelijks een trend voor P? Maar op deze website wel... https://www.knmi.nl/klimaat
-# Enorm grote waarde aan het begin van KNMI cabauw??
+# Enorm grote waarde aan het begin van KNMI cabauw?? Komt doordat het eerste jaar geen wintertemperaturen heeft.
+# Maybe yearly sums and not daily averages for precipitation?
 # Cabauw is missing data before 1986....
 # Misschien max en minimum temperatures?
 # Eobs best slecht voor coarse

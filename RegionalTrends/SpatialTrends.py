@@ -24,13 +24,17 @@ import ProcessERA5
 reload(ProcessERA5)          
 from ProcessERA5 import preprocess_era5 
 
+import ProcessRACMO
+reload(ProcessRACMO)          
+from ProcessRACMO import preprocess_racmo_monthly 
+
 #%% User inputs
 
-var = 'Tg'
-data_source = 'ERA5'
+var = 'P'
+data_source = 'Eobs'
 resolution = 'Fine'
 
-months = [10, 11, 12, 1, 2, 3]
+months = [4,5,6,7,8,9]
 years = [1961, 2000]
 lats = [35, 72]
 lons = [-12, 35]
@@ -130,6 +134,7 @@ if data_source == 'Eobs':
         chunks_lat=200,
         chunks_lon=200,
     )
+
 elif data_source == 'ERA5':
     data = preprocess_era5(
         file_path=input_file_data,
@@ -146,36 +151,44 @@ elif data_source == 'ERA5':
 lat_vals = data['latitude'].values
 lon_vals = data['longitude'].values
 
+time = data['time']
+
+t_years = xr.DataArray(
+    time.dt.year + time.dt.month / 12.0,
+    coords={'time': time},
+    dims='time'
+)
+
+data = data.assign_coords(t_years=t_years)
+
 #%% Calculate mean and plot
 
 data_avg = data.mean(dim='time').compute()
 
-# plot_map(data_avg, 
-#          lon_vals, 
-#          lat_vals, 
-#          cfg['crange_mean'], 
-#          cfg['label_mean'], 
-#          cfg['cmap_mean'], 
-#          extreme_colors=cfg['extreme_mean'],
-#          c_ticks=5,
-#          show_x_ticks=False,
-#          show_y_ticks=False
-# )
+plot_map(data_avg, 
+         lon_vals, 
+         lat_vals, 
+         cfg['crange_mean'], 
+         cfg['label_mean'], 
+         cfg['cmap_mean'], 
+         extreme_colors=cfg['extreme_mean'],
+         c_ticks=5,
+         show_x_ticks=False,
+         show_y_ticks=False
+)
 
 #%% Linear trends and plot
 
-data_t = data.swap_dims({'time': 't_years'}).sortby('t_years')
-
-fits = data_t.polyfit(dim='t_years', deg=1, skipna=True)
+fits = data.polyfit(dim='t_years', deg=1, skipna=True)
 
 slope = fits.polyfit_coefficients.sel(degree=1)
 
 trend_decade = (slope*10).astype('float32').compute()
 
 if var == 'Tg':
-    trend_decade = trend_decade
+    trend_decade = trend_decade # Absolute trend
 elif var == 'P':
-    trend_decade = (trend_decade / data_avg)*100
+    trend_decade = (trend_decade / data_avg)*100 # Relative trend
 
 plot_map(
     trend_decade,
@@ -189,3 +202,6 @@ plot_map(
     show_x_ticks=False,
     show_y_ticks=False
 )
+
+
+# RACMO projection here. Seperate function for RACMO projection and PlateCarre projection.

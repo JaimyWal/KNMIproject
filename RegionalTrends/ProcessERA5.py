@@ -52,9 +52,11 @@ def preprocess_era5(
         else:
             time_sel = time_sel.where(time_sel.dt.year.isin(years), drop=True)
 
-    data = da.sel(valid_time=time_sel)
-
-    data = data.rename({'valid_time': 'time'})
+    data = (
+        da
+        .sel(valid_time=time_sel)
+        .rename({'valid_time': 'time'})
+    )
 
     if var_name == 't2m':
         data = data - 273.15
@@ -62,17 +64,8 @@ def preprocess_era5(
     elif var_name == 'tp':
         data = data*1000
 
-    dt = pd.DatetimeIndex(data['time'].values)
-    days_in_year = np.where(dt.is_leap_year, 366, 365)
-
-    t_years = xr.DataArray(
-        dt.year + (dt.dayofyear - 1) / days_in_year,
-        coords={'time': data['time']},
-    )
-
     data_processed = (
         data
-        .assign_coords(t_years=t_years)
         .chunk({'time': chunks_time,
                 'latitude': chunks_lat,
                 'longitude': chunks_lon})

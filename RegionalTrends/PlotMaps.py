@@ -224,8 +224,23 @@ def plot_map(data, lon, lat,
     
     # And here we save the figure, if a save_name is provided
     if save_name is not None:
-        folder = './figures/'
+        folder = '/usr/people/walj/figures/'
         save_path = os.path.join(folder, save_name + '.jpg')
         plt.savefig(save_path, format='jpg', bbox_inches='tight', dpi=800)
         
     plt.show()
+
+
+# RACMO projection toevoegen....
+
+# rp = racmo['rotated_pole']
+# pole_lat = rp.grid_north_pole_latitude
+# pole_lon = rp.grid_north_pole_longitude
+# central_rlon = 18.0
+
+
+# rotpole = ccrs.RotatedPole(
+#     pole_latitude=pole_lat,
+#     pole_longitude=pole_lon,
+#     central_rotated_longitude=central_rlon,
+# )
