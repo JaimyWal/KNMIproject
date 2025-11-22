@@ -20,14 +20,18 @@ import ProcessKNMI
 reload(ProcessKNMI)          
 from ProcessKNMI import preprocess_knmi_monthly
 
+import ProcessRACMO
+reload(ProcessRACMO)          
+from ProcessRACMO import preprocess_racmo_monthly 
+
 #%% User inputs
 
-var = 'Tg'
+var = 'P'
 location = 'Cabauw'
 resolution = 'Fine'
 
 months = None
-years = [1970, 2024]
+years = [1987, 2024]
 
 #%% Dataset configurations
 
@@ -60,9 +64,12 @@ var_name_cfg = {
         'P': 'tp',
     },
     'KNMI': {
-        # adjust to actual column names in the txt if needed
         'Tg': 'TG',
         'P': 'RH',
+    },
+    'RACMO': {
+        'Tg': 't2m',
+        'P': 'precip',
     },
 }
 
@@ -100,6 +107,13 @@ file_cfg = {
             'P':  'KNMI_Cabauw.txt',
         },
     },
+    'RACMO': {
+        # single special key: same for all "resolutions"
+        'Any': {
+            'Tg': 't2m',      # directory or identifier under base_dir
+            'P':  'precip',
+        },
+    },
 }
 
 # Base directories
@@ -107,6 +121,7 @@ base_dir_cfg = {
     'Eobs': '/nobackup/users/walj/eobs',
     'ERA5': '/nobackup/users/walj/era5',
     'KNMI': '/nobackup/users/walj/knmi',
+    'RACMO': '/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data',
 }
 
 # Optional coordinates for KNMI stations
@@ -123,14 +138,14 @@ station_coord_cfg = {
 
 cfg = {}
 
-for src in ['Eobs', 'ERA5', 'KNMI']:
+for src in ['Eobs', 'ERA5', 'KNMI', 'RACMO']:
 
-    # For EOBS and ERA5 the second key is resolution
-    if src in ['Eobs', 'ERA5']:
-        file_key = resolution
-    # For KNMI the second key is the station name
-    else:
+    if src == 'KNMI':
         file_key = location
+    elif src == 'RACMO':
+        file_key = 'Any'
+    else:
+        file_key = resolution
 
     cfg[src] = {
         'variable': var_name_cfg[src][var],
@@ -176,6 +191,16 @@ for src, c in cfg.items():
             years=years,
         ).squeeze()
 
+    elif src == 'RACMO':
+        data_all['RACMO'] = preprocess_racmo_monthly(
+            dir_path=input_file_data,
+            var_name=c['variable'],
+            months=months,
+            years=years,
+            lats=lat_station,
+            lons=lon_station,
+        ).squeeze()
+
 # Yearly aggregates:
 data_year = {}
 
@@ -189,14 +214,15 @@ for src in data_all.keys():
 #%% Monthly data
 
 colors = {
-    'Eobs': 'xkcd:red',
-    'ERA5': 'xkcd:blue',
-    'KNMI': 'xkcd:green',
+    'Eobs':  '#4285F4',
+    'ERA5':  '#34A853',
+    'KNMI':  '#FBBC05',
+    'RACMO': '#EA4335',
 }
 
 # fig, ax = plt.subplots(1, figsize=(12, 8))
 
-# for src in ['Eobs', 'ERA5', 'KNMI']:
+# for src in ['Eobs', 'ERA5', 'KNMI', 'RACMO']:
 
 #     ax.plot(data_all[src].time, data_all[src].values, 
 #             c=colors[src], alpha=0.8, linewidth=2, label=src)
@@ -227,7 +253,7 @@ for src in data_year.keys():
 
 fig, ax = plt.subplots(1, figsize=(12, 8))
 
-for src in ['Eobs', 'ERA5', 'KNMI']:
+for src in ['Eobs', 'ERA5', 'KNMI', 'RACMO']:
 
     slope = data_fits[src].polyfit_coefficients.sel(degree=1)
     intercept = data_fits[src].polyfit_coefficients.sel(degree=0)
@@ -271,6 +297,9 @@ leg=ax.legend(fontsize=18, handlelength=1.5, handletextpad=0.4, loc='best')
 for line in leg.get_lines():
     line.set_linewidth(4.0)
 
+
+
+# Misschien alle datasets (dus ook coarse en fine) in 1 figuur?
 
 
 # Ik zie nauwelijks een trend voor P? Maar op deze website wel... https://www.knmi.nl/klimaat

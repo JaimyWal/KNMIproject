@@ -60,9 +60,11 @@ def preprocess_era5(
 
     if var_name == 't2m':
         data = data - 273.15
+        data.attrs['units'] = 'degC'
 
     elif var_name == 'tp':
         data = data*1000
+        data.attrs['units'] = 'mm/day'
 
     data_processed = (
         data
