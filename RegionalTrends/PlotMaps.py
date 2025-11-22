@@ -1,4 +1,3 @@
-# Import all necessary packages for the figure
 import numpy as np
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
@@ -8,239 +7,321 @@ from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
 from matplotlib.colors import ListedColormap
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.ticker import MultipleLocator
+import matplotlib.path as mpath
 import os
 
-def plot_map(data, lon, lat, 
-            crange=None, 
-            label=None, 
-            cmap='viridis',
-            interpolation=False, 
-            extent=None, 
-            cbar_orientation='vertical', 
-            c_ticks=10,
-            c_ticks_num=True,
-            x_ticks=5,
-            show_x_ticks=True,
-            x_ticks_num=True,
-            show_y_ticks=True,
-            y_ticks=5,
-            y_ticks_num=True,
-            extreme_colors=False,
-            clabel_size=32,
-            ctick_size=28,
-            tick_size=28,
-            save_name=None):
-    """Makes a world map figure of a 2D array.
 
-	Args:
-		data (2D array with shape [lat, lon]): The data you wish to plot
-        lon (1D array): Array of longitudes
-        lat (1D array): Array of latitudes
-        crange (list, tuple or array with 2 elements): Minimum and maximum range of colorbar
-        label (string): Label name of the colorbar
-        cmap (string or obj): Colormap of the figure
-        interpolation (boolean): Interpolates between grid cells for smoother figure
-        ticks (list, tuple or array with 2 elements): Number of ticks for x and y axes
-        extent (list or array with 4 elements): Extent of the figure map (East, West, South, North)
-        cbar_orientation (string): Orientation of the colorbar
-        c_ticks (float): Place colorbar ticklabels every 'c_ticks' increments
-        colormarker (string): Color of the marker at Lobith
-        extreme_colors (boolean or list/array/tuple): See comments below
-        save_name (string): Saves figure with this specified name
-	Returns:
-		None (makes a figure and potentially saves it to directory)
-	"""
-    
-    plt.rcParams['axes.unicode_minus'] = False
+def plot_map(data, lon, lat,
+             crange=None,
+             label=None,
+             cmap='viridis',
+             interpolation=False,
+             extent=None,
+             cbar_orientation='vertical',
+             figsize=(12, 8),
+             c_ticks=10,
+             c_ticks_num=True,
+             x_ticks=5,
+             show_x_ticks=True,
+             x_ticks_num=True,
+             show_y_ticks=True,
+             y_ticks=5,
+             y_ticks_num=True,
+             extreme_colors=False,
+             clabel_size=32,
+             ctick_size=28,
+             tick_size=28,
+             proj=ccrs.PlateCarree(),
+             rotated_grid=False,
+             save_name=None):
 
-    if isinstance(cmap, str):
+    plt.rcParams['axes.unicode_minus'] = False # Nicer minus signs
+
+    if isinstance(cmap, str): # If provided colormap is a string, convert to object
         cmap = plt.get_cmap(cmap).copy()
 
-    # Create meshgrid 2D array both for longitudes and latitudes
-    Lon, Lat = np.meshgrid(lon, lat)
-    
-    # This code right here decides whether the colorbar will have an extension
-    # or not. The extension of a colorbar is when the colorbar has a triangular
-    # shape at the end of one of its limits. This triangular shape indicates that
-    # either the minimum or maximum (depending on where this 'triangle' is located)
-    # value in the data is outside the colorbar limits.
+    # Create 2D lon/lat arrays if needed
+    if np.ndim(lon) == 1 and np.ndim(lat) == 1:
+        Lon, Lat = np.meshgrid(lon, lat)
+    else:
+        Lon, Lat = lon, lat
+
+    # Potentially use gouraud interpolation between grid cells
+    shading = 'gouraud' if interpolation else 'auto'
+
+    # Determine color range and extension
     if crange is not None:
-        if np.nanmin(data) < crange[0] and np.nanmax(data) > crange[1]:
-            # In this case the plotted data has values outside both the minimum and 
-            # maximum range of the colorbar, meaning that we want a 'triangle' at both ends
-            extension = 'both' 
-        elif np.nanmin(data) < crange[0] and np.nanmax(data) <= crange[1]:
-            # Here we only want a triangle for the lower limit of the colorbar
+        dmin = np.nanmin(data)
+        dmax = np.nanmax(data)
+        if dmin < crange[0] and dmax > crange[1]:
+            extension = 'both'
+        elif dmin < crange[0] and dmax <= crange[1]:
             extension = 'min'
-        elif np.nanmin(data) >= crange[0] and np.nanmax(data) > crange[1]:
-            # Here we only want a triangle for the upper limit of the colorbar
+        elif dmin >= crange[0] and dmax > crange[1]:
             extension = 'max'
         else:
-            # Here all the data is within the colorbar range, so we do not want an extension.
             extension = 'neither'
-    elif crange is None:
+    else:
         crange = (np.nanmin(data), np.nanmax(data))
         extension = 'neither'
-    
-    # This is something that I once came up with and I still like a lot, although
-    # it might look a bit unusual at first glance. In short, this piece of code
-    # adjusts the provided colormap so that values outside the colorbar range
-    # (below the minimum or above the maximum) get their own special colors.
-    if extreme_colors == True:
-        # When extreme_colors is True, the colormap is modified such that
-        # out-of-range values receive distinct colors. These colors are taken
-        # directly from the original lower and upper bounds of the colormap.
-        # For instance, if the highest color of a discrete colormap is black,
-        # that same black will be used as the "over-limit" color, while it is
-        # removed from the main color range.
-        # THIS OPTION IS MAINLY USEFUL FOR CERTAIN DISCRETE COLORMAPS.
-        base_cmap = plt.get_cmap(cmap)  # Load the base colormap
-        
-        # Sample all colors from the original colormap
+
+    # Handle extreme colors in colormap
+    if extreme_colors is True:
+        base_cmap = plt.get_cmap(cmap)
         basemap = base_cmap(np.linspace(0, 1, base_cmap.N))
-        
-        # Remove the original first and last colors from the main colormap
         cmap = ListedColormap(basemap[1:-1])
-        
-        # Assign the removed edge colors as special extremes
-        cmap.set_over(basemap[-1])  # Use the old upper limit as the over-limit color
-        cmap.set_under(basemap[0])  # Use the old lower limit as the under-limit color
-    
+        cmap.set_over(basemap[-1])
+        cmap.set_under(basemap[0])
     elif isinstance(extreme_colors, (list, tuple, np.ndarray)):
-        # Here the user has provided the upper and lower extreme colors manually
-        # themselves, without them being extracted from the main colormap
         under_color, over_color = extreme_colors
         if under_color is not None:
-            cmap.set_under(under_color) # Set over-limit color
+            cmap.set_under(under_color)
         if over_color is not None:
-            cmap.set_over(over_color) # Set under-limit color
-    else:
-        # If no extreme colors are used, the colormap remains untouched.
-        cmap = cmap 
-    
-    # The user has the option to use interpolation of data for plotting.
-    # Originally the values are plotted for each grid cell, which is more accurate,
-    # but there may be a reason to interpolate (such as simply obtaining a nicer
-    # looking figure, or to upscale the resolution). The interpolation is done
-    # using gouraud shading in ax.pcolormesh.
-    if interpolation == True:
-        shading = 'gouraud'
-    elif interpolation == False:
-        shading = 'auto'
-    
-    
-    # Here we actually finally make the figure, first we define the figure
-    # with a simple PlateCarree projection
-    fig, ax = plt.subplots(1, figsize=(12, 8), constrained_layout=True,
-                            subplot_kw={'projection': ccrs.PlateCarree()})
-    
-    # If the extent is none, then the full domain of the map will be displayed.
-    # If it is not none, only the chosen portion will be displayed.
-    if extent is not None:
-        ax.set_extent(extent, crs=ccrs.PlateCarree())
-    
-    # Add coastlines to the figure with high detail
-    ax.coastlines(resolution='10m', linewidth=1.5)
-    ax.add_feature(cfeature.BORDERS, linestyle='-', lw=1.5) # And add country borders
-    ax.add_feature(cfeature.OCEAN, facecolor='#edf0f5')
-    
-    # Add gridlines to the figure corresponding to the ticklabels.
-    gl = ax.gridlines(draw_labels=False, x_inline=False, y_inline=False, color='xkcd:black', alpha=0.4)
-    
-    eps = 1e-6
-    xmin, xmax = lon.min()-eps, lon.max()+eps
-    ymin, ymax = lat.min()-eps, lat.max()+eps
+            cmap.set_over(over_color)
 
-    # ----- X ticks -----
+    # Plotting
+    fig, ax = plt.subplots(
+        1, figsize=figsize, constrained_layout=True,
+        subplot_kw={'projection': proj}
+    )
+
+    ax.set_aspect('auto')
+
+    ax.coastlines(resolution='10m', linewidth=1.5)
+    ax.add_feature(cfeature.BORDERS, linestyle='-', lw=1.5)
+    ax.add_feature(cfeature.OCEAN, facecolor='#edf0f5')
+
+    # Give plot boundaries (with small padding for ticklabels)
+    eps = 1e-6
+    if extent is not None:
+        lon_min = extent[0] - eps
+        lon_max = extent[1] + eps
+        lat_min = extent[2] - eps
+        lat_max = extent[3] + eps
+    else:
+        lat1d = np.sort(np.unique(np.asarray(lat)[np.isfinite(lat)]))
+        lon1d = np.sort(np.unique(np.asarray(lon)[np.isfinite(lon)]))
+
+        dlat = np.diff(lat1d).mean() if lat1d.size > 1 else 1.0
+        dlon = np.diff(lon1d).mean() if lon1d.size > 1 else 1.0
+
+        lat_min = lat1d[0]  - 0.5 * dlat - eps
+        lat_max = lat1d[-1] + 0.5 * dlat + eps
+        lon_min = lon1d[0]  - 0.5 * dlon - eps
+        lon_max = lon1d[-1] + 0.5 * dlon + eps
+        
+
+    # gridlines: never let Cartopy draw labels, we do that manually
+    gl = ax.gridlines(
+        crs=ccrs.PlateCarree(),
+        draw_labels=False,
+        x_inline=False,
+        y_inline=False,
+        color='xkcd:black',
+        alpha=0.4
+    )
+
+    xticks = None
+    yticks = None
+
     if show_x_ticks:
         if x_ticks_num:
             xloc = ticker.MaxNLocator(nbins=x_ticks)
-            xticks = xloc.tick_values(xmin, xmax)
+            xticks = xloc.tick_values(lon_min, lon_max)
         else:
             xloc = ticker.MultipleLocator(x_ticks)
-            xticks = xloc.tick_values(xmin, xmax)
-
-        ax.set_xticks(xticks, crs=ccrs.PlateCarree())
+            xticks = xloc.tick_values(lon_min, lon_max)
+        # keep ticks strictly inside domain to avoid corner labels
+        xticks = xticks[(xticks > lon_min) & (xticks < lon_max)]
         gl.xlocator = ticker.FixedLocator(xticks)
     else:
-        ax.set_xticks([])
-        gl.xlocator = ticker.NullLocator()  # removes gridlines
+        gl.xlocator = ticker.NullLocator()
 
-    # ----- Y ticks -----
     if show_y_ticks:
         if y_ticks_num:
             yloc = ticker.MaxNLocator(nbins=y_ticks)
-            yticks = yloc.tick_values(ymin, ymax)
+            yticks = yloc.tick_values(lat_min, lat_max)
         else:
             yloc = ticker.MultipleLocator(y_ticks)
-            yticks = yloc.tick_values(ymin, ymax)
-
-        ax.set_yticks(yticks, crs=ccrs.PlateCarree())
+            yticks = yloc.tick_values(lat_min, lat_max)
+        yticks = yticks[(yticks > lat_min) & (yticks < lat_max)]
         gl.ylocator = ticker.FixedLocator(yticks)
     else:
-        ax.set_yticks([])
-        gl.ylocator = ticker.NullLocator()  # removes gridlines
+        gl.ylocator = ticker.NullLocator()
 
-    # Geographic label formatting
-    ax.xaxis.set_major_formatter(LongitudeFormatter(number_format='.0f', degree_symbol='°'))
-    ax.yaxis.set_major_formatter(LatitudeFormatter(number_format='.0f', degree_symbol='°'))
+    # helper formatters for manual labels
+    def _fmt_lon(x):
+        v = int(round(x))
+        if v < 0:
+            return f'{abs(v)}°W'
+        if v > 0:
+            return f'{v}°E'
+        return '0°'
 
-    ax.tick_params(labelsize=tick_size, length=10) # Tick label size and tick length
-    
-    # Here we actually plot the data with PlateCarree transform and potential
-    # interpolation. Note that rasterized is added to mainly decrease file size
-    mesh = ax.pcolormesh(Lon, Lat, data, transform=ccrs.PlateCarree(),
-                         cmap=cmap, shading=shading, rasterized=True)
-        
-    mesh.set_clim(crange) # Set colorbar range
-        
-    # Next we create a new horizontal axis to the main plot where the colorbar will go.
-    # The user can choose the colorbar to be either vertical or horizontal
+    def _fmt_lat(y):
+        v = int(round(y))
+        if v < 0:
+            return f'{abs(v)}°S'
+        if v > 0:
+            return f'{v}°N'
+        return '0°'
+
+    # Rotated projections: manual bottom and left labels only, rotated along gridlines
+    if rotated_grid:
+
+        if extent is not None:
+            ax.set_extent([lon_min, lon_max, lat_min, lat_max], crs=ccrs.PlateCarree())
+
+            n = 400
+            lons_bottom = np.linspace(lon_min, lon_max, n)
+            lats_bottom = np.full_like(lons_bottom, lat_min)
+            lons_right = np.full(n, lon_max)
+            lats_right = np.linspace(lat_min, lat_max, n)
+            lons_top = np.linspace(lon_max, lon_min, n)
+            lats_top = np.full_like(lons_top, lat_max)
+            lons_left = np.full(n, lon_min)
+            lats_left = np.linspace(lat_max, lat_min, n)
+
+            lons_all = np.concatenate([lons_bottom, lons_right, lons_top, lons_left])
+            lats_all = np.concatenate([lats_bottom, lats_right, lats_top, lats_left])
+
+            pts_all = proj.transform_points(ccrs.PlateCarree(), lons_all, lats_all)
+            verts = pts_all[:, :2]
+            boundary_path = mpath.Path(verts)
+            ax.set_boundary(boundary_path)
+
+        fig.canvas.draw() 
+
+        # small step in degrees to estimate gridline orientation
+        dlat = max((lat_max - lat_min) * 0.02, 0.1)
+        dlon = max((lon_max - lon_min) * 0.02, 0.1)
+
+        x_pad = 0.01*(lon_max - lon_min)
+        y_pad = 0.02*(lat_max - lat_min)
+
+        # bottom longitude labels, rotated along meridian then +90 degrees
+        if show_x_ticks and xticks is not None:
+            for x in xticks:
+                lons = np.array([x, x])
+                lats = np.array([lat_min, lat_min + dlat])
+                pts = proj.transform_points(ccrs.PlateCarree(), lons, lats)
+                dx = pts[1, 0] - pts[0, 0]
+                dy = pts[1, 1] - pts[0, 1]
+                angle = np.degrees(np.arctan2(dy, dx))
+                angle += 270 
+
+                ax.text(
+                    x, lat_min - y_pad,
+                    _fmt_lon(x),
+                    transform=ccrs.PlateCarree(),
+                    fontsize=tick_size,
+                    ha='center',
+                    va='top',
+                    rotation=angle,
+                    rotation_mode='anchor',
+                    clip_on=False
+                )
+
+        if show_y_ticks and yticks is not None:
+            for y in yticks:
+                lons = np.array([lon_min, lon_min + dlon])
+                lats = np.array([y, y])
+                pts = proj.transform_points(ccrs.PlateCarree(), lons, lats)
+                dx = pts[1, 0] - pts[0, 0]
+                dy = pts[1, 1] - pts[0, 1]
+                angle = np.degrees(np.arctan2(dy, dx))
+
+                ax.text(
+                    lon_min - x_pad, y,
+                    _fmt_lat(y),
+                    transform=ccrs.PlateCarree(),
+                    fontsize=tick_size,
+                    ha='right',
+                    va='center',
+                    rotation=angle,
+                    rotation_mode='anchor',
+                    clip_on=False
+                )
+
+        ax.xaxis.set_visible(False)
+        ax.yaxis.set_visible(False)
+
+    else: 
+        if isinstance(proj, ccrs.PlateCarree):
+            # plain PlateCarree, normal axis ticks (not rotated)
+            if show_x_ticks and xticks is not None:
+                ax.set_xticks(xticks, crs=ccrs.PlateCarree())
+            else:
+                ax.set_xticks([])
+
+            if show_y_ticks and yticks is not None:
+                ax.set_yticks(yticks, crs=ccrs.PlateCarree())
+            else:
+                ax.set_yticks([])
+
+            ax.xaxis.set_major_formatter(
+                LongitudeFormatter(number_format='.0f', degree_symbol='°')
+            )
+            ax.yaxis.set_major_formatter(
+                LatitudeFormatter(number_format='.0f', degree_symbol='°')
+            )
+            ax.tick_params(labelsize=tick_size, length=10)
+
+        else: # rotated projection, but not rotated grid 
+            gl.xformatter = LongitudeFormatter(number_format='.0f', degree_symbol='°')
+            gl.yformatter = LatitudeFormatter(number_format='.0f', degree_symbol='°')
+            gl.xlabel_style = {'size': tick_size}
+            gl.ylabel_style = {'size': tick_size}
+
+            gl.bottom_labels = show_x_ticks
+            gl.top_labels = False
+            gl.left_labels = show_y_ticks
+            gl.right_labels = False
+
+            ax.xaxis.set_visible(False)
+            ax.yaxis.set_visible(False)
+
+        if extent is not None:
+            ax.set_extent([lon_min, lon_max, lat_min, lat_max], crs=ccrs.PlateCarree())
+
+    # data field
+    mesh = ax.pcolormesh(
+        Lon, Lat, data, transform=ccrs.PlateCarree(),
+        cmap=cmap, shading=shading, rasterized=True
+    )
+    mesh.set_clim(crange)
+
+    # colorbar
     divider = make_axes_locatable(ax)
-    
     if cbar_orientation == 'vertical':
-        # Vertical colorbar on the right of the map
         ax_cb = divider.append_axes('right', size='3.8%', pad=0.2, axes_class=plt.Axes)
-        fig.add_axes(ax_cb) # Add the newly created colorbar axis to the figure
+        fig.add_axes(ax_cb)
         cbar = plt.colorbar(mesh, cax=ax_cb, extend=extension, orientation='vertical')
-        cbar.ax.tick_params(labelsize=ctick_size, direction='in', length=8, left=True, right=True)  # Customize colorbar ticks
+        cbar.ax.tick_params(labelsize=ctick_size, direction='in',
+                            length=8, left=True, right=True)
         if c_ticks_num:
-            cbar.ax.yaxis.set_major_locator(ticker.MaxNLocator(nbins=c_ticks)) # Set number of ticks on colorbar
+            cbar.ax.yaxis.set_major_locator(ticker.MaxNLocator(nbins=c_ticks))
         else:
-            cbar.ax.yaxis.set_major_locator(MultipleLocator(c_ticks)) # Place ticklabel every 'c_ticks' increments
-    
+            cbar.ax.yaxis.set_major_locator(MultipleLocator(c_ticks))
     elif cbar_orientation == 'horizontal':
-        # Horizontal colorbar below the map
         ax_cb = divider.append_axes('bottom', size='6%', pad=0.1, axes_class=plt.Axes)
-        fig.add_axes(ax_cb) # Add the newly created colorbar axis to the figure
-        cbar = plt.colorbar(mesh, cax=ax_cb, extend=extension, orientation='horizontal', location='bottom')
-        cbar.ax.tick_params(labelsize=ctick_size, direction='in', length=8, top=True, bottom=True)  # Customize colorbar ticks
+        fig.add_axes(ax_cb)
+        cbar = plt.colorbar(
+            mesh, cax=ax_cb, extend=extension,
+            orientation='horizontal', location='bottom'
+        )
+        cbar.ax.tick_params(labelsize=ctick_size, direction='in',
+                            length=8, top=True, bottom=True)
         if c_ticks_num:
-            cbar.ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=c_ticks)) # Set number of ticks on colorbar
+            cbar.ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=c_ticks))
         else:
-            cbar.ax.xaxis.set_major_locator(MultipleLocator(c_ticks)) # Place ticklabel every 'c_ticks' increments
+            cbar.ax.xaxis.set_major_locator(MultipleLocator(c_ticks))
 
-    cbar.set_label(label, fontsize=clabel_size, labelpad=10)  # Set colorbar label and font size
-    
-    # And here we save the figure, if a save_name is provided
+    cbar.set_label(label, fontsize=clabel_size, labelpad=10)
+
     if save_name is not None:
         folder = '/usr/people/walj/figures/'
         save_path = os.path.join(folder, save_name + '.jpg')
         plt.savefig(save_path, format='jpg', bbox_inches='tight', dpi=800)
-        
+
     plt.show()
-
-
-# RACMO projection toevoegen....
-
-# rp = racmo['rotated_pole']
-# pole_lat = rp.grid_north_pole_latitude
-# pole_lon = rp.grid_north_pole_longitude
-# central_rlon = 18.0
-
-
-# rotpole = ccrs.RotatedPole(
-#     pole_latitude=pole_lat,
-#     pole_longitude=pole_lon,
-#     central_rotated_longitude=central_rlon,
-# )
