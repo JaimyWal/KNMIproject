@@ -17,31 +17,62 @@ def preprocess_era5(
 
     da = data_raw[var_name].astype('float32')
 
-    latitudes = data_raw['latitude'].values   
-    longitudes = data_raw['longitude'].values
+    lat1d = data_raw['latitude']
+    lon1d = data_raw['longitude']
 
-    if isinstance(lats, (list, tuple)) and len(lats) == 2:
-        lat_min, lat_max = lats # note: descending in ERA5
-        lat_slice = slice(lat_max, lat_min)
-        da = da.sel(latitude=lat_slice)
-    elif isinstance(lats, (int, float, np.floating)):
-        lat_idx = np.abs(latitudes - float(lats)).argmin()
-        nearest_lat = float(latitudes[lat_idx])
-        da = da.sel(latitude=slice(nearest_lat, nearest_lat))
+    lat2d, lon2d = xr.broadcast(lat1d, lon1d)
+    
+    if isinstance(lats, (list, tuple)) and len(lats) == 2 and \
+       isinstance(lons, (list, tuple)) and len(lons) == 2:
+        
+        lat_min, lat_max = sorted(lats)
+        lon_min, lon_max = sorted(lons)
 
-    if isinstance(lons, (list, tuple)) and len(lons) == 2:
-        lon_slice = slice(*lons)
-        da = da.sel(longitude=lon_slice)
-    elif isinstance(lons, (int, float, np.floating)):
-        lon_idx = np.abs(longitudes - float(lons)).argmin()
-        nearest_lon = float(longitudes[lon_idx])
-        da = da.sel(longitude=slice(nearest_lon, nearest_lon))
+        mask = (
+            (lat2d >= lat_min) & (lat2d <= lat_max) &
+            (lon2d >= lon_min) & (lon2d <= lon_max)
+        ).compute()
+
+        da = da.where(mask, drop=True)
+
+    # nearest grid point to a single (lat, lon) 
+    elif isinstance(lats, (int, float)) and isinstance(lons, (int, float)):
+
+        target_lat = float(lats)
+        target_lon = float(lons)
+
+        # convert to radians
+        lat_rad = np.deg2rad(lat2d)
+        lon_rad = np.deg2rad(lon2d)
+        target_lat_rad = np.deg2rad(target_lat)
+        target_lon_rad = np.deg2rad(target_lon)
+
+        # haversine great circle distance
+        dlat = lat_rad - target_lat_rad
+        dlon = lon_rad - target_lon_rad
+
+        a = (
+            np.sin(dlat / 2.0)**2
+            + np.cos(target_lat_rad)*np.cos(lat_rad)*np.sin(dlon / 2.0)**2
+        )
+
+        R = 6371.0  # Earth radius in km
+        dist = 2.0*R*np.arcsin(np.sqrt(a))  # distance in km
+
+        # find indices of minimum distance
+        ii, jj = np.unravel_index(
+            np.nanargmin(dist.values),
+            dist.shape
+        )
+
+        da = da.isel(latitude=[ii], longitude=[jj])
 
     time_sel = da['valid_time']
 
     if months is not None:
         time_sel = time_sel.where(time_sel.dt.month.isin(months), drop=True)
 
+    # Year selection
     if years is not None and isinstance(years, (list, tuple)):
         if len(years) == 2:
             start, end = years

@@ -4,8 +4,6 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 
-#%%
-
 xr.set_options(use_new_combine_kwarg_defaults=True)
 
 def preprocess_racmo_monthly(
@@ -18,16 +16,33 @@ def preprocess_racmo_monthly(
     chunks_time=180,
     chunks_lat=200,
     chunks_lon=200,
-):
+    already_monthly=False):
+    
     file_pattern = '*.nc'
 
     file_list = sorted(glob.glob(os.path.join(dir_path, file_pattern)))
 
-    data_raw = xr.open_mfdataset(
+    if already_monthly:
+        data_raw = xr.open_mfdataset(
         file_list,
         combine='by_coords',
-        chunks='auto'
-    )
+        chunks='auto',
+        decode_times=False
+        )
+
+        time_var = data_raw['time']
+        n_time = time_var.sizes['time']
+
+        time_index = pd.date_range('1979-01-01', periods=n_time, freq='MS')
+
+        data_raw = data_raw.assign_coords(time=time_index)
+
+    else:
+        data_raw = xr.open_mfdataset(
+            file_list,
+            combine='by_coords',
+            chunks='auto'
+        )
 
     data_raw = data_raw.rename({'lat': 'latitude', 'lon': 'longitude'})
 
@@ -59,19 +74,33 @@ def preprocess_racmo_monthly(
         da = da.where(mask, drop=True)
 
     # nearest grid point to a single (lat, lon) 
-    elif isinstance(lats, (int, float)) and \
-         isinstance(lons, (int, float)):
+    elif isinstance(lats, (int, float)) and isinstance(lons, (int, float)):
 
         target_lat = float(lats)
         target_lon = float(lons)
 
-        # squared distance in lat lon space
-        dist2 = (lat2d - target_lat)**2 + (lon2d - target_lon)**2
+        # convert to radians
+        lat_rad = np.deg2rad(lat2d)
+        lon_rad = np.deg2rad(lon2d)
+        target_lat_rad = np.deg2rad(target_lat)
+        target_lon_rad = np.deg2rad(target_lon)
+
+        # haversine great circle distance
+        dlat = lat_rad - target_lat_rad
+        dlon = lon_rad - target_lon_rad
+
+        a = (
+            np.sin(dlat / 2.0)**2
+            + np.cos(target_lat_rad)*np.cos(lat_rad)*np.sin(dlon / 2.0)**2
+        )
+
+        R = 6371.0  # Earth radius in km
+        dist = 2.0*R*np.arcsin(np.sqrt(a))  # distance in km
 
         # find indices of minimum distance
         ii, jj = np.unravel_index(
-            np.argmin(dist2.values),
-            dist2.shape
+            np.nanargmin(dist.values),
+            dist.shape
         )
 
         da = da.isel(rlat=[ii], rlon=[jj])
@@ -80,16 +109,20 @@ def preprocess_racmo_monthly(
         da = da - 273.15
         da.attrs['units'] = 'degC'
     elif var_name == 'precip':
-        da = da * 86400.0
+        # from kg/m2/s to mm/day
+        da = da*86400.0
         da.attrs['units'] = 'mm/day'
 
-    data_monthly_full = (
-        da
-        .resample(time='MS')
-        .mean('time')
-    )
+    if already_monthly: 
+        data_full = da
+    else:
+        data_full = (
+            da
+            .resample(time='MS')
+            .mean('time')
+        )
 
-    time_sel = data_monthly_full.time
+    time_sel = data_full.time
 
     # Month selection
     if months is not None:
@@ -107,7 +140,7 @@ def preprocess_racmo_monthly(
             time_sel = time_sel.where(time_sel.dt.year.isin(years), drop=True)
 
     data_monthly = (
-        data_monthly_full
+        data_full
         .sel(time=time_sel)
         .assign_coords(rotated_pole=rotpole_coord)
         .chunk({'time': chunks_time,
@@ -117,46 +150,3 @@ def preprocess_racmo_monthly(
     )
 
     return data_monthly
-
-# racmo = preprocess_racmo_monthly('/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/precip', 
-#                                 'precip',
-#                                 months=[6,7,8],
-#                                 years=[2000, 2020],
-#                                 lats=[35, 72],
-#                                 lons=[-12, 35])
-
-
-# #%%
-
-# import cartopy.crs as ccrs
-# from importlib import reload
-
-# import PlotMaps
-# reload(PlotMaps)          
-# from PlotMaps import plot_map 
-
-# rp = racmo['rotated_pole']
-# pole_lat = rp.grid_north_pole_latitude
-# pole_lon = rp.grid_north_pole_longitude
-# central_rlon = 18.0
-
-# rotpole = ccrs.RotatedPole(
-#     pole_latitude=pole_lat,
-#     pole_longitude=pole_lon,
-#     central_rotated_longitude=central_rlon,
-# )
-
-# plot_map(
-#     data=racmo.isel(time=0).squeeze().values,
-#     lon=racmo.lon.values,
-#     lat=racmo.lat.values,
-#     label='T2m (°C)',
-#     proj=ccrs.PlateCarree(),
-#     rotated_grid=False,
-#     x_ticks_num=False,
-#     x_ticks=15,
-#     y_ticks_num=False,
-#     y_ticks=5,
-#     figsize=(14, 12),
-#     extent=[-12, 35, 35, 72]
-# )

@@ -3,6 +3,7 @@
 # Standard libraries
 import numpy as np
 import pandas as pd
+import xarray as xr
 import matplotlib.pyplot as plt
 import os
 from importlib import reload
@@ -28,46 +29,71 @@ from ProcessRACMO import preprocess_racmo_monthly
 
 var = 'P'
 location = 'Cabauw'
-resolution = 'Fine'
+data_sources = ['KNMI', 'RACMO_monthly', 'ERA5_coarse']
 
-months = None
-years = [1987, 2024]
+months = [12, 1, 2]
+years = [1988, 2020]
+
+fit_against_gmst = True
 
 #%% Dataset configurations
+
+if fit_against_gmst:
+    fit_unit = '°C GMST'
+    fit_scaling = 1
+    fit_x_label = 'GMST Anomaly (°C)'
+else:
+    fit_unit = 'decade'
+    fit_scaling = 10
+    fit_x_label = 'Year'
 
 plot_cfg = {
     'Tg': {
         'ylabel_monthly': 'Temperature (°C)',
-        'ylabel_yearly':  'Temperature (°C)',
-        'trend_unit':     '°C / decade',
-        'ylim_monthly':   None,
-        'ylim_yearly':    None,
+        'ylabel_fit': 'Temperature (°C)',
+        'trend_unit': '°C / ' + fit_unit,
+        'ylim_monthly': None,
+        'ylim_fit': None,
     },
     'P': {
         'ylabel_monthly': 'Precipitation (mm)',
-        'ylabel_yearly':  'Daily precipitation (mm)',
-        'trend_unit':     'mm / decade',
-        'ylim_monthly':   None,
-        'ylim_yearly':    None,
+        'ylabel_fit': 'Daily precipitation (mm)',
+        'trend_unit': 'mm / ' + fit_unit,
+        'ylim_monthly': None,
+        'ylim_fit': None,
     },
 }
 
-
 # Variable names in each dataset
 var_name_cfg = {
-    'Eobs': {
+    'Eobs_fine': {
         'Tg': 'tg',
         'P': 'rr',
     },
-    'ERA5': {
+    'Eobs_coarse': {
+        'Tg': 'tg',
+        'P': 'rr',
+    },
+
+    'ERA5_fine': {
         'Tg': 't2m',
         'P': 'tp',
     },
+    'ERA5_coarse': {
+        'Tg': 't2m',
+        'P': 'tp',
+    },
+
     'KNMI': {
         'Tg': 'TG',
         'P': 'RH',
     },
-    'RACMO': {
+
+    'RACMO_daily': {
+        'Tg': 't2m',
+        'P': 'precip',
+    },
+    'RACMO_monthly': {
         'Tg': 't2m',
         'P': 'precip',
     },
@@ -75,56 +101,52 @@ var_name_cfg = {
 
 # File names per dataset
 file_cfg = {
-    'Eobs': {
-        'Fine': {
-            'Tg': 'tg_ens_mean_0.1deg_reg_v31.0e.nc',
-            'P':  'rr_ens_mean_0.1deg_reg_v31.0e.nc',
-        },
-        'Coarse': {
-            'Tg': 'tg_ens_mean_0.25deg_reg_v31.0e.nc',
-            'P':  'rr_ens_mean_0.25deg_reg_v31.0e.nc',
-        },
+    
+    'Eobs_fine': {
+        'Tg': 'tg_ens_mean_0.1deg_reg_v31.0e.nc',
+        'P': 'rr_ens_mean_0.1deg_reg_v31.0e.nc',
     },
-    'ERA5': {
-        'Fine': {
-            # both variables in one file
-            'Tg': 'era5_fine.nc',
-            'P':  'era5_fine.nc',
-        },
-        'Coarse': {
-            'Tg': 'era5_coarse_t2m.nc',
-            'P':  'era5_coarse_tp.nc',
-        },
+    'Eobs_coarse': {
+        'Tg': 'tg_ens_mean_0.25deg_reg_v31.0e.nc',
+        'P': 'rr_ens_mean_0.25deg_reg_v31.0e.nc',
     },
+
+    'ERA5_fine': {
+        'Tg': 'era5_fine.nc',
+        'P': 'era5_fine.nc',
+    },
+    'ERA5_coarse': {
+        'Tg': 'era5_coarse_t2m.nc',
+        'P': 'era5_coarse_tp.nc',
+    },
+
     'KNMI': {
-        # here the key is the station location instead of resolution
-        'Bilt': {
-            'Tg': 'KNMI_deBilt.txt',
-            'P':  'KNMI_deBilt.txt',
-        },
-        'Cabauw': {
-            'Tg': 'KNMI_Cabauw.txt',
-            'P':  'KNMI_Cabauw.txt',
-        },
+        'Tg': 'KNMI_' + location + '.txt',
+        'P': 'KNMI_' + location + '.txt',
     },
-    'RACMO': {
-        # single special key: same for all "resolutions"
-        'Any': {
-            'Tg': 't2m',      # directory or identifier under base_dir
-            'P':  'precip',
-        },
+
+    'RACMO_daily': {
+        'Tg': 't2m',
+        'P': 'precip',
+    },
+    'RACMO_monthly': {
+        'Tg': 't2m',
+        'P': 'precip',
     },
 }
 
 # Base directories
 base_dir_cfg = {
-    'Eobs': '/nobackup/users/walj/eobs',
-    'ERA5': '/nobackup/users/walj/era5',
+    'Eobs_fine': '/nobackup/users/walj/eobs',
+    'Eobs_coarse': '/nobackup/users/walj/eobs',
+    'ERA5_fine': '/nobackup/users/walj/era5',
+    'ERA5_coarse': '/nobackup/users/walj/era5',
     'KNMI': '/nobackup/users/walj/knmi',
-    'RACMO': '/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data',
+    'RACMO_daily': '/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data',
+    'RACMO_monthly': '/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Monthly_data',
 }
 
-# Optional coordinates for KNMI stations
+# Coordinates of stations
 station_coord_cfg = {
     'Bilt': {
         'lat': 52.098872302947974,
@@ -138,94 +160,135 @@ station_coord_cfg = {
 
 cfg = {}
 
-for src in ['Eobs', 'ERA5', 'KNMI', 'RACMO']:
-
-    if src == 'KNMI':
-        file_key = location
-    elif src == 'RACMO':
-        file_key = 'Any'
-    else:
-        file_key = resolution
-
+for src in data_sources:
     cfg[src] = {
         'variable': var_name_cfg[src][var],
-        'file':     file_cfg[src][file_key][var],
+        'file': file_cfg[src][var],
         'base_dir': base_dir_cfg[src],
     }
 
 #%% Data loading and processing
+
+if months is None:
+    months = np.arange(1, 13)
+
+months = np.asarray(months, dtype=int)
+month_start = int(months[0])
+month_end   = int(months[-1])
+
+years_req = list(years)
+
+years_load = list(years_req)
+
+# if the season crosses the year boundary (eg DJF)
+# need December of the year before the first requested year
+if month_start > month_end:
+    years_load[0] = years_req[0] - 1
 
 lat_station = station_coord_cfg[location]['lat']
 lon_station = station_coord_cfg[location]['lon']
 
 data_all = {}
 
-for src, c in cfg.items():
-    input_file_data = os.path.join(c['base_dir'], c['file'])
+for src in data_sources:
+    input_file_data = os.path.join(cfg[src]['base_dir'], cfg[src]['file'])
 
-    if src == 'Eobs':
-        data_all['Eobs'] = preprocess_eobs_monthly(
+    if 'Eobs' in src:
+        data_all[src] = preprocess_eobs_monthly(
             file_path=input_file_data,
-            var_name=c['variable'],
+            var_name=cfg[src]['variable'],
             months=months,
-            years=years,
+            years=years_load,
             lats=lat_station,
             lons=lon_station,
         ).squeeze()
 
-    elif src == 'ERA5':
-        data_all['ERA5'] = preprocess_era5(
+    elif 'ERA5' in src:
+        data_all[src] = preprocess_era5(
             file_path=input_file_data,
-            var_name=c['variable'],
+            var_name=cfg[src]['variable'],
             months=months,
-            years=years,
+            years=years_load,
             lats=lat_station,
             lons=lon_station,
         ).squeeze()
 
-    elif src == 'KNMI':
-        data_all['KNMI'] = preprocess_knmi_monthly(
+    elif 'KNMI' in src:
+        data_all[src] = preprocess_knmi_monthly(
             file_path=input_file_data,
-            var_name=c['variable'],
+            var_name=cfg[src]['variable'],
             months=months,
-            years=years,
+            years=years_load,
         ).squeeze()
 
-    elif src == 'RACMO':
-        data_all['RACMO'] = preprocess_racmo_monthly(
+    elif 'RACMO' in src:
+        data_all[src] = preprocess_racmo_monthly(
             dir_path=input_file_data,
-            var_name=c['variable'],
+            var_name=cfg[src]['variable'],
             months=months,
-            years=years,
+            years=years_load,
             lats=lat_station,
             lons=lon_station,
+            already_monthly=('monthly' in src),
         ).squeeze()
 
 # Yearly aggregates:
 data_year = {}
 
-for src in data_all.keys():
-    da_year = data_all[src].resample(time='YS').mean()
-    year_coord = da_year['time'].dt.year.astype(float)
-    data_year[src] = (da_year
-                      .assign_coords(year=year_coord)
-                      .sortby('year'))
+for src in data_sources:
+    da = data_all[src]
+    month = da['time'].dt.month
+    year = da['time'].dt.year
+    
+    # if season stays within calendar year: clim_year = calendar year
+    # if season crosses year boundary: months >= month_start belong to next year
+    if month_start <= month_end:
+        clim_year = year
+    else:
+        clim_year = xr.where(month >= month_start, year + 1, year)
+
+    da = da.assign_coords(clim_year=clim_year)
+
+    da_year = da.groupby('clim_year').mean('time')
+
+    da_year = da_year.sel(clim_year=slice(years_req[0], years_req[1]))
+
+    time_coord = pd.to_datetime(da_year['clim_year'].values.astype(int).astype(str))
+    da_year = da_year.assign_coords(time=('clim_year', time_coord)).swap_dims({'clim_year': 'time'})
+
+    if fit_against_gmst:
+        file_GMST = '/nobackup/users/walj/era5/era5_gmst_anom.nc'
+        data_GMST = xr.open_dataset(file_GMST)
+        gmst_roll = data_GMST.rolling(time=10, center=False).mean()
+        gmst_full = gmst_roll['GMST']
+
+        gmst_sel = gmst_full.sel(time=da_year['time'])
+        fit_coord = gmst_sel.astype(float)
+
+    else:
+        fit_coord = da_year['clim_year'].astype(float)
+
+    da_year = da_year.assign_coords(fit_against=fit_coord)
+    data_year[src] = da_year
 
 #%% Monthly data
 
 colors = {
-    'Eobs':  '#4285F4',
-    'ERA5':  '#34A853',
-    'KNMI':  '#FBBC05',
-    'RACMO': '#EA4335',
+    'KNMI': "#000000",
+    'ERA5': "#0168DE",
+    'Eobs': "#00A236",
+    'RACMO': "#DB2525",
 }
 
 # fig, ax = plt.subplots(1, figsize=(12, 8))
 
-# for src in ['Eobs', 'ERA5', 'KNMI', 'RACMO']:
+# for src in data_sources:
+
+#     base_name = next(key for key in colors if key in src)
+#     color = next(colors[key] for key in colors if key in src)
 
 #     ax.plot(data_all[src].time, data_all[src].values, 
-#             c=colors[src], alpha=0.8, linewidth=2, label=src)
+#             c=color, alpha=0.8, linewidth=2, label=base_name)
     
 # ax.grid()
 # ax.set_xlabel('Year', fontsize=28)
@@ -243,68 +306,134 @@ colors = {
 
 #%% Yearly trends
 
-data_fits = {}
+trend_stats = {} 
 
-for src in data_year.keys():
+for src in data_sources:
 
-    fit = data_year[src].polyfit(dim='year', deg=1, skipna=True)
-    data_fits[src] = fit
+    x_arr = data_year[src]['fit_against'].values
+    y_arr = data_year[src].values
 
+    mask = np.isfinite(x_arr) & np.isfinite(y_arr)
+    x_clean = x_arr[mask]
+    y_clean = y_arr[mask]
+
+    coeffs, cov = np.polyfit(x_clean, y_clean, 1, cov=True)
+    slope = coeffs[0]
+    intercept = coeffs[1]
+
+    slope_std = np.sqrt(cov[0, 0]) # std of slope parameter
+    slope_trend = slope*fit_scaling
+    slope_trend_std = slope_std*fit_scaling
+
+    n = len(x_clean)
+    x_mean = x_clean.mean()
+    Sxx = np.sum((x_clean - x_mean)**2)
+
+    y_fit = slope*x_clean + intercept
+    resid = y_clean - y_fit
+    s2 = np.sum(resid**2) / (n - 2) # residual variance
+    s = np.sqrt(s2) # residual std
+
+    trend_stats[src] = {
+        'slope': slope,
+        'intercept': intercept,
+        'slope_trend': slope_trend,
+        'slope_trend_std': slope_trend_std,
+        'n': n,
+        'x_mean': x_mean,
+        'Sxx': Sxx,
+        's': s,
+    }
 
 fig, ax = plt.subplots(1, figsize=(12, 8))
 
-for src in ['Eobs', 'ERA5', 'KNMI', 'RACMO']:
+for src in data_sources:
 
-    slope = data_fits[src].polyfit_coefficients.sel(degree=1)
-    intercept = data_fits[src].polyfit_coefficients.sel(degree=0)
+    stats = trend_stats[src]
+    slope = stats['slope']
+    intercept = stats['intercept']
+    slope_trend = stats['slope_trend']
+    slope_trend_std = stats['slope_trend_std']
+    n = stats['n']
+    x_mean = stats['x_mean']
+    Sxx = stats['Sxx']
+    s = stats['s']
 
-    slope_decade = float(slope*10)
+    color = next(colors[key] for key in colors if key in src)
+    base_name = next(key for key in colors if key in src)
+    if base_name == 'KNMI':
+        base_name = 'Observed'
 
-    label = f'{src} (trend {slope_decade:.2f} {plot_cfg[var]["trend_unit"]})'
-
-    ax.plot(
-        data_year[src].time,
-        data_year[src].values,
-        c=colors[src],
-        linewidth=3,
-        alpha=1,
-        label=label,
+    label = (
+        f'{base_name} (trend: {slope_trend:.2f} ± {slope_trend_std:.2f} '
+        f'{plot_cfg[var]["trend_unit"]})'
     )
 
-    years_plot = data_year[src]['year']
-    trend_vals = intercept + slope*years_plot
+    x_arr = data_year[src]['fit_against'].values
+    y_arr = data_year[src].values
+    mask = np.isfinite(x_arr) & np.isfinite(y_arr)
+    x_clean = x_arr[mask]
+    y_clean = y_arr[mask]
+
+    order = np.argsort(x_clean)
+    x_sorted = x_clean[order]
+    y_sorted = y_clean[order]
+
+    ax.scatter(
+        x_sorted,
+        y_sorted,
+        c=color,
+        s=100,
+        alpha=0.7,
+        zorder=10
+    )
+
+    y_trend = intercept + slope*x_sorted
+
+    se_mean = s*np.sqrt(1.0 / n + (x_sorted - x_mean)**2 / Sxx)
+    t_val = 1.96
+    y_hi = y_trend + t_val*se_mean
+    y_lo = y_trend - t_val*se_mean
 
     ax.plot(
-        data_year[src].time,
-        trend_vals,
-        c=colors[src],
+        x_sorted,
+        y_trend,
+        c=color,
         linewidth=3,
         alpha=1,
-        linestyle='--'
+        label=label
+    )
+
+    ax.fill_between(
+        x_sorted,
+        y_lo,
+        y_hi,
+        color=color,
+        alpha=0.15,
+        linewidth=0,
     )
 
 ax.grid()
-ax.set_xlabel('Year', fontsize=28)
-ax.set_ylabel(plot_cfg[var]['ylabel_yearly'], fontsize=28)
+ax.set_xlabel(fit_x_label, fontsize=28)
+ax.set_ylabel(plot_cfg[var]['ylabel_fit'], fontsize=28)
 ax.tick_params(axis='both', labelsize=20, length=6)
 
-if plot_cfg[var]['ylim_yearly'] is not None:
-    ax.set_ylim(*plot_cfg[var]['ylim_yearly'])
-# ax.set_xlim(pd.Timestamp(f'{years[0]}-01-01'),
-#             pd.Timestamp(f'{years[1]}-12-31'))
+if plot_cfg[var]['ylim_fit'] is not None:
+    ax.set_ylim(*plot_cfg[var]['ylim_fit'])
 
-leg=ax.legend(fontsize=18, handlelength=1.5, handletextpad=0.4, loc='best')
+leg = ax.legend(fontsize=18, handlelength=1.5, handletextpad=0.4, loc='best')
 for line in leg.get_lines():
     line.set_linewidth(4.0)
+leg.set_zorder(20)
 
+# labels for CF en line ook.
 
-
-# Misschien alle datasets (dus ook coarse en fine) in 1 figuur?
-
-
-# Ik zie nauwelijks een trend voor P? Maar op deze website wel... https://www.knmi.nl/klimaat
-# Enorm grote waarde aan het begin van KNMI cabauw?? Komt doordat het eerste jaar geen wintertemperaturen heeft.
-# Maybe yearly sums and not daily averages for precipitation?
-# Cabauw is missing data before 1986....
 # Misschien max en minimum temperatures?
-# Eobs best slecht voor coarse
+
+
+# colors = {
+#     'Eobs':  '#4285F4',
+#     'ERA5':  '#34A853',
+#     'KNMI':  '#FBBC05',
+#     'RACMO': '#EA4335',
+# }
