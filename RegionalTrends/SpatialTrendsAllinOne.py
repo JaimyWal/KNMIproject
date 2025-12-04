@@ -34,25 +34,25 @@ from ProcessRACMO import preprocess_racmo_monthly
 
 var = 'P'
 data_base = 'ERA5_coarse'
-data_compare = 'RACMO'
+data_compare = None
 
-months = [12, 1, 2]
+months = [6, 7, 8]
 years = [1987, 2020]
 lats = [20, 75]
 lons = [-40, 56]
 
 avg_crange = [-1, 1]
-trend_crange = [-0.3, 0.3]
+trend_crange = [-20, 20]
 use_rotpole = True
 cut_boundaries = False
 plot_lats = [35, 70]
 plot_lons = [-10, 35]
 switch_sign = False
 
-relative_precip = False
+relative_precip = True
 rolling_mean_var = False
 fit_against_gmst = False
-rolling_mean_years = 5
+rolling_mean_years = 1
 min_periods = 1
 
 #%% Dataset configurations
@@ -394,105 +394,139 @@ else:
 
 #%% Process data
 
-base_res = process_source(data_base)
-cfg_base = base_res['cfg']
-data_avg_base = base_res['data_avg']
-data_fit_base = base_res['data_fit']
+def process_data(data_base, data_compare=None, minus_sign=False):
 
-if data_compare is None:
-    fits_base = data_fit_base.polyfit(dim='fit_against', deg=1, skipna=True)
-    slope_base = fits_base.polyfit_coefficients.sel(degree=1)
-    trend_base = (slope_base*fit_scaling).astype('float32').compute()
+    base_res = process_source(data_base)
+    cfg_base = base_res['cfg']
+    data_avg_base = base_res['data_avg']
+    data_fit_base = base_res['data_fit']
 
-    if relative_precip and var == 'P':
-        trend_plot_base = (trend_base / data_avg_base)*100.0
+    if data_compare is None:
+        fits_base = data_fit_base.polyfit(dim='fit_against', deg=1, skipna=True)
+        slope_base = fits_base.polyfit_coefficients.sel(degree=1)
+        trend_base = (slope_base*fit_scaling).astype('float32').compute()
+
+        if relative_precip and var == 'P':
+            trend_plot_base = (trend_base / data_avg_base)*100.0
+        else:
+            trend_plot_base = trend_base
+
+        data_avg_plot = data_avg_base
+        trend_plot = trend_plot_base
+
+    elif data_compare is not None:
+
+        comp_res = process_source(data_compare)
+        data_avg_comp = comp_res['data_avg']
+        data_fit_comp = comp_res['data_fit']
+
+        trg_grid = data_avg_base
+        src_grid = data_avg_comp
+
+        is_racmo_base = (cfg_base['file_key'] == 'RACMO')
+        is_racmo_comp = (comp_res['cfg']['file_key'] == 'RACMO')
+
+        if var == 'P' and is_racmo_comp and not is_racmo_base:
+            src_grid = racmo_bounds_grid(ds_racmo_grid, lats, lons, rotpole_native)
+
+        elif var == 'P' and is_racmo_base and not is_racmo_comp:
+            trg_grid = racmo_bounds_grid(ds_racmo_grid, lats, lons, rotpole_native)
+
+        if var == 'P':
+            method = 'conservative_normed'
+        else:
+            method = 'bilinear'
+
+        regridder = xe.Regridder(
+            src_grid,
+            trg_grid,
+            method,
+            unmapped_to_nan=True,
+        )
+
+        target_chunks = {'latitude': 100, 'longitude': 100}
+
+        data_avg_comp_reg = regridder(
+            data_avg_comp,
+            output_chunks=target_chunks
+        ).astype('float32')
+
+        data_fit_comp_reg = regridder(
+            data_fit_comp,
+            output_chunks=target_chunks
+        ).astype('float32')
+
+        fits_base = data_fit_base.polyfit(dim='fit_against', deg=1, skipna=True)
+        slope_base = fits_base.polyfit_coefficients.sel(degree=1)
+        trend_base = (slope_base*fit_scaling).astype('float32').compute()
+
+        fits_comp = data_fit_comp_reg.polyfit(dim='fit_against', deg=1, skipna=True)
+        slope_comp = fits_comp.polyfit_coefficients.sel(degree=1)
+        trend_comp = (slope_comp*fit_scaling).astype('float32').compute()
+
+        if relative_precip and var == 'P':
+            trend_plot_base = (trend_base / data_avg_base)*100.0
+            trend_plot_comp = (trend_comp / data_avg_comp_reg)*100.0
+        else:
+            trend_plot_base = trend_base
+            trend_plot_comp = trend_comp
+
+        if minus_sign:
+            minus_scaling = -1
+        else:
+            minus_scaling = 1
+
+        data_avg_plot = minus_scaling*(data_avg_comp_reg - data_avg_base).compute()
+        trend_plot = minus_scaling*(trend_plot_comp - trend_plot_base).compute()
+
+    lat_plot = data_avg_plot['latitude'].values
+    lon_plot = data_avg_plot['longitude'].values
+
+    return data_avg_plot, trend_plot, lat_plot, lon_plot
+
+#%% Plotting
+
+# data_avg_plot1, trend_plot1, lat_plot1, lon_plot1 = process_data('ERA5_coarse', 'RACMO')
+# data_avg_plot2, trend_plot2, lat_plot2, lon_plot2 = process_data('ERA5_coarse', 'Eobs_coarse', minus_sign=True)
+# data_avg_plot3, trend_plot3, lat_plot3, lon_plot3 = process_data('Eobs_fine', 'RACMO')
+
+data_avg_plot1, trend_plot1, lat_plot1, lon_plot1 = process_data('ERA5_coarse')
+data_avg_plot2, trend_plot2, lat_plot2, lon_plot2 = process_data('RACMO')
+data_avg_plot3, trend_plot3, lat_plot3, lon_plot3 = process_data('Eobs_fine')
+
+#%%
+
+import matplotlib.ticker as mticker
+from matplotlib.ticker import MultipleLocator
+
+def get_cbar_extension(datasets, crange):
+    dmin = min(float(np.nanmin(d)) for d in datasets)
+    dmax = max(float(np.nanmax(d)) for d in datasets)
+
+    vmin, vmax = crange
+    if dmin < vmin and dmax > vmax:
+        return 'both'
+    elif dmin < vmin and dmax <= vmax:
+        return 'min'
+    elif dmin >= vmin and dmax > vmax:
+        return 'max'
     else:
-        trend_plot_base = trend_base
+        return 'neither'
 
-    data_avg_plot = data_avg_base
-    trend_plot = trend_plot_base
-
-elif data_compare is not None:
-
-    comp_res = process_source(data_compare)
-    data_avg_comp = comp_res['data_avg']
-    data_fit_comp = comp_res['data_fit']
-
-    trg_grid = data_avg_base
-    src_grid = data_avg_comp
-
-    is_racmo_base = (cfg_base['file_key'] == 'RACMO')
-    is_racmo_comp = (comp_res['cfg']['file_key'] == 'RACMO')
-
-    if var == 'P' and is_racmo_comp and not is_racmo_base:
-        src_grid = racmo_bounds_grid(ds_racmo_grid, lats, lons, rotpole_native)
-
-    elif var == 'P' and is_racmo_base and not is_racmo_comp:
-        trg_grid = racmo_bounds_grid(ds_racmo_grid, lats, lons, rotpole_native)
-
-    if var == 'P':
-        method = 'conservative_normed'
-    else:
-        method = 'bilinear'
-
-    regridder = xe.Regridder(
-        src_grid,
-        trg_grid,
-        method,
-        unmapped_to_nan=True,
-    )
-
-    target_chunks = {'latitude': 100, 'longitude': 100}
-
-    data_avg_comp_reg = regridder(
-        data_avg_comp,
-        output_chunks=target_chunks
-    ).astype('float32')
-
-    data_fit_comp_reg = regridder(
-        data_fit_comp,
-        output_chunks=target_chunks
-    ).astype('float32')
-
-    fits_base = data_fit_base.polyfit(dim='fit_against', deg=1, skipna=True)
-    slope_base = fits_base.polyfit_coefficients.sel(degree=1)
-    trend_base = (slope_base*fit_scaling).astype('float32').compute()
-
-    fits_comp = data_fit_comp_reg.polyfit(dim='fit_against', deg=1, skipna=True)
-    slope_comp = fits_comp.polyfit_coefficients.sel(degree=1)
-    trend_comp = (slope_comp*fit_scaling).astype('float32').compute()
-
-    if relative_precip and var == 'P':
-        trend_plot_base = (trend_base / data_avg_base)*100.0
-        trend_plot_comp = (trend_comp / data_avg_comp_reg)*100.0
-    else:
-        trend_plot_base = trend_base
-        trend_plot_comp = trend_comp
-
-    if switch_sign:
-        minus_scaling = -1
-    else:
-        minus_scaling = 1
-
-    data_avg_plot = minus_scaling*(data_avg_comp_reg - data_avg_base).compute()
-    trend_plot = minus_scaling*(trend_plot_comp - trend_plot_base).compute()
-
-lat_plot = data_avg_plot['latitude'].values
-lon_plot = data_avg_plot['longitude'].values
-
-#%% Calculate mean and plot
-
-fig, ax = plt.subplots(
-        1, figsize=(14, 12), 
+fig, (axs1, axs2, axs3) = plt.subplots(
+        nrows=1, ncols=3, figsize=(20, 6), 
         constrained_layout=True,
-        subplot_kw={'projection': proj}
+        subplot_kw={'projection': proj},
+        sharey=True
     )
 
-plot_map(
-    fig, ax,
-    data_avg_plot, 
-    lon_plot, 
-    lat_plot, 
+mesh1, _ = plot_map(
+    fig, axs1,
+    data_avg_plot1, 
+    lon_plot1, 
+    lat_plot1, 
+    # title='RACMO - ERA5',
+    title='ERA5',
     crange=cfg_plot['crange_mean'], 
     label=cfg_plot['label_mean'], 
     cmap=cfg_plot['cmap_mean'], 
@@ -500,28 +534,132 @@ plot_map(
     c_ticks=10,
     show_x_ticks=True,
     show_y_ticks=True,
+    show_y_labels=True,
     y_ticks_num=False,
     y_ticks=5,
     x_ticks_num=False,
     x_ticks=10,
     extent=[*plot_lons, *plot_lats],
     proj=proj,
-    rotated_grid=cut_boundaries
+    rotated_grid=cut_boundaries,
+    add_colorbar=False,
+    show_plot=False
 )
 
-#%% Linear trends and plot
+mesh2, _ = plot_map(
+    fig, axs2,
+    data_avg_plot2, 
+    lon_plot2, 
+    lat_plot2, 
+    # title='ERA5 - E-OBS',
+    title='RACMO',
+    crange=cfg_plot['crange_mean'], 
+    label=cfg_plot['label_mean'], 
+    cmap=cfg_plot['cmap_mean'], 
+    extreme_colors=cfg_plot['extreme_mean'],
+    c_ticks=10,
+    show_x_ticks=True,
+    show_y_ticks=True,
+    show_y_labels=False,
+    y_ticks_num=False,
+    y_ticks=5,
+    x_ticks_num=False,
+    x_ticks=10,
+    extent=[*plot_lons, *plot_lats],
+    proj=proj,
+    rotated_grid=cut_boundaries,
+    add_colorbar=False,
+    show_plot=False
+)
 
-fig, ax = plt.subplots(
-        1, figsize=(14, 12), 
+mesh3, _ = plot_map(
+    fig, axs3,
+    data_avg_plot3, 
+    lon_plot3, 
+    lat_plot3, 
+    # title='RACMO - E-OBS',
+    title='E-OBS',
+    crange=cfg_plot['crange_mean'], 
+    label=cfg_plot['label_mean'], 
+    cmap=cfg_plot['cmap_mean'], 
+    extreme_colors=cfg_plot['extreme_mean'],
+    c_ticks=10,
+    show_x_ticks=True,
+    show_y_ticks=True,
+    show_y_labels=False,
+    y_ticks_num=False,
+    y_ticks=5,
+    x_ticks_num=False,
+    x_ticks=10,
+    extent=[*plot_lons, *plot_lats],
+    proj=proj,
+    rotated_grid=cut_boundaries,
+    add_colorbar=False,
+    show_plot=False
+)
+
+extension = get_cbar_extension(
+    [data_avg_plot1, data_avg_plot2, data_avg_plot3],
+    cfg_plot['crange_mean']
+)
+
+fig.canvas.draw()
+
+pos1 = axs1.get_position()
+pos3 = axs3.get_position()
+
+cb_left   = pos1.x0
+cb_right  = pos3.x1
+cb_width  = cb_right - cb_left
+cb_height = 0.07       
+cb_bottom = pos1.y0 - 0.17   
+
+ax_cb = fig.add_axes([cb_left, cb_bottom, cb_width, cb_height])
+ax_cb.set_in_layout(False)
+
+cbar = plt.colorbar(
+    mesh1,
+    cax=ax_cb,
+    orientation='horizontal',
+    extend=extension,
+    location='bottom'
+)
+
+cbar.ax.tick_params(
+    labelsize=28,
+    direction='in',
+    length=8,
+    top=True,
+    bottom=True
+)
+
+c_ticks = 10
+c_ticks_num = True
+if c_ticks_num:
+    cbar.ax.xaxis.set_major_locator(mticker.MaxNLocator(nbins=c_ticks))
+else:
+    cbar.ax.xaxis.set_major_locator(MultipleLocator(c_ticks))
+
+cbar.set_label(cfg_plot['label_mean'], fontsize=40, labelpad=10)
+
+plt.show()
+
+#%%
+
+fig, (axs1, axs2, axs3) = plt.subplots(
+        nrows=1, ncols=3, figsize=(20, 6), 
         constrained_layout=True,
-        subplot_kw={'projection': proj}
+        subplot_kw={'projection': proj},
+        sharey=True
     )
 
-plot_map(
-    fig, ax,
-    trend_plot, 
-    lon_plot, 
-    lat_plot, 
+mesh1, _ = plot_map(
+    fig, axs1,
+    trend_plot1, 
+    lon_plot1, 
+    lat_plot1, 
+    # title='RACMO - ERA5',
+    title='ERA5',
     crange=cfg_plot['crange_trend'], 
     label=cfg_plot['label_trend'], 
     cmap=cfg_plot['cmap_trend'], 
@@ -529,14 +667,172 @@ plot_map(
     c_ticks=10,
     show_x_ticks=True,
     show_y_ticks=True,
+    show_y_labels=True,
     y_ticks_num=False,
     y_ticks=5,
     x_ticks_num=False,
     x_ticks=10,
     extent=[*plot_lons, *plot_lats],
     proj=proj,
-    rotated_grid=cut_boundaries
+    rotated_grid=cut_boundaries,
+    add_colorbar=False,
+    show_plot=False
 )
+
+mesh2, _ = plot_map(
+    fig, axs2,
+    trend_plot2, 
+    lon_plot2, 
+    lat_plot2, 
+    # title='ERA5 - E-OBS',
+    title='RACMO',
+    crange=cfg_plot['crange_trend'], 
+    label=cfg_plot['label_trend'], 
+    cmap=cfg_plot['cmap_trend'], 
+    extreme_colors=cfg_plot['extreme_trend'],
+    c_ticks=10,
+    show_x_ticks=True,
+    show_y_ticks=True,
+    show_y_labels=False,
+    y_ticks_num=False,
+    y_ticks=5,
+    x_ticks_num=False,
+    x_ticks=10,
+    extent=[*plot_lons, *plot_lats],
+    proj=proj,
+    rotated_grid=cut_boundaries,
+    add_colorbar=False,
+    show_plot=False
+)
+
+mesh3, _ = plot_map(
+    fig, axs3,
+    trend_plot3, 
+    lon_plot3, 
+    lat_plot3, 
+    # title='RACMO - E-OBS',
+    title='E-OBS',
+    crange=cfg_plot['crange_trend'], 
+    label=cfg_plot['label_trend'], 
+    cmap=cfg_plot['cmap_trend'], 
+    extreme_colors=cfg_plot['extreme_trend'],
+    c_ticks=10,
+    show_x_ticks=True,
+    show_y_ticks=True,
+    show_y_labels=False,
+    y_ticks_num=False,
+    y_ticks=5,
+    x_ticks_num=False,
+    x_ticks=10,
+    extent=[*plot_lons, *plot_lats],
+    proj=proj,
+    rotated_grid=cut_boundaries,
+    add_colorbar=False,
+    show_plot=False
+)
+
+extension = get_cbar_extension(
+    [trend_plot1, trend_plot2, trend_plot3],
+    cfg_plot['crange_trend']
+)
+
+fig.canvas.draw()
+
+pos1 = axs1.get_position()
+pos3 = axs3.get_position()
+
+cb_left   = pos1.x0
+cb_right  = pos3.x1
+cb_width  = cb_right - cb_left
+cb_height = 0.07      
+cb_bottom = pos1.y0 - 0.17   
+
+ax_cb = fig.add_axes([cb_left, cb_bottom, cb_width, cb_height])
+ax_cb.set_in_layout(False)
+
+cbar = plt.colorbar(
+    mesh1,
+    cax=ax_cb,
+    orientation='horizontal',
+    extend=extension,
+    location='bottom'
+)
+
+cbar.ax.tick_params(
+    labelsize=28,
+    direction='in',
+    length=8,
+    top=True,
+    bottom=True
+)
+
+c_ticks = 10
+c_ticks_num = True
+if c_ticks_num:
+    cbar.ax.xaxis.set_major_locator(mticker.MaxNLocator(nbins=c_ticks))
+else:
+    cbar.ax.xaxis.set_major_locator(MultipleLocator(c_ticks))
+
+cbar.set_label(cfg_plot['label_trend'], fontsize=40, labelpad=10)
+
+plt.show()
+
+
+#%% Linear trends and plot
+
+# fig, ax = plt.subplots(
+#         1, figsize=(14, 12), 
+#         constrained_layout=True,
+#         subplot_kw={'projection': proj}
+#     )
+
+# plot_map(
+#     fig, ax,
+#     data_avg_plot, 
+#     lon_plot, 
+#     lat_plot, 
+#     crange=cfg_plot['crange_mean'], 
+#     label=cfg_plot['label_mean'], 
+#     cmap=cfg_plot['cmap_mean'], 
+#     extreme_colors=cfg_plot['extreme_mean'],
+#     c_ticks=10,
+#     show_x_ticks=True,
+#     show_y_ticks=True,
+#     y_ticks_num=False,
+#     y_ticks=5,
+#     x_ticks_num=False,
+#     x_ticks=10,
+#     extent=[*plot_lons, *plot_lats],
+#     proj=proj,
+#     rotated_grid=cut_boundaries
+# )
+
+# fig, ax = plt.subplots(
+#         1, figsize=(14, 12), 
+#         constrained_layout=True,
+#         subplot_kw={'projection': proj}
+#     )
+
+# plot_map(
+#     fig, ax,
+#     trend_plot, 
+#     lon_plot, 
+#     lat_plot, 
+#     crange=cfg_plot['crange_trend'], 
+#     label=cfg_plot['label_trend'], 
+#     cmap=cfg_plot['cmap_trend'], 
+#     extreme_colors=cfg_plot['extreme_trend'],
+#     c_ticks=10,
+#     show_x_ticks=True,
+#     show_y_ticks=True,
+#     y_ticks_num=False,
+#     y_ticks=5,
+#     x_ticks_num=False,
+#     x_ticks=10,
+#     extent=[*plot_lons, *plot_lats],
+#     proj=proj,
+#     rotated_grid=cut_boundaries
+# )
 
 
 #%%
@@ -547,59 +843,4 @@ plot_map(
 
 # Misschien ook nog kijken of era5 boundaries niet nodig zijn ofzo.
 
-    # if var == 'P' and (is_racmo_base or is_racmo_comp):
-        
-    #     if is_racmo_base: 
-    #         data_carree = data_avg_comp 
-    #     elif is_racmo_comp: 
-    #         data_carree = data_avg_base 
 
-    #     lon_carree = data_carree['longitude'].values 
-    #     lat_carree = data_carree['latitude'].values 
-        
-    #     # grid spacing 
-    #     d_lon = float(np.abs(lon_carree[1] - lon_carree[0])) 
-    #     d_lat = float(np.abs(lat_carree[1] - lat_carree[0])) 
-        
-    #     # bounds from centers 
-    #     lon0_b = float(lon_carree[0] - d_lon / 2) 
-    #     lon1_b = float(lon_carree[-1] + d_lon / 2) 
-    #     lat0_b = float(lat_carree[0] - d_lat / 2) 
-    #     lat1_b = float(lat_carree[-1] + d_lat / 2) 
-        
-    #     # build rectilinear ERA5 grid for xESMF 
-    #     grid_carree = xe.util.grid_2d(lon0_b, lon1_b, d_lon, lat0_b, lat1_b, d_lat)
-
-    #     if is_racmo_base: 
-    #         src_grid = grid_carree 
-    #     elif is_racmo_comp: 
-    #         trg_grid = grid_carree
-
-
-    # if var == 'P' and is_racmo_comp and not is_racmo_base:
-    #     if 'y' in data_avg_comp_reg.dims:
-    #         data_avg_comp_reg = data_avg_comp_reg.rename({'y': 'latitude', 'x': 'longitude'})
-    #         data_fit_comp_reg = data_fit_comp_reg.rename({'y': 'latitude', 'x': 'longitude'})
-
-    #     data_avg_comp_reg = data_avg_comp_reg.assign_coords(
-    #         latitude=data_avg_base['latitude'],
-    #         longitude=data_avg_base['longitude'],
-    #     )
-    #     data_fit_comp_reg = data_fit_comp_reg.assign_coords(
-    #         latitude=data_fit_base['latitude'],
-    #         longitude=data_fit_base['longitude'],
-    #     )
-
-    # elif var == 'P' and is_racmo_base and not is_racmo_comp:
-    #     if 'rlat' in data_avg_comp_reg.dims:
-    #         data_avg_comp_reg = data_avg_comp_reg.rename({'rlat': 'latitude', 'rlon': 'longitude'})
-    #         data_fit_comp_reg = data_fit_comp_reg.rename({'rlat': 'latitude', 'rlon': 'longitude'})
-
-    #     data_avg_comp_reg = data_avg_comp_reg.assign_coords(
-    #         latitude=data_avg_base['latitude'],
-    #         longitude=data_avg_base['longitude'],
-    #     )
-    #     data_fit_comp_reg = data_fit_comp_reg.assign_coords(
-    #         latitude=data_fit_base['latitude'],
-    #         longitude=data_fit_base['longitude'],
-    #     )

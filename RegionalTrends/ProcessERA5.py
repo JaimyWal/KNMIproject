@@ -20,6 +20,10 @@ def preprocess_era5(
     lat1d = data_raw['latitude']
     lon1d = data_raw['longitude']
 
+    if lat1d[0] > lat1d[-1]:
+        da = da.isel(latitude=slice(None, None, -1))
+        lat1d = da['latitude']
+
     lat2d, lon2d = xr.broadcast(lat1d, lon1d)
     
     if isinstance(lats, (list, tuple)) and len(lats) == 2 and \

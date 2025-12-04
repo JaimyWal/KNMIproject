@@ -10,21 +10,21 @@ from matplotlib.ticker import MultipleLocator
 import matplotlib.path as mpath
 import os
 
-
-def plot_map(data, lon, lat,
+def plot_map(fig, ax, data, lon, lat,
              crange=None,
              label=None,
              cmap='viridis',
              interpolation=False,
              extent=None,
              cbar_orientation='vertical',
-             figsize=(12, 8),
              c_ticks=10,
              c_ticks_num=True,
              x_ticks=5,
              show_x_ticks=True,
+             show_x_labels=True,
              x_ticks_num=True,
              show_y_ticks=True,
+             show_y_labels=True,
              y_ticks=5,
              y_ticks_num=True,
              extreme_colors=False,
@@ -33,7 +33,11 @@ def plot_map(data, lon, lat,
              tick_size=28,
              proj=ccrs.PlateCarree(),
              rotated_grid=False,
-             save_name=None):
+             save_name=None,
+             add_colorbar=True,
+             title=None,
+             title_size=36,
+             show_plot=True):
 
     plt.rcParams['axes.unicode_minus'] = False # Nicer minus signs
 
@@ -80,11 +84,6 @@ def plot_map(data, lon, lat,
             cmap.set_over(over_color)
 
     # Plotting
-    fig, ax = plt.subplots(
-        1, figsize=figsize, constrained_layout=True,
-        subplot_kw={'projection': proj}
-    )
-
     ax.set_aspect('auto')
 
     ax.coastlines(resolution='10m', linewidth=1.5)
@@ -200,7 +199,7 @@ def plot_map(data, lon, lat,
         y_pad = 0.02*(lat_max - lat_min)
 
         # bottom longitude labels, rotated along meridian then +90 degrees
-        if show_x_ticks and xticks is not None:
+        if show_x_labels and show_x_ticks and xticks is not None:
             for x in xticks:
                 lons = np.array([x, x])
                 lats = np.array([lat_min, lat_min + dlat])
@@ -222,7 +221,7 @@ def plot_map(data, lon, lat,
                     clip_on=False
                 )
 
-        if show_y_ticks and yticks is not None:
+        if show_y_labels and show_y_ticks and yticks is not None:
             for y in yticks:
                 lons = np.array([lon_min, lon_min + dlon])
                 lats = np.array([y, y])
@@ -257,14 +256,23 @@ def plot_map(data, lon, lat,
             if show_y_ticks and yticks is not None:
                 ax.set_yticks(yticks, crs=ccrs.PlateCarree())
             else:
-                ax.set_yticks([])
+                ax.set_yticks(yticks, crs=ccrs.PlateCarree())
+                ax.tick_params(labelleft=False)
 
-            ax.xaxis.set_major_formatter(
-                LongitudeFormatter(number_format='.0f', degree_symbol='°')
-            )
-            ax.yaxis.set_major_formatter(
-                LatitudeFormatter(number_format='.0f', degree_symbol='°')
-            )
+            if show_x_labels:
+                ax.xaxis.set_major_formatter(
+                    LongitudeFormatter(number_format='.0f', degree_symbol='°')
+                )
+            else:
+                ax.tick_params(labelbottom=False)
+
+            if show_y_labels:
+                ax.yaxis.set_major_formatter(
+                    LatitudeFormatter(number_format='.0f', degree_symbol='°')
+                )
+            else:
+                ax.tick_params(labelleft=False)
+
             ax.tick_params(labelsize=tick_size, length=10)
 
         else: # rotated projection, but not rotated grid 
@@ -273,9 +281,9 @@ def plot_map(data, lon, lat,
             gl.xlabel_style = {'size': tick_size}
             gl.ylabel_style = {'size': tick_size}
 
-            gl.bottom_labels = show_x_ticks
+            gl.bottom_labels = show_x_labels
             gl.top_labels = False
-            gl.left_labels = show_y_ticks
+            gl.left_labels = show_y_labels
             gl.right_labels = False
 
             ax.xaxis.set_visible(False)
@@ -292,36 +300,51 @@ def plot_map(data, lon, lat,
     mesh.set_clim(crange)
 
     # colorbar
-    divider = make_axes_locatable(ax)
-    if cbar_orientation == 'vertical':
-        ax_cb = divider.append_axes('right', size='3.8%', pad=0.2, axes_class=plt.Axes)
-        fig.add_axes(ax_cb)
-        cbar = plt.colorbar(mesh, cax=ax_cb, extend=extension, orientation='vertical')
-        cbar.ax.tick_params(labelsize=ctick_size, direction='in',
-                            length=8, left=True, right=True)
-        if c_ticks_num:
-            cbar.ax.yaxis.set_major_locator(ticker.MaxNLocator(nbins=c_ticks))
-        else:
-            cbar.ax.yaxis.set_major_locator(MultipleLocator(c_ticks))
-    elif cbar_orientation == 'horizontal':
-        ax_cb = divider.append_axes('bottom', size='6%', pad=0.1, axes_class=plt.Axes)
-        fig.add_axes(ax_cb)
-        cbar = plt.colorbar(
-            mesh, cax=ax_cb, extend=extension,
-            orientation='horizontal', location='bottom'
-        )
-        cbar.ax.tick_params(labelsize=ctick_size, direction='in',
-                            length=8, top=True, bottom=True)
-        if c_ticks_num:
-            cbar.ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=c_ticks))
-        else:
-            cbar.ax.xaxis.set_major_locator(MultipleLocator(c_ticks))
+    cbar = None
 
-    cbar.set_label(label, fontsize=clabel_size, labelpad=10)
+    if add_colorbar:
+        divider = make_axes_locatable(ax)
+        if cbar_orientation == 'vertical':
+            ax_cb = divider.append_axes('right', size='3.8%', pad=0.2, axes_class=plt.Axes)
+            fig.add_axes(ax_cb)
+            # ax_cb.set_in_layout(False) 
+            cbar = plt.colorbar(mesh, cax=ax_cb, extend=extension, orientation='vertical')
+            cbar.ax.tick_params(labelsize=ctick_size, direction='in',
+                                length=8, left=True, right=True)
+            if c_ticks_num:
+                cbar.ax.yaxis.set_major_locator(ticker.MaxNLocator(nbins=c_ticks))
+            else:
+                cbar.ax.yaxis.set_major_locator(MultipleLocator(c_ticks))
+        elif cbar_orientation == 'horizontal':
+            ax_cb = divider.append_axes('bottom', size='6%', pad=0.1, axes_class=plt.Axes)
+            fig.add_axes(ax_cb)
+            ax_cb.set_in_layout(False) 
+            cbar = plt.colorbar(
+                mesh, cax=ax_cb, extend=extension,
+                orientation='horizontal', location='bottom'
+            )
+            cbar.ax.tick_params(labelsize=ctick_size, direction='in',
+                                length=8, top=True, bottom=True)
+            if c_ticks_num:
+                cbar.ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=c_ticks))
+            else:
+                cbar.ax.xaxis.set_major_locator(MultipleLocator(c_ticks))
+        
+        if cbar is not None:
+            cbar.set_label(label, fontsize=clabel_size, labelpad=10)
 
     if save_name is not None:
         folder = '/usr/people/walj/figures/'
         save_path = os.path.join(folder, save_name + '.jpg')
-        plt.savefig(save_path, format='jpg', bbox_inches='tight', dpi=800)
+        plt.savefig(save_path, 
+                    format='jpg', 
+                    bbox_inches='tight', 
+                    dpi=800)
 
-    plt.show()
+    if show_plot:
+        plt.show()
+
+    if title is not None:
+        ax.set_title(title, fontsize=title_size, fontweight='bold')
+
+    return mesh, cbar

@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import matplotlib.pyplot as plt
+import statsmodels.api as sm
 import os
 from importlib import reload
 
@@ -27,25 +28,36 @@ from ProcessRACMO import preprocess_racmo_monthly
 
 #%% User inputs
 
-var = 'P'
+var = 'Tg'
+relative_precip = False
 location = 'Cabauw'
 data_sources = ['KNMI', 'RACMO_monthly', 'ERA5_coarse']
 
 months = [12, 1, 2]
-years = [1988, 2020]
+years = [1987, 2020]
 
-fit_against_gmst = True
+fit_against_gmst = False
+rolling_mean_var = False
+rolling_mean_years = 1
+min_periods = None
 
 #%% Dataset configurations
 
 if fit_against_gmst:
     fit_unit = '°C GMST'
     fit_scaling = 1
-    fit_x_label = 'GMST Anomaly (°C)'
+    fit_x_label = 'ΔGMST (°C)'
 else:
     fit_unit = 'decade'
     fit_scaling = 10
     fit_x_label = 'Year'
+
+if relative_precip:
+    precip_label = 'Precipitation (% of climatology)'
+    precip_trend_unit = '% / ' + fit_unit
+else:
+    precip_label = 'Precipitation (mm)'
+    precip_trend_unit = 'mm / ' + fit_unit
 
 plot_cfg = {
     'Tg': {
@@ -56,9 +68,9 @@ plot_cfg = {
         'ylim_fit': None,
     },
     'P': {
-        'ylabel_monthly': 'Precipitation (mm)',
-        'ylabel_fit': 'Daily precipitation (mm)',
-        'trend_unit': 'mm / ' + fit_unit,
+        'ylabel_monthly': precip_label,
+        'ylabel_fit': precip_label,
+        'trend_unit': precip_trend_unit,
         'ylim_monthly': None,
         'ylim_fit': None,
     },
@@ -251,15 +263,22 @@ for src in data_sources:
 
     da_year = da.groupby('clim_year').mean('time')
 
-    da_year = da_year.sel(clim_year=slice(years_req[0], years_req[1]))
+    da_year = da_year.sel(clim_year=slice(years_req[0], years_req[-1]))
+
+    if relative_precip and var == 'P':
+        data_avg = da_year.mean(dim='clim_year')
+        da_year = 100*da_year / data_avg
 
     time_coord = pd.to_datetime(da_year['clim_year'].values.astype(int).astype(str))
     da_year = da_year.assign_coords(time=('clim_year', time_coord)).swap_dims({'clim_year': 'time'})
 
+    if rolling_mean_var:
+        da_year = da_year.rolling(time=rolling_mean_years, center=True, min_periods=min_periods).mean()
+
     if fit_against_gmst:
         file_GMST = '/nobackup/users/walj/era5/era5_gmst_anom.nc'
         data_GMST = xr.open_dataset(file_GMST)
-        gmst_roll = data_GMST.rolling(time=10, center=False).mean()
+        gmst_roll = data_GMST.rolling(time=rolling_mean_years, center=True, min_periods=min_periods).mean()
         gmst_full = gmst_roll['GMST']
 
         gmst_sel = gmst_full.sel(time=da_year['time'])
@@ -317,32 +336,27 @@ for src in data_sources:
     x_clean = x_arr[mask]
     y_clean = y_arr[mask]
 
-    coeffs, cov = np.polyfit(x_clean, y_clean, 1, cov=True)
-    slope = coeffs[0]
-    intercept = coeffs[1]
+    # Add intercept column
+    X = sm.add_constant(x_clean)
 
-    slope_std = np.sqrt(cov[0, 0]) # std of slope parameter
+    # Fit Ordinary Least Squares
+    model = sm.OLS(y_clean, X).fit()
+
+    slope = model.params[1]
+    intercept = model.params[0]
+
+    slope_std = model.bse[1]
     slope_trend = slope*fit_scaling
     slope_trend_std = slope_std*fit_scaling
 
-    n = len(x_clean)
-    x_mean = x_clean.mean()
-    Sxx = np.sum((x_clean - x_mean)**2)
-
-    y_fit = slope*x_clean + intercept
-    resid = y_clean - y_fit
-    s2 = np.sum(resid**2) / (n - 2) # residual variance
-    s = np.sqrt(s2) # residual std
-
     trend_stats[src] = {
+        'model': model,
+        'x_clean': x_clean,
+        'y_clean': y_clean,
         'slope': slope,
         'intercept': intercept,
         'slope_trend': slope_trend,
         'slope_trend_std': slope_trend_std,
-        'n': n,
-        'x_mean': x_mean,
-        'Sxx': Sxx,
-        's': s,
     }
 
 fig, ax = plt.subplots(1, figsize=(12, 8))
@@ -350,14 +364,12 @@ fig, ax = plt.subplots(1, figsize=(12, 8))
 for src in data_sources:
 
     stats = trend_stats[src]
-    slope = stats['slope']
-    intercept = stats['intercept']
+    model = stats['model']
+    x_clean = stats['x_clean']
+    y_clean = stats['y_clean']
+
     slope_trend = stats['slope_trend']
     slope_trend_std = stats['slope_trend_std']
-    n = stats['n']
-    x_mean = stats['x_mean']
-    Sxx = stats['Sxx']
-    s = stats['s']
 
     color = next(colors[key] for key in colors if key in src)
     base_name = next(key for key in colors if key in src)
@@ -369,31 +381,36 @@ for src in data_sources:
         f'{plot_cfg[var]["trend_unit"]})'
     )
 
-    x_arr = data_year[src]['fit_against'].values
-    y_arr = data_year[src].values
-    mask = np.isfinite(x_arr) & np.isfinite(y_arr)
-    x_clean = x_arr[mask]
-    y_clean = y_arr[mask]
-
     order = np.argsort(x_clean)
     x_sorted = x_clean[order]
     y_sorted = y_clean[order]
+    
+    X_sorted = sm.add_constant(x_sorted)
+    pred = model.get_prediction(X_sorted)
+    frame = pred.summary_frame(alpha=0.05)  # 95 percent CI
 
-    ax.scatter(
-        x_sorted,
-        y_sorted,
-        c=color,
-        s=100,
-        alpha=0.7,
-        zorder=10
+    y_trend = frame['mean'].values
+    y_lo = frame['mean_ci_lower'].values
+    y_hi = frame['mean_ci_upper'].values
+    
+    # ax.scatter(
+    #     x_sorted,
+    #     y_sorted,
+    #     c=color,
+    #     s=100,
+    #     alpha=0.7,
+    #     zorder=10
+    # )
+
+    ax.plot(
+            x_sorted,
+            y_sorted,
+            c=color,
+            linewidth=2.5,
+            zorder=10,
+            ms=6,
+            marker='o'
     )
-
-    y_trend = intercept + slope*x_sorted
-
-    se_mean = s*np.sqrt(1.0 / n + (x_sorted - x_mean)**2 / Sxx)
-    t_val = 1.96
-    y_hi = y_trend + t_val*se_mean
-    y_lo = y_trend - t_val*se_mean
 
     ax.plot(
         x_sorted,
@@ -430,6 +447,7 @@ leg.set_zorder(20)
 
 # Misschien max en minimum temperatures?
 
+# Relative precipitation?
 
 # colors = {
 #     'Eobs':  '#4285F4',
@@ -437,3 +455,205 @@ leg.set_zorder(20)
 #     'KNMI':  '#FBBC05',
 #     'RACMO': '#EA4335',
 # }
+
+# #%% Yearly series + rolling means per data source (separate figures)
+# # and differences relative to observations (KNMI)
+
+# ref_src = 'KNMI'   # reference observations
+
+# for src in data_sources:
+#     da_year = data_year[src]
+
+#     # x coordinate in time
+#     time_coord = da_year['time']
+#     y_yearly = da_year
+
+#     # optional: anomalies relative to some internal ref period
+#     # ref = da_year.sel(time=slice('1940', '1970')).mean()
+#     # y_anom = da_year - ref
+#     # for now: raw yearly data
+#     y_anom = da_year
+
+#     roll3      = y_anom.rolling(time=3, center=True).mean()
+#     roll5      = y_anom.rolling(time=5, center=True).mean()
+#     roll7      = y_anom.rolling(time=7, center=True).mean()
+#     roll3_edge = y_anom.rolling(time=3, center=True, min_periods=1).mean()
+#     roll5_edge = y_anom.rolling(time=5, center=True, min_periods=1).mean()
+#     roll7_edge = y_anom.rolling(time=7, center=True, min_periods=1).mean()
+
+#     # nicer name for panel and legend
+#     base_key = next(key for key in colors if key in src)
+#     name = 'Observed' if base_key == 'KNMI' else base_key
+
+#     # ========== 1) Absolute yearly series + rolling means ==========
+#     fig, ax = plt.subplots(1, figsize=(12, 8))
+
+#     # yearly series
+#     ax.plot(
+#         time_coord,
+#         y_anom.values,
+#         c='xkcd:black',
+#         linewidth=2,
+#         label=f'{name} yearly'
+#     )
+
+#     # 3 year rolling mean
+#     ax.plot(
+#         roll3['time'],
+#         roll3.values,
+#         c='xkcd:red',
+#         linewidth=3,
+#         label='3 year rolling mean'
+#     )
+#     ax.plot(
+#         roll3_edge['time'],
+#         roll3_edge.values,
+#         c='xkcd:red',
+#         linewidth=3,
+#         linestyle='--'
+#     )
+
+#     # 5 year rolling mean
+#     ax.plot(
+#         roll5['time'],
+#         roll5.values,
+#         c='xkcd:green',
+#         linewidth=3,
+#         label='5 year rolling mean'
+#     )
+#     ax.plot(
+#         roll5_edge['time'],
+#         roll5_edge.values,
+#         c='xkcd:green',
+#         linewidth=3,
+#         linestyle='--'
+#     )
+
+#     # 7 year rolling mean
+#     ax.plot(
+#         roll7['time'],
+#         roll7.values,
+#         c='xkcd:blue',
+#         linewidth=3,
+#         label='7 year rolling mean'
+#     )
+#     ax.plot(
+#         roll7_edge['time'],
+#         roll7_edge.values,
+#         c='xkcd:blue',
+#         linewidth=3,
+#         linestyle='--'
+#     )
+
+#     ax.set_xlabel('Year', fontsize=28)
+#     ax.set_ylabel(plot_cfg[var]['ylabel_fit'], fontsize=28)
+#     ax.tick_params(axis='both', labelsize=20, length=6)
+#     ax.grid()
+#     ax.set_title(name, fontsize=24)
+
+#     leg = ax.legend(
+#         fontsize=18,
+#         handlelength=1.5,
+#         handletextpad=0.4,
+#         loc='best'
+#     )
+#     for line in leg.get_lines():
+#         line.set_linewidth(4.0)
+
+#     # ========== 2) Differences relative to observations ==========
+#     # skip for the reference dataset itself
+#     if ref_src in src:
+#         continue
+
+#     da_ref = data_year[ref_src]
+
+#     # align in time, just in case there is a mismatch
+#     da_model_aligned, da_ref_aligned = xr.align(
+#         da_year,
+#         da_ref,
+#         join='inner'
+#     )
+
+#     diff = da_model_aligned - da_ref_aligned
+
+#     diff_roll3      = diff.rolling(time=3, center=True).mean()
+#     diff_roll5      = diff.rolling(time=5, center=True).mean()
+#     diff_roll7      = diff.rolling(time=7, center=True).mean()
+#     diff_roll3_edge = diff.rolling(time=3, center=True, min_periods=1).mean()
+#     diff_roll5_edge = diff.rolling(time=5, center=True, min_periods=1).mean()
+#     diff_roll7_edge = diff.rolling(time=7, center=True, min_periods=1).mean()
+
+#     fig, ax = plt.subplots(1, figsize=(12, 8))
+
+#     # yearly difference
+#     ax.plot(
+#         diff['time'],
+#         diff.values,
+#         c='xkcd:black',
+#         linewidth=2,
+#         label=f'{name} - Observed yearly'
+#     )
+
+#     # 3 year rolling mean of difference
+#     ax.plot(
+#         diff_roll3['time'],
+#         diff_roll3.values,
+#         c='xkcd:red',
+#         linewidth=3,
+#         label='3 year rolling mean difference'
+#     )
+#     ax.plot(
+#         diff_roll3_edge['time'],
+#         diff_roll3_edge.values,
+#         c='xkcd:red',
+#         linewidth=3,
+#         linestyle='--'
+#     )
+
+#     # 5 year rolling mean of difference
+#     ax.plot(
+#         diff_roll5['time'],
+#         diff_roll5.values,
+#         c='xkcd:green',
+#         linewidth=3,
+#         label='5 year rolling mean difference'
+#     )
+#     ax.plot(
+#         diff_roll5_edge['time'],
+#         diff_roll5_edge.values,
+#         c='xkcd:green',
+#         linewidth=3,
+#         linestyle='--'
+#     )
+
+#     # 7 year rolling mean of difference
+#     ax.plot(
+#         diff_roll7['time'],
+#         diff_roll7.values,
+#         c='xkcd:blue',
+#         linewidth=3,
+#         label='7 year rolling mean difference'
+#     )
+#     ax.plot(
+#         diff_roll7_edge['time'],
+#         diff_roll7_edge.values,
+#         c='xkcd:blue',
+#         linewidth=3,
+#         linestyle='--'
+#     )
+
+#     ax.set_xlabel('Year', fontsize=28)
+#     ax.set_ylabel(f'{plot_cfg[var]["ylabel_fit"]} difference', fontsize=28)
+#     ax.tick_params(axis='both', labelsize=20, length=6)
+#     ax.grid()
+#     ax.set_title(f'{name} minus Observed', fontsize=24)
+
+#     leg = ax.legend(
+#         fontsize=16,
+#         handlelength=1.5,
+#         handletextpad=0.4,
+#         loc='best'
+#     )
+#     for line in leg.get_lines():
+#         line.set_linewidth(4.0)
+
