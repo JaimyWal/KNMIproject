@@ -18,43 +18,37 @@ import PlotMaps
 reload(PlotMaps)          
 from PlotMaps import plot_map 
 
-import ProcessNetCDF
-reload(ProcessNetCDF)          
-from ProcessNetCDF import preprocess_netcdf_monthly, subset_space
+import ProcessEobs
+reload(ProcessEobs)          
+from ProcessEobs import preprocess_eobs_monthly 
+
+import ProcessERA5
+reload(ProcessERA5)          
+from ProcessERA5 import preprocess_era5 
+
+import ProcessRACMO
+reload(ProcessRACMO)          
+from ProcessRACMO import preprocess_racmo_monthly 
 
 #%% User inputs
 
-# Main arguments
-var = 'Tg'
-data_base = 'Eobs_fine'
-data_compare = None
+var = 'P'
+data_base = 'ERA5_coarse'
+data_compare = 'RACMO'
 
-# Data selection arguments
 months = [12, 1, 2]
-years = [2016, 2020]
-lats = [38, 63]
-lons = [-13, 22]
-trim_border = None
-rect_sel = True
-# Hier misschien ook argument voor land only? (of bij plotten?)
+years = [1987, 2020]
+lats = [20, 75]
+lons = [-40, 56]
 
-# Area selection arguments
-lats_area = [45, 60.0]
-lons_area = [0.5, 10.5]
-proj_area = None
-land_only = True
-
-# Plotting arguments
-avg_crange = [-15, 15]
-trend_crange = [-4, 4]
+avg_crange = [-1, 1]
+trend_crange = [-0.3, 0.3]
 use_rotpole = True
-rot_pole = '2.4'
 cut_boundaries = False
-plot_lats = [38, 63]
-plot_lons = [-13, 22]
+plot_lats = [35, 70]
+plot_lons = [-10, 35]
 switch_sign = False
 
-# Other arguments
 relative_precip = False
 rolling_mean_var = False
 fit_against_gmst = False
@@ -68,7 +62,7 @@ try:
 except ValueError:
     client = Client(n_workers=1, threads_per_worker=8, processes=False)
 
-sources = ['Eobs', 'ERA5', 'RACMO2.3', 'RACMO2.4']
+sources = ['Eobs', 'ERA5', 'RACMO']
 
 if fit_against_gmst:
     fit_unit = '°C GMST'
@@ -82,10 +76,15 @@ if relative_precip:
 else:
     precip_trend_label = 'Trend (mm / ' + fit_unit + ')'
 
+if data_compare is not None:
+    label_prefix = 'Difference in '
+if data_compare is None:
+    label_prefix = ''
+
 plot_cfg = {
     'Tg': {
-        'label_mean': r'Temperature (°C)',
-        'label_trend': r'Trend (°C / ' + fit_unit + ')',
+        'label_mean': label_prefix + r'Temperature (°C)',
+        'label_trend': label_prefix + r'Trend (°C / ' + fit_unit + ')',
         'cmap_mean': 'Spectral_r',
         'cmap_trend': cmaps.temp_19lev,
         'crange_mean': avg_crange,
@@ -94,8 +93,8 @@ plot_cfg = {
         'extreme_trend': ("#000020", "#350000"),
     },
     'P': {
-        'label_mean': 'Precipitation (mm)',
-        'label_trend': precip_trend_label,
+        'label_mean': label_prefix + 'Precipitation (mm)',
+        'label_trend': label_prefix + precip_trend_label,
         'cmap_mean': cmocean.cm.rain,
         'cmap_trend': plt.get_cmap('BrBG', 20),
         'crange_mean': avg_crange,
@@ -109,8 +108,6 @@ cfg_plot = plot_cfg[var]
 if data_compare is not None:
     cfg_plot['cmap_mean'] = cfg_plot['cmap_trend']
     cfg_plot['extreme_mean'] = cfg_plot['extreme_trend']
-    cfg_plot['label_mean'] = 'Difference in ' + cfg_plot['label_mean']
-    cfg_plot['label_trend'] = 'Difference in ' + cfg_plot['label_trend']
 
 var_name_cfg = {
     'Eobs': {
@@ -121,13 +118,9 @@ var_name_cfg = {
         'Tg': 't2m',
         'P': 'tp',
     },
-    'RACMO2.3': {
+    'RACMO': {
         'Tg': 't2m',
         'P': 'precip',
-    },
-    'RACMO2.4': {
-        'Tg': 'tas',
-        'P': 'pr',
     },
 }
 
@@ -150,71 +143,17 @@ file_cfg = {
         'P': 'era5_coarse_full_tp.nc',
     },
 
-    'RACMO2.3': {
-        'Tg': 't2m/*.nc',
-        'P': 'precip/*.nc',
-    },
-    'RACMO2.4': {
-        'Tg': 'tas_*.nc',
-        'P': 'pr_*.nc',
+    'RACMO': {
+        'Tg': 't2m',
+        'P': 'precip',
     },
 }
 
 base_dir_cfg = {
     'Eobs': '/nobackup/users/walj/eobs',
     'ERA5': '/nobackup/users/walj/era5',
-    'RACMO2.3': '/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Monthly_data',
-    'RACMO2.4': '/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly',
+    'RACMO': '/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Monthly_data',
 }
-
-#%% Obtain rotated grid
-
-def load_rotpole(rotpole_dir, rotpole_file):
-
-    ds = xr.open_dataset(os.path.join(rotpole_dir, rotpole_file))
-
-    rp = ds['rotated_pole']
-    pole_lat = rp.grid_north_pole_latitude
-    pole_lon = rp.grid_north_pole_longitude
-
-    rotpole = ccrs.RotatedPole(
-        pole_latitude=pole_lat,
-        pole_longitude=pole_lon,
-    )
-
-    return rotpole
-
-rotpole23 = load_rotpole(
-    '/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/precip',
-    'precip.KNMI-2000.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc'
-)
-
-rotpole24 = load_rotpole(
-    base_dir_cfg['RACMO2.4'],
-    'pr_monthlyS_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc'
-)
-
-if use_rotpole:
-    if rot_pole == '2.3':
-        proj = rotpole23
-    elif rot_pole == '2.4':
-        proj = rotpole24
-else:
-    proj = ccrs.PlateCarree()
-
-if proj_area is None:
-    proj_area = ccrs.PlateCarree()
-elif proj_area == '2.3':
-    proj_area = rotpole23
-elif proj_area == '2.4':
-    proj_area = rotpole24
-
-if data_base == 'RACMO2.3':
-    native_rotpole_area = (proj_area is rotpole23)
-elif data_base == 'RACMO2.4':
-    native_rotpole_area = (proj_area is rotpole24)
-else:
-    native_rotpole_area = False
 
 #%% Some functions
 
@@ -230,28 +169,9 @@ def make_cfg(data_source, var):
     return cfg
 
 
-def process_source(data_source,
-                   var,
-                   months=months,
-                   years=years,
-                   lats=lats,
-                   lons=lons,
-                   trim_border=trim_border,
-                   rect_sel=rect_sel,
-                   rolling_mean_var=rolling_mean_var,
-                   fit_against_gmst=fit_against_gmst,
-                   rolling_mean_years=rolling_mean_years,
-                   min_periods=min_periods):
-    
+def process_source(data_source):
     cfg = make_cfg(data_source, var)
     file_key = cfg['file_key']
-
-    if file_key == 'RACMO2.4':
-        native_rotpole = (proj is rotpole24)
-    elif file_key == 'RACMO2.3':
-        native_rotpole = (proj is rotpole23)
-    else:
-        native_rotpole = False
 
     if months is None:
         months_local = np.arange(1, 13)
@@ -261,31 +181,56 @@ def process_source(data_source,
     years_req = list(years)
     years_load = list(years_req)
 
-    month_start = months_local[0]
-    month_end = months_local[-1]
+    month_start = int(months_local[0])
+    month_end = int(months_local[-1])
 
     if month_start > month_end:
         years_load[0] = years_req[0] - 1
 
     input_file_data = os.path.join(cfg['base_dir'], cfg['file'])
 
-    trim_local = trim_border
-    if data_source == 'RACMO2.4' and trim_border is None:
-        trim_local = 8
+    if file_key == 'Eobs':
+        data = preprocess_eobs_monthly(
+            file_path=input_file_data,
+            var_name=cfg['variable'],
+            months=months_local,
+            years=years_load,
+            lats=lats,
+            lons=lons,
+            chunks_time=180,
+            chunks_lat=200,
+            chunks_lon=200,
+        )
 
-    data = preprocess_netcdf_monthly(
-        source=file_key,
-        file_path=input_file_data,
-        var_name=cfg['variable'],
-        months=months_local,
-        years=years_load,
-        lats=lats,
-        lons=lons,
-        trim_border=trim_local,
-        rect_sel=rect_sel,
-        rotpole=proj,
-        native_rotpole=native_rotpole
-    ).squeeze()
+    elif file_key == 'ERA5':
+        data = preprocess_era5(
+            file_path=input_file_data,
+            var_name=cfg['variable'],
+            months=months_local,
+            years=years_load,
+            lats=lats,
+            lons=lons,
+            chunks_time=180,
+            chunks_lat=200,
+            chunks_lon=200,
+        )
+
+    elif file_key == 'RACMO':
+        data = preprocess_racmo_monthly(
+            dir_path=input_file_data,
+            var_name=cfg['variable'],
+            months=months_local,
+            years=years_load,
+            lats=lats,
+            lons=lons,
+            chunks_time=180,
+            chunks_lat=200,
+            chunks_lon=200,
+            already_monthly=True,
+        ).squeeze()
+
+    lat_vals = data['latitude'].values
+    lon_vals = data['longitude'].values
 
     month = data['time'].dt.month
     year = data['time'].dt.year
@@ -301,7 +246,7 @@ def process_source(data_source,
 
     data_avg = data_year.mean(dim='clim_year').astype('float32')
 
-    time_coord = pd.to_datetime(data_year['clim_year'].astype(str))
+    time_coord = pd.to_datetime(data_year['clim_year'].values.astype(int).astype(str))
     data_year_time = data_year.assign_coords(time=('clim_year', time_coord)).swap_dims({'clim_year': 'time'})
 
     if rolling_mean_var:
@@ -327,7 +272,7 @@ def process_source(data_source,
         fit_coord = gmst_sel.astype(float)
 
     else:
-        fit_coord = data_year_time['clim_year'].astype(float)
+        fit_coord = data_year_time['time'].dt.year.astype(float)
 
     data_fit = (
         data_year_time
@@ -335,7 +280,15 @@ def process_source(data_source,
         .assign_coords(fit_against=('fit_against', fit_coord.values))
     ).astype('float32')
 
-    return data, data_avg, data_fit
+    data_dict = {
+        'cfg': cfg,
+        'data_avg': data_avg,
+        'data_fit': data_fit,
+        'lat': lat_vals,
+        'lon': lon_vals,
+    }
+
+    return data_dict
 
 
 def bounds_from_centers(coord):
@@ -374,27 +327,77 @@ def rotated_bounds(ds_rot, rotpole_crs):
     return lat_b, lon_b
 
 
-def racmo_bounds_grid(ds_racmo_grid, rotpole_native):
+def racmo_bounds_grid(ds_racmo_grid, lats, lons, rotpole_native):
+    lat_full = ds_racmo_grid['lat']
+    lon_full = ds_racmo_grid['lon']
 
-    lat_rac = ds_racmo_grid['latitude'].values
-    lon_rac = ds_racmo_grid['longitude'].values
+    lat_min, lat_max = sorted(lats)
+    lon_min, lon_max = sorted(lons)
+
+    mask = (
+        (lat_full >= lat_min) & (lat_full <= lat_max) &
+        (lon_full >= lon_min) & (lon_full <= lon_max)
+    )
+
+    ii, jj = np.where(mask)
+
+    i0, i1 = ii.min(), ii.max()
+    j0, j1 = jj.min(), jj.max()
 
     lat_b_full, lon_b_full = rotated_bounds(ds_racmo_grid, rotpole_native)
+
+    lat_rac = lat_full.isel(rlat=slice(i0, i1 + 1), rlon=slice(j0, j1 + 1)).values
+    lon_rac = lon_full.isel(rlat=slice(i0, i1 + 1), rlon=slice(j0, j1 + 1)).values
+    lat_b_rac = lat_b_full[i0:i1 + 2, j0:j1 + 2]
+    lon_b_rac = lon_b_full[i0:i1 + 2, j0:j1 + 2]
 
     grid = xr.Dataset(
         {
             'lon':   (('rlat', 'rlon'), lon_rac),
             'lat':   (('rlat', 'rlon'), lat_rac),
-            'lon_b': (('rlat_b', 'rlon_b'), lon_b_full),
-            'lat_b': (('rlat_b', 'rlon_b'), lat_b_full),
+            'lon_b': (('rlat_b', 'rlon_b'), lon_b_rac),
+            'lat_b': (('rlat_b', 'rlon_b'), lat_b_rac),
         }
     )
 
     return grid
 
+#%% Obtain rotated grid
+
+# Rotated projection:
+rotpole_dir = '/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/precip'
+rotpole_file = 'precip.KNMI-2000.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc'
+data_rotpole = xr.open_dataset(os.path.join(rotpole_dir, rotpole_file))
+ds_racmo_grid = data_rotpole.isel(time=0)
+
+rp = data_rotpole['rotated_pole']
+
+pole_lat = rp.grid_north_pole_latitude
+pole_lon = rp.grid_north_pole_longitude
+central_rlon = 18.0
+
+rotpole_native = ccrs.RotatedPole(
+    pole_latitude=pole_lat,
+    pole_longitude=pole_lon,
+)
+
+rotpole_plot = ccrs.RotatedPole(
+    pole_latitude=pole_lat,
+    pole_longitude=pole_lon,
+    central_rotated_longitude=central_rlon,
+)
+
+if use_rotpole:
+    proj = rotpole_plot
+else:
+    proj = ccrs.PlateCarree()
+
 #%% Process data
 
-data_base_ds, data_avg_base, data_fit_base = process_source(data_base, var)
+base_res = process_source(data_base)
+cfg_base = base_res['cfg']
+data_avg_base = base_res['data_avg']
+data_fit_base = base_res['data_fit']
 
 if data_compare is None:
     fits_base = data_fit_base.polyfit(dim='fit_against', deg=1, skipna=True)
@@ -411,25 +414,25 @@ if data_compare is None:
 
 elif data_compare is not None:
 
-    data_comp_ds, data_avg_comp, data_fit_comp = process_source(data_compare, var)
+    comp_res = process_source(data_compare)
+    data_avg_comp = comp_res['data_avg']
+    data_fit_comp = comp_res['data_fit']
 
     trg_grid = data_avg_base
     src_grid = data_avg_comp
 
+    is_racmo_base = (cfg_base['file_key'] == 'RACMO')
+    is_racmo_comp = (comp_res['cfg']['file_key'] == 'RACMO')
+
+    if var == 'P' and is_racmo_comp and not is_racmo_base:
+        src_grid = racmo_bounds_grid(ds_racmo_grid, lats, lons, rotpole_native)
+
+    elif var == 'P' and is_racmo_base and not is_racmo_comp:
+        trg_grid = racmo_bounds_grid(ds_racmo_grid, lats, lons, rotpole_native)
+
     if var == 'P':
         method = 'conservative_normed'
-
-        if data_base == 'RACMO2.3':
-            trg_grid = racmo_bounds_grid(data_avg_base, rotpole23)
-        elif data_base == 'RACMO2.4':
-            trg_grid = racmo_bounds_grid(data_avg_base, rotpole24)
-        
-        if data_compare == 'RACMO2.3':
-            src_grid = racmo_bounds_grid(data_avg_comp, rotpole23)
-        elif data_compare == 'RACMO2.4':
-            src_grid = racmo_bounds_grid(data_avg_comp, rotpole24)
-
-    elif var == 'Tg':
+    else:
         method = 'bilinear'
 
     regridder = xe.Regridder(
@@ -474,80 +477,16 @@ elif data_compare is not None:
     data_avg_plot = minus_scaling*(data_avg_comp_reg - data_avg_base).compute()
     trend_plot = minus_scaling*(trend_plot_comp - trend_plot_base).compute()
 
-trend_plot = trend_plot.assign_coords(
-            latitude=data_avg_base['latitude'],
-            longitude=data_avg_base['longitude']
-            )
-
 lat_plot = data_avg_plot['latitude'].values
 lon_plot = data_avg_plot['longitude'].values
-
-#%% Area selection
-
-contour_area_full = xr.full_like(data_avg_plot, fill_value=1.0)
-
-if 'rlat' in contour_area_full.dims and 'rlon' in contour_area_full.dims:
-    lat2d = contour_area_full['latitude']
-    lon2d = contour_area_full['longitude']
-    dim_lat, dim_lon = 'rlat', 'rlon'
-else:
-    lat1d = contour_area_full['latitude']
-    lon1d = contour_area_full['longitude']
-    lat2d, lon2d = xr.broadcast(lat1d, lon1d)
-    dim_lat, dim_lon = 'latitude', 'longitude'
-
-contour_area = subset_space(
-    contour_area_full,
-    lat2d,
-    lon2d,
-    lats_area,
-    lons_area,
-    dim_lat,
-    dim_lon,
-    rect_sel=True,
-    rotpole=proj_area,
-    native_rotpole=native_rotpole_area,
-)
-
-mask_area = np.isfinite(contour_area.values).astype('i1')
-
-if 'rlat' in contour_area.dims and 'rlon' in contour_area.dims:
-    rotpole_native = rotpole23 if data_base == 'RACMO2.3' else rotpole24
-    lat_b, lon_b = rotated_bounds(contour_area, rotpole_native)
-else:
-    lat1d_area = contour_area['latitude'].values
-    lon1d_area = contour_area['longitude'].values
-    lat_b_1d = bounds_from_centers(lat1d_area)
-    lon_b_1d = bounds_from_centers(lon1d_area)
-    lon_b, lat_b = np.meshgrid(lon_b_1d, lat_b_1d)
-
-fig, ax = plt.subplots(
-    1,
-    figsize=(14, 12),
-    constrained_layout=True,
-    subplot_kw={'projection': proj},
-)
-
-plot_map(
-    fig, ax,
-    data_avg_plot,
-    data_avg_plot['longitude'],
-    data_avg_plot['latitude'],
-    proj=proj,
-    show_plot=False,
-    extent=[*plot_lons, *plot_lats],
-    mask_area=mask_area,
-    lat_b_area=lat_b,
-    lon_b_area=lon_b
-)
 
 #%% Calculate mean and plot
 
 fig, ax = plt.subplots(
-    1, figsize=(14, 12), 
-    constrained_layout=True,
-    subplot_kw={'projection': proj}
-)
+        1, figsize=(14, 12), 
+        constrained_layout=True,
+        subplot_kw={'projection': proj}
+    )
 
 plot_map(
     fig, ax,
@@ -567,19 +506,16 @@ plot_map(
     x_ticks=10,
     extent=[*plot_lons, *plot_lats],
     proj=proj,
-    rotated_grid=cut_boundaries,
-    mask_area=mask_area,
-    lat_b_area=lat_b,
-    lon_b_area=lon_b
+    rotated_grid=cut_boundaries
 )
 
 #%% Linear trends and plot
 
 fig, ax = plt.subplots(
-    1, figsize=(14, 12), 
-    constrained_layout=True,
-    subplot_kw={'projection': proj}
-)
+        1, figsize=(14, 12), 
+        constrained_layout=True,
+        subplot_kw={'projection': proj}
+    )
 
 plot_map(
     fig, ax,
@@ -599,10 +535,7 @@ plot_map(
     x_ticks=10,
     extent=[*plot_lons, *plot_lats],
     proj=proj,
-    rotated_grid=cut_boundaries,
-    mask_area=mask_area,
-    lat_b_area=lat_b,
-    lon_b_area=lon_b
+    rotated_grid=cut_boundaries
 )
 
 
@@ -611,20 +544,6 @@ plot_map(
 
 # Andere denominator bij relative trends?
 # Zonneuren ook plotten!!
-
-# Lijnen toevoegen over gebied waarover ik average
-# Point coordinate of gebied (en dan ook optie voor bepaalde locaties of zelf gekozen point gebieden)
-# Mask sea values
-# Marker toevoegen wanneer point coordinate
-# Kijk of lijn 'blokkerig' kan zodat het langs de gridcells heen gaat!
-# Wanneer ik gemiddelde neem over een gebied, moet ik wel area weighted doen!
-# Is het wel mogelijk om over bepaalde gebieden te masken? (Bijvoorbeeld Utrecht / Nederland)
-
-# Area selector.
-# For contour, first make array full of ones -> then subset_space
-
-
-
 
 # Misschien ook nog kijken of era5 boundaries niet nodig zijn ofzo.
 
@@ -684,8 +603,3 @@ plot_map(
     #         latitude=data_fit_base['latitude'],
     #         longitude=data_fit_base['longitude'],
     #     )
-
-
-
-
-    

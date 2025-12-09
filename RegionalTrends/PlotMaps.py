@@ -1,4 +1,5 @@
 import numpy as np
+import xarray as xr
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
@@ -8,7 +9,14 @@ from matplotlib.colors import ListedColormap
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.ticker import MultipleLocator
 import matplotlib.path as mpath
+from shapely.geometry import Polygon
+from shapely.ops import unary_union
 import os
+from importlib import reload
+
+import ProcessNetCDF
+reload(ProcessNetCDF)
+from ProcessNetCDF import subset_space
 
 def plot_map(fig, ax, data, lon, lat,
              crange=None,
@@ -37,7 +45,15 @@ def plot_map(fig, ax, data, lon, lat,
              add_colorbar=True,
              title=None,
              title_size=36,
-             show_plot=True):
+             show_plot=True,
+             mask_area=None,
+             lat_b_area=None,
+             lon_b_area=None,
+             area_facecolor='none',
+             area_edgecolor='xkcd:black',
+             area_linewidth=4.0,
+             area_linestyle='-',
+             area_alpha=1.0):
 
     plt.rcParams['axes.unicode_minus'] = False # Nicer minus signs
 
@@ -297,6 +313,7 @@ def plot_map(fig, ax, data, lon, lat,
         Lon, Lat, data, transform=ccrs.PlateCarree(),
         cmap=cmap, shading=shading, rasterized=True
     )
+
     mesh.set_clim(crange)
 
     # colorbar
@@ -333,6 +350,43 @@ def plot_map(fig, ax, data, lon, lat,
         if cbar is not None:
             cbar.set_label(label, fontsize=clabel_size, labelpad=10)
 
+    # Selected area
+    if mask_area is not None and lat_b_area is not None and lon_b_area is not None:
+        polys = []
+        for ii, jj in np.argwhere(mask_area):
+            ring = [
+                (lon_b_area[ii, jj],     lat_b_area[ii, jj]),
+                (lon_b_area[ii, jj+1],   lat_b_area[ii, jj+1]),
+                (lon_b_area[ii+1, jj+1], lat_b_area[ii+1, jj+1]),
+                (lon_b_area[ii+1, jj],   lat_b_area[ii+1, jj]),
+            ]
+            poly = Polygon(ring)
+            if poly.is_valid and not poly.is_empty:
+                polys.append(poly)
+
+        if polys:
+            merged = unary_union(polys)
+            geoms = []
+            if merged.geom_type == 'GeometryCollection':
+                geoms = [g for g in merged.geoms if not g.is_empty]
+            else:
+                geoms = [merged]
+
+            ax.add_geometries(
+                geoms,
+                crs=ccrs.PlateCarree(),
+                facecolor=area_facecolor,
+                edgecolor=area_edgecolor,
+                alpha=area_alpha,
+                linestyle=area_linestyle,
+                linewidth=area_linewidth,
+                zorder=10
+            )
+
+    # Title and saving
+    if title is not None:
+        ax.set_title(title, fontsize=title_size, fontweight='bold')
+
     if save_name is not None:
         folder = '/usr/people/walj/figures/'
         save_path = os.path.join(folder, save_name + '.jpg')
@@ -344,7 +398,159 @@ def plot_map(fig, ax, data, lon, lat,
     if show_plot:
         plt.show()
 
-    if title is not None:
-        ax.set_title(title, fontsize=title_size, fontweight='bold')
-
     return mesh, cbar
+
+
+
+
+# # 6. build lat2d / lon2d on the trimmed grid and subset in space
+# if 'rlat' in data_avg_plot.dims and 'rlon' in data_avg_plot.dims:
+#     lat2d = data_avg_plot['latitude']
+#     lon2d = data_avg_plot['longitude']
+#     dim_lat, dim_lon = 'rlat', 'rlon'
+# else:
+#     lat1d = data_avg_plot['latitude']
+#     lon1d = data_avg_plot['longitude']
+#     lat2d, lon2d = xr.broadcast(lat1d, lon1d)
+#     dim_lat, dim_lon = 'latitude', 'longitude'
+
+# data_avg_plot_area = subset_space(
+#     data_avg_plot,
+#     lat2d,
+#     lon2d,
+#     lats_area,
+#     lons_area,
+#     dim_lat,
+#     dim_lon,
+#     rect_sel=True,
+#     rotpole=ccrs.PlateCarree(),
+#     native_rotpole=False,
+# )
+
+# fig, ax = plt.subplots(
+#     1,
+#     figsize=(14, 12),
+#     constrained_layout=True,
+#     subplot_kw={'projection': proj},
+# )
+
+# # plot the subset (no border yet)
+# plot_map(
+#     fig, ax,
+#     data_avg_plot_area,
+#     data_avg_plot_area['longitude'],
+#     data_avg_plot_area['latitude'],
+#     proj=proj,
+#     show_plot=False,
+# )
+
+# """
+# Add border precisely around non-NaN cells of the subset by
+# contouring the subset's own 2D grid. This closes cleanly
+# and follows curvilinear cell edges.
+# """
+
+# lat_area2d = data_avg_plot_area['latitude'].values
+# lon_area2d = data_avg_plot_area['longitude'].values
+
+# # Non-NaN mask of the subset
+# mask_area = np.isfinite(data_avg_plot_area.values).astype('i1')
+
+# # Compute true cell corners (for rectilinear or curvilinear grids)
+# if 'rlat' in data_avg_plot_area.dims and 'rlon' in data_avg_plot_area.dims:
+#     rotpole_native = rotpole23 if data_base == 'RACMO2.3' else rotpole24
+#     lat_b, lon_b = rotated_bounds(data_avg_plot_area, rotpole_native)
+# else:
+#     lat1d_area = data_avg_plot_area['latitude'].values
+#     lon1d_area = data_avg_plot_area['longitude'].values
+#     lat_b_1d = bounds_from_centers(lat1d_area)
+#     lon_b_1d = bounds_from_centers(lon1d_area)
+#     lon_b, lat_b = np.meshgrid(lon_b_1d, lat_b_1d)
+
+# # Build edge segments only where inside meets outside (no internal grid lines)
+# m = mask_area.astype(bool)
+# ny, nx = m.shape
+# # vertical edges between columns
+# edges_v = (m[:, 1:] != m[:, :-1]) & (m[:, 1:] | m[:, :-1])
+# iv, jv = np.where(edges_v)
+# segments = []
+# for i, j in zip(iv, jv):
+#     je = j + 1  # edge column in corner grid
+#     segments.append([
+#         (lon_b[i, je],     lat_b[i, je]),
+#         (lon_b[i + 1, je], lat_b[i + 1, je]),
+#     ])
+
+# # horizontal edges between rows
+# edges_h = (m[1:, :] != m[:-1, :]) & (m[1:, :] | m[:-1, :])
+# ih, jh = np.where(edges_h)
+# for i, j in zip(ih, jh):
+#     ie = i + 1  # edge row in corner grid
+#     segments.append([
+#         (lon_b[ie, j],     lat_b[ie, j]),
+#         (lon_b[ie, j + 1], lat_b[ie, j + 1]),
+#     ])
+
+# # outer boundary: draw edges against implicit outside=False
+# # left and right borders
+# for i in range(ny):
+#     if m[i, 0]:
+#         segments.append([
+#             (lon_b[i, 0],     lat_b[i, 0]),
+#             (lon_b[i + 1, 0], lat_b[i + 1, 0]),
+#         ])
+#     if m[i, nx - 1]:
+#         segments.append([
+#             (lon_b[i, nx],     lat_b[i, nx]),
+#             (lon_b[i + 1, nx], lat_b[i + 1, nx]),
+#         ])
+
+# # bottom and top borders
+# for j in range(nx):
+#     if m[0, j]:
+#         segments.append([
+#             (lon_b[0, j],     lat_b[0, j]),
+#             (lon_b[0, j + 1], lat_b[0, j + 1]),
+#         ])
+#     if m[ny - 1, j]:
+#         segments.append([
+#             (lon_b[ny, j],     lat_b[ny, j]),
+#             (lon_b[ny, j + 1], lat_b[ny, j + 1]),
+#         ])
+
+# edge_collection = LineCollection(
+#     segments,
+#     colors='black',
+#     linewidths=0.1,
+#     antialiased=False,
+#     zorder=10,
+#     transform=ccrs.PlateCarree(),
+# )
+# ax.add_collection(edge_collection)
+
+
+# inside plot_map
+
+        # ------------------------------------------------------------------
+    # Selected area (simple lat/lon box following the geographic grid)
+    # ------------------------------------------------------------------
+    # if lats_area is not None and lons_area is not None:
+    #     # Lon, Lat are already defined above and have same shape as data
+    #     lon2d, lat2d = Lon, Lat
+
+    #     # boolean mask for the requested lat/lon box
+    #     lat_mask = (lat2d >= lats_area[0]) & (lat2d <= lats_area[1])
+    #     lon_mask = (lon2d >= lons_area[0]) & (lon2d <= lons_area[1])
+    #     mask = lat_mask & lon_mask
+
+    #     # contour around the box
+    #     ax.contour(
+    #         lon2d, lat2d,
+    #         mask.astype(float),
+    #         levels=[0.5],
+    #         colors=area_edgecolor,
+    #         linewidths=area_linewidth,
+    #         linestyles=area_linestyle,
+    #         transform=ccrs.PlateCarree(),
+    #         zorder=9,
+    #     )

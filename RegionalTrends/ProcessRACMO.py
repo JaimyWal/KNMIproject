@@ -24,10 +24,10 @@ def preprocess_racmo_monthly(
 
     if already_monthly:
         data_raw = xr.open_mfdataset(
-        file_list,
-        combine='by_coords',
-        chunks='auto',
-        decode_times=False
+            file_list,
+            combine='by_coords',
+            chunks='auto',
+            decode_times=False
         )
 
         time_var = data_raw['time']
@@ -45,8 +45,6 @@ def preprocess_racmo_monthly(
         )
 
     data_raw = data_raw.rename({'lat': 'latitude', 'lon': 'longitude'})
-
-    rotpole_coord = data_raw['rotated_pole']
 
     # Select variable and cast to float32
     da = data_raw[var_name].astype('float32')
@@ -142,7 +140,6 @@ def preprocess_racmo_monthly(
     data_monthly = (
         data_full
         .sel(time=time_sel)
-        .assign_coords(rotated_pole=rotpole_coord)
         .chunk({'time': chunks_time,
                 'rlat': chunks_lat,
                 'rlon': chunks_lon})
@@ -150,3 +147,22 @@ def preprocess_racmo_monthly(
     )
 
     return data_monthly
+
+# test_daily = preprocess_racmo_monthly(
+#     dir_path='/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/t2m',
+#     var_name='t2m',
+#     months=[6,7,8],
+#     years=(2000, 2010),
+#     lats=(50, 70),
+#     lons=(0, 20)
+# )
+
+# test_monthly = preprocess_racmo_monthly(
+#     dir_path='/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Monthly_data/t2m',
+#     var_name='t2m',
+#     months=[6,7,8],
+#     years=(2000, 2010),
+#     lats=(50, 70),
+#     lons=(0, 20),
+#     already_monthly=True
+# )
