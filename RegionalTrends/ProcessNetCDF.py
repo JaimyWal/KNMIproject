@@ -62,6 +62,44 @@ def align_month_to_start(time):
     return time - offset
 
 
+def rect_sel(lats, lons, rotpole, n_edge=1e6):
+
+    lat_min, lat_max = sorted(lats)
+    lon_min, lon_max = sorted(lons)
+
+    if rotpole == ccrs.PlateCarree():
+        return lat_min, lat_max, lon_min, lon_max
+    
+    n_edge = int(n_edge)
+
+    lon_bottom = np.linspace(lon_min, lon_max, n_edge)
+    lat_bottom = np.full_like(lon_bottom, lat_min)
+
+    lon_top = np.linspace(lon_min, lon_max, n_edge)
+    lat_top = np.full_like(lon_top, lat_max)
+
+    lat_left = np.linspace(lat_min, lat_max, n_edge)
+    lon_left = np.full_like(lat_left, lon_min)
+
+    lat_right = np.linspace(lat_min, lat_max, n_edge)
+    lon_right = np.full_like(lat_right, lon_max)
+
+    edge_lon = np.concatenate([lon_bottom, lon_top, lon_left, lon_right])
+    edge_lat = np.concatenate([lat_bottom, lat_top, lat_left, lat_right])
+
+    pts = rotpole.transform_points(ccrs.PlateCarree(), edge_lon, edge_lat)
+
+    rlon = pts[..., 0]
+    rlat = pts[..., 1]
+
+    rlat_min = float(rlat.min())
+    rlat_max = float(rlat.max())
+    rlon_min = float(rlon.min())
+    rlon_max = float(rlon.max())
+
+    return rlat_min, rlat_max, rlon_min, rlon_max
+
+
 def subset_space(da, 
                  lat2d, 
                  lon2d, 
@@ -69,58 +107,47 @@ def subset_space(da,
                  lons, 
                  dim_lat, 
                  dim_lon, 
-                 rect_sel=True, 
-                 rotpole=ccrs.PlateCarree(), 
-                 native_rotpole=False):
+                 rotpole_sel=ccrs.PlateCarree(),
+                 rotpole_native=ccrs.PlateCarree()):
 
     if lats is None or lons is None:
         return da
 
     if isinstance(lats, (list, tuple)) and len(lats) == 2 and \
        isinstance(lons, (list, tuple)) and len(lons) == 2:
-        
+
         lat_min, lat_max = sorted(lats)
         lon_min, lon_max = sorted(lons)
 
-        mask_geo = (
-            (lat2d >= lat_min) & (lat2d <= lat_max) &
-            (lon2d >= lon_min) & (lon2d <= lon_max)
-        )
+        if rotpole_sel == ccrs.PlateCarree():
 
-        if rotpole == ccrs.PlateCarree():
-            use_rotpole = False
-        else:
-            use_rotpole = True
-
-        if rect_sel == False or use_rotpole == False:
-            return da.where(mask_geo.compute(), drop=True)
+            mask = (
+                (lat2d >= lat_min) & (lat2d <= lat_max) &
+                (lon2d >= lon_min) & (lon2d <= lon_max)
+            )
         
-        elif rect_sel == True and use_rotpole == True and native_rotpole == False:
-            plate = ccrs.PlateCarree()
-            pts = rotpole.transform_points(plate, lon2d.values, lat2d.values)
-            rlon2d = xr.DataArray(pts[..., 0], coords=lat2d.coords, dims=lat2d.dims)
-            rlat2d = xr.DataArray(pts[..., 1], coords=lat2d.coords, dims=lat2d.dims)
+        elif rotpole_sel != ccrs.PlateCarree(): 
 
-            rlon_masked = rlon2d.where(mask_geo)
-            rlat_masked = rlat2d.where(mask_geo)
+            if rotpole_sel == rotpole_native:
+                rlat1d = da[dim_lat]
+                rlon1d = da[dim_lon]
+                rlat2d, rlon2d = xr.broadcast(rlat1d, rlon1d)
 
-            rlat_min = np.nanmin(rlat_masked.values)
-            rlat_max = np.nanmax(rlat_masked.values)
-            rlon_min = np.nanmin(rlon_masked.values)
-            rlon_max = np.nanmax(rlon_masked.values)
+            elif rotpole_sel != rotpole_native:
+                pts = rotpole_sel.transform_points(ccrs.PlateCarree(), lon2d.values, lat2d.values)
+                rlon2d = xr.DataArray(pts[..., 0], coords=lat2d.coords, dims=lat2d.dims)
+                rlat2d = xr.DataArray(pts[..., 1], coords=lat2d.coords, dims=lat2d.dims)
 
-            mask_rot = (
+            rlat_min, rlat_max, rlon_min, rlon_max = rect_sel(lats, lons, rotpole_sel)
+
+            mask = (
                 (rlat2d >= rlat_min) & (rlat2d <= rlat_max) &
                 (rlon2d >= rlon_min) & (rlon2d <= rlon_max)
             )
+            
+        da_sel = da.where(mask.compute(), drop=True)
 
-            return da.where(mask_rot, drop=True)
-
-        elif rect_sel == True and use_rotpole == True and native_rotpole == True:
-            valid_lat = mask_geo.any(dim=dim_lon).compute()
-            valid_lon = mask_geo.any(dim=dim_lat).compute()
-        
-        return da.isel({dim_lat: valid_lat, dim_lon: valid_lon})
+        return da_sel
 
     if isinstance(lats, (int, float)) and isinstance(lons, (int, float)):
         target_lat = float(lats)
@@ -176,9 +203,8 @@ def preprocess_netcdf_monthly(
     lats=None,
     lons=None,
     trim_border=None,
-    rect_sel=True,
-    rotpole=ccrs.PlateCarree(),
-    native_rotpole=False,
+    rotpole_sel=ccrs.PlateCarree(),
+    rotpole_native=ccrs.PlateCarree(),
     chunks_time=180,
     chunks_lat=200,
     chunks_lon=200
@@ -265,9 +291,8 @@ def preprocess_netcdf_monthly(
         lons, 
         dim_lat, 
         dim_lon, 
-        rect_sel=rect_sel, 
-        rotpole=rotpole, 
-        native_rotpole=native_rotpole
+        rotpole_sel=rotpole_sel, 
+        rotpole_native=rotpole_native
     )
 
     # 7. decide if resampling is needed

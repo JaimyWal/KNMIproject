@@ -32,7 +32,7 @@ from ProcessStation import preprocess_station_monthly
 
 # Main arguments
 var = 'Tg'
-data_base = None
+data_base = 'RACMO2.4'
 data_compare = None
 
 # Data selection arguments
@@ -41,24 +41,25 @@ years = [2016, 2020]
 lats = [38, 63]
 lons = [-13, 22]
 trim_border = None
-rect_sel = True
+proj_sel = 'RACMO2.4'
 # Hier misschien ook argument voor land only? (of bij plotten?)
 
 # Area selection arguments
-data_area = ['Observed', 'ERA5_coarse', 'RACMO2.3', 'RACMO2.4']
-lats_area = [50.5, 54]
-lons_area = [3, 7.6]
-proj_area = '2.4'
+data_area = None
+lats_area = [50.7, 53.6]
+lons_area = [3.25, 7.35]
+proj_area = 'RACMO2.4'
 land_only = True
 
 # Plotting arguments
 avg_crange = [-15, 15]
 trend_crange = [-4, 4]
 fit_range = None
-proj_plot = '2.4'
+proj_plot = 'RACMO2.4'
 plot_lats = [38, 63]
 plot_lons = [-13, 22]
-exact_contour = False
+true_contour = True
+grid_contour = True
 switch_sign = False
 cut_boundaries = False
 
@@ -69,8 +70,38 @@ fit_against_gmst = False
 rolling_mean_years = 5
 min_periods = 1
 
-# lats_area = [50.5, 54]
-# lons_area = [3, 7.6]
+# lats = [38, 63]
+# lons = [-13, 22]
+# data_area = ['Observed', 'ERA5_coarse', 'RACMO2.3', 'RACMO2.4']
+# lats_area = [50.7, 53.6]
+# lons_area = [3.25, 7.35]
+
+#%% Obtain rotated grid
+
+def load_rotpole(rotpole_dir, rotpole_file):
+
+    ds = xr.open_dataset(os.path.join(rotpole_dir, rotpole_file))
+
+    rp = ds['rotated_pole']
+    pole_lat = rp.grid_north_pole_latitude
+    pole_lon = rp.grid_north_pole_longitude
+
+    rotpole = ccrs.RotatedPole(
+        pole_latitude=pole_lat,
+        pole_longitude=pole_lon,
+    )
+
+    return rotpole
+
+rotpole23 = load_rotpole(
+    '/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/precip',
+    'precip.KNMI-2000.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc'
+)
+
+rotpole24 = load_rotpole(
+    '/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly',
+    'pr_monthlyS_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc'
+)
 
 #%% Dataset configurations
 
@@ -211,62 +242,15 @@ base_dir_cfg = {
     'Station': '/nobackup/users/walj/knmi',
 }
 
-#%% Obtain rotated grid
+proj_cfg = {
+    'RACMO2.3': rotpole23,
+    'RACMO2.4': rotpole24,
+}
 
-def load_rotpole(rotpole_dir, rotpole_file):
-
-    ds = xr.open_dataset(os.path.join(rotpole_dir, rotpole_file))
-
-    rp = ds['rotated_pole']
-    pole_lat = rp.grid_north_pole_latitude
-    pole_lon = rp.grid_north_pole_longitude
-
-    rotpole = ccrs.RotatedPole(
-        pole_latitude=pole_lat,
-        pole_longitude=pole_lon,
-    )
-
-    return rotpole, ds
-
-rotpole23, ds23 = load_rotpole(
-    '/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/precip',
-    'precip.KNMI-2000.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc'
-)
-
-rotpole24, ds24 = load_rotpole(
-    base_dir_cfg['RACMO2.4'],
-    'pr_monthlyS_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc'
-)
-
-if proj_plot == '2.3':
-    proj_plot = rotpole23
-elif proj_plot == '2.4':
-    proj_plot = rotpole24
-else:
-    proj_plot = ccrs.PlateCarree()
-
-if proj_area is None:
-    proj_area = ccrs.PlateCarree()
-elif proj_area == '2.3':
-    proj_area = rotpole23
-elif proj_area == '2.4':
-    proj_area = rotpole24
-
-def is_native_rotpole_for_source(data_source, proj, rotpole23=rotpole23, rotpole24=rotpole24):
-
-    if 'RACMO2.4' in data_source:
-        return proj is rotpole24
-    elif 'RACMO2.3' in data_source:
-        return proj is rotpole23
-    else:
-        return False
-
-if data_base is not None:
-    is_native_rotpole_base = is_native_rotpole_for_source(data_base, proj_plot)
-    is_native_rotpole_area = is_native_rotpole_for_source(data_base, proj_area)
-
-if data_compare is not None:
-    is_native_rotpole_compare = is_native_rotpole_for_source(data_compare, proj_plot)
+# Assign projections
+proj_sel = proj_cfg.get(proj_sel, ccrs.PlateCarree())
+proj_area = proj_cfg.get(proj_area, ccrs.PlateCarree())
+proj_plot = proj_cfg.get(proj_plot, ccrs.PlateCarree())
 
 #%% Some functions
 
@@ -280,6 +264,7 @@ def make_cfg(data_source, var):
             'base_dir': base_dir_cfg[file_key],
             'file_key': file_key,
             'datatype': 'netcdf',
+            'proj': proj_cfg.get(file_key, ccrs.PlateCarree()),
         }
         return cfg
     
@@ -290,41 +275,43 @@ def make_cfg(data_source, var):
             'base_dir': base_dir_cfg['Station'],
             'file_key': 'Station',
             'datatype': 'station',
+            'proj': ccrs.PlateCarree(),
         }
         return cfg
 
 
 def process_source(data_source,
                    var,
-                   months=months,
-                   years=years,
-                   lats=lats,
-                   lons=lons,
-                   trim_border=trim_border,
-                   rect_sel=rect_sel,
-                   rotpole=ccrs.PlateCarree(),
-                   native_rotpole=False,
-                   rolling_mean_var=rolling_mean_var,
-                   fit_against_gmst=fit_against_gmst,
-                   rolling_mean_years=rolling_mean_years,
-                   min_periods=min_periods):
+                   months=None,
+                   years=None,
+                   lats=None,
+                   lons=None,
+                   trim_border=None,
+                   rotpole_sel=ccrs.PlateCarree(),
+                   rolling_mean_var=False,
+                   fit_against_gmst=False,
+                   rolling_mean_years=1,
+                   min_periods=1):
     
     cfg = make_cfg(data_source, var)
-    datatype = cfg['datatype']
 
     if months is None:
         months_local = np.arange(1, 13)
     else:
         months_local = np.asarray(months, dtype=int)
 
-    years_req = list(years)
-    years_load = list(years_req)
+    if years is None:
+        years_req = None
+        years_load = None
+    else:
+        years_req = list(years)
+        years_load = list(years_req)
 
-    month_start = months_local[0]
-    month_end = months_local[-1]
+        month_start = months_local[0]
+        month_end = months_local[-1]
 
-    if month_start > month_end:
-        years_load[0] = years_req[0] - 1
+        if month_start > month_end:
+            years_load[0] = years_req[0] - 1
 
     input_file_data = os.path.join(cfg['base_dir'], cfg['file'])
 
@@ -332,7 +319,7 @@ def process_source(data_source,
     if data_source == 'RACMO2.4' and trim_border is None:
         trim_local = 8
 
-    if datatype == 'netcdf':
+    if cfg['datatype'] == 'netcdf':
         data = preprocess_netcdf_monthly(
             source=cfg['file_key'],
             file_path=input_file_data,
@@ -342,12 +329,11 @@ def process_source(data_source,
             lats=lats,
             lons=lons,
             trim_border=trim_local,
-            rect_sel=rect_sel,
-            rotpole=rotpole,
-            native_rotpole=native_rotpole
+            rotpole_sel=rotpole_sel,
+            rotpole_native=cfg['proj']
         ).squeeze()
 
-    elif datatype == 'station':
+    elif cfg['datatype'] == 'station':
         data = preprocess_station_monthly(
             file_path=input_file_data,
             var_name=cfg['variable'],
@@ -358,6 +344,14 @@ def process_source(data_source,
     month = data['time'].dt.month
     year = data['time'].dt.year
 
+    month_start = months_local[0]
+    month_end = months_local[-1]
+
+    if month_start <= month_end:
+        clim_year = year
+    else:
+        clim_year = xr.where(month >= month_start, year + 1, year)
+
     if month_start <= month_end:
         clim_year = year
     else:
@@ -365,7 +359,9 @@ def process_source(data_source,
 
     data = data.assign_coords(clim_year=clim_year)
     data_year = data.groupby('clim_year').mean('time')
-    data_year = data_year.sel(clim_year=slice(years_req[0], years_req[-1]))
+
+    if years_req is not None:
+        data_year = data_year.sel(clim_year=slice(years_req[0], years_req[-1]))
 
     data_avg = data_year.mean(dim='clim_year').astype('float32')
 
@@ -465,7 +461,19 @@ def racmo_bounds_grid(ds_racmo_grid, rotpole_native):
 if data_base is not None:
 
     data_base_ds, data_avg_base, data_fit_base = process_source(
-        data_base, var, rotpole=proj_plot, native_rotpole=is_native_rotpole_base)
+        data_base, 
+        var,
+        months=months,
+        years=years,
+        lats=lats,
+        lons=lons,
+        trim_border=trim_border, 
+        rotpole_sel=proj_sel,
+        rolling_mean_var=rolling_mean_var,
+        fit_against_gmst=fit_against_gmst,
+        rolling_mean_years=rolling_mean_years,
+        min_periods=min_periods
+    )
 
     if data_compare is None:
         fits_base = data_fit_base.polyfit(dim='fit_against', deg=1, skipna=True)
@@ -483,7 +491,19 @@ if data_base is not None:
     elif data_compare is not None:
 
         data_comp_ds, data_avg_comp, data_fit_comp = process_source(
-            data_compare, var, rotpole=proj_plot, native_rotpole=is_native_rotpole_compare)
+            data_compare, 
+            var, 
+            months=months,
+            years=years,
+            lats=lats,
+            lons=lons,
+            trim_border=trim_border,
+            rotpole_sel=proj_sel,
+            rolling_mean_var=rolling_mean_var,
+            fit_against_gmst=fit_against_gmst,
+            rolling_mean_years=rolling_mean_years,
+            min_periods=min_periods
+        )
 
         trg_grid = data_avg_base
         src_grid = data_avg_comp
@@ -558,8 +578,16 @@ if data_base is not None:
 
 if data_base is not None: 
 
+    mask_area = None
+    lat_b_area = None
+    lon_b_area = None
+
+    lats_area_plot = None
+    lons_area_plot = None 
+    proj_area_plot = None
+
     if isinstance(lats_area, (list, tuple)) and len(lats_area) == 2 and \
-    isinstance(lons_area, (list, tuple)) and len(lons_area) == 2:
+    isinstance(lons_area, (list, tuple)) and len(lons_area) == 2 and grid_contour == True:
 
         contour_area_full = xr.full_like(data_avg_plot, fill_value=1.0)
 
@@ -581,9 +609,8 @@ if data_base is not None:
             lons_area,
             dim_lat,
             dim_lon,
-            rect_sel=True,
-            rotpole=proj_area,
-            native_rotpole=is_native_rotpole_area,
+            rotpole_sel=proj_area,
+            rotpole_native=proj_cfg.get(data_base, ccrs.PlateCarree())
         )
 
         mask_area = np.isfinite(contour_area.values)
@@ -598,10 +625,12 @@ if data_base is not None:
             lon_b_1d = bounds_from_centers(lon1d_area)
             lon_b_area, lat_b_area = np.meshgrid(lon_b_1d, lat_b_1d)
 
-    else:
-        mask_area = None
-        lat_b_area = None
-        lon_b_area = None
+    if isinstance(lats_area, (list, tuple)) and len(lats_area) == 2 and \
+    isinstance(lons_area, (list, tuple)) and len(lons_area) == 2 and true_contour == True:
+        
+        lats_area_plot = lats_area
+        lons_area_plot = lons_area
+        proj_area_plot = proj_area
 
 #%% Calculate mean and plot
 
@@ -632,6 +661,9 @@ if data_base is not None:
         extent=[*plot_lons, *plot_lats],
         proj=proj_plot,
         rotated_grid=cut_boundaries,
+        lats_area=lats_area_plot,
+        lons_area=lons_area_plot,
+        proj_area=proj_area_plot,
         mask_area=mask_area,
         lat_b_area=lat_b_area,
         lon_b_area=lon_b_area
@@ -665,6 +697,9 @@ if data_base is not None:
         extent=[*plot_lons, *plot_lats],
         proj=proj_plot,
         rotated_grid=cut_boundaries,
+        lats_area=lats_area_plot,
+        lons_area=lons_area_plot,
+        proj_area=proj_area_plot,
         mask_area=mask_area,
         lat_b_area=lat_b_area,
         lon_b_area=lon_b_area
@@ -706,11 +741,6 @@ if lats_area is not None and lons_area is not None and data_area is not None:
             lat_sel = None
             lon_sel = None
 
-        if is_station:
-            is_native_rotpole_src = False
-        else:
-            is_native_rotpole_src = is_native_rotpole_for_source(src, proj_area)
-
         data_ds, data_avg, data_fit = process_source(
             src,
             var,
@@ -719,9 +749,7 @@ if lats_area is not None and lons_area is not None and data_area is not None:
             lats=lat_sel,
             lons=lon_sel,
             trim_border=trim_border,
-            rect_sel=True,
-            rotpole=proj_area,
-            native_rotpole=is_native_rotpole_src,
+            rotpole_sel=proj_area,
             rolling_mean_var=rolling_mean_var,
             fit_against_gmst=fit_against_gmst,
             rolling_mean_years=rolling_mean_years,
@@ -904,10 +932,7 @@ if lats_area is not None and lons_area is not None and data_area is not None:
 
 
 # Mask sea values voor area!
-# Marker toevoegen wanneer point coordinate?
-# Optie voor exacte contour of ongeveer contour! (voor ongeveer contour, gewoon simpel de 4 hoeken nemen...)
 # Plotjes maken op het laatst van hoe de geselecteerde data eruit ziet
-# Kijk naar nieuwe versie van subset_space
 
 
 # Gedaan: 
@@ -916,11 +941,15 @@ if lats_area is not None and lons_area is not None and data_area is not None:
 # For contour, first make array full of ones -> then subset_space
 # Wanneer ik gemiddelde neem over een gebied, moet ik wel area weighted doen!
 # Misschien optie voor alleen temporal of alleen spatial?
+# Kijk naar nieuwe versie van subset_space
+# Optie voor exacte contour of ongeveer contour! (voor ongeveer contour, gewoon simpel de 4 hoeken nemen...)
 
 
 
-# Ambitieus en niet slim om te doen:
+
+# Ambitieus of niet slim om te doen:
 # # Is het wel mogelijk om over bepaalde gebieden te masken? (Bijvoorbeeld Utrecht / Nederland) (niet doen!)
+# Marker toevoegen wanneer point coordinate???
 
 
 

@@ -16,7 +16,7 @@ from importlib import reload
 
 import ProcessNetCDF
 reload(ProcessNetCDF)
-from ProcessNetCDF import subset_space
+from ProcessNetCDF import rect_sel
 
 def plot_map(fig, ax, data, lon, lat,
              crange=None,
@@ -46,14 +46,22 @@ def plot_map(fig, ax, data, lon, lat,
              title=None,
              title_size=36,
              show_plot=True,
+             lats_area=None,
+             lons_area=None,
+             proj_area=ccrs.PlateCarree(),
+             area_facecolor='none',
+             area_edgecolor='xkcd:black',
+             area_linewidth=2.0,
+             area_linestyle='-',
+             area_alpha=1,
              mask_area=None,
              lat_b_area=None,
              lon_b_area=None,
-             area_facecolor='none',
-             area_edgecolor='xkcd:black',
-             area_linewidth=4.0,
-             area_linestyle='-',
-             area_alpha=1.0):
+             area_grid_facecolor='none',
+             area_grid_edgecolor='xkcd:crimson',
+             area_grid_linewidth=2.0,
+             area_grid_linestyle='-',
+             area_grid_alpha=1):
 
     plt.rcParams['axes.unicode_minus'] = False # Nicer minus signs
 
@@ -375,13 +383,51 @@ def plot_map(fig, ax, data, lon, lat,
             ax.add_geometries(
                 geoms,
                 crs=ccrs.PlateCarree(),
-                facecolor=area_facecolor,
-                edgecolor=area_edgecolor,
-                alpha=area_alpha,
-                linestyle=area_linestyle,
-                linewidth=area_linewidth,
+                facecolor=area_grid_facecolor,
+                edgecolor=area_grid_edgecolor,
+                alpha=area_grid_alpha,
+                linestyle=area_grid_linestyle,
+                linewidth=area_grid_linewidth,
                 zorder=10
             )
+        
+    if isinstance(lats_area, (list, tuple)) and len(lats_area) == 2 and \
+    isinstance(lons_area, (list, tuple)) and len(lons_area) == 2:
+        
+        if proj_area == ccrs.PlateCarree():
+            y_min, y_max = sorted(lats_area)
+            x_min, x_max = sorted(lons_area)
+        else:
+            y_min, y_max, x_min, x_max = rect_sel(lats_area, lons_area, proj_area)
+
+        n_edge = int(5e4)
+
+        x_bottom = np.linspace(x_min, x_max, n_edge)
+        y_bottom = np.full_like(x_bottom, y_min)
+
+        x_top = np.linspace(x_min, x_max, n_edge)
+        y_top = np.full_like(x_top, y_max)
+
+        y_left = np.linspace(y_min, y_max, n_edge)
+        x_left = np.full_like(y_left, x_min)
+
+        y_right = np.linspace(y_min, y_max, n_edge)
+        x_right = np.full_like(y_right, x_max)
+
+        x_area = np.concatenate([x_bottom, x_right, x_top[::-1], x_left[::-1]])
+        y_area = np.concatenate([y_bottom, y_right, y_top[::-1], y_left[::-1]])
+
+        ax.fill(
+            x_area,
+            y_area,
+            transform=proj_area,
+            facecolor=area_facecolor,
+            edgecolor=area_edgecolor,
+            linewidth=area_linewidth,
+            linestyle=area_linestyle,
+            alpha=area_alpha,
+            zorder=15,
+        )
 
     # Title and saving
     if title is not None:
