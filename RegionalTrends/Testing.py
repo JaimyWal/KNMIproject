@@ -194,30 +194,6 @@ def subset_time(time, months=None, years=None):
     return tsel
 
 
-def make_landmask(
-    land_file,
-    land_var,
-    lake_file=None,
-    lake_var=None,
-    land_thresh=0.5,
-    lake_thresh=0.0):
-
-    ds_land = xr.open_dataset(land_file)
-    land = ds_land[land_var]
-
-    mask = land >= land_thresh
-
-    if lake_file is None or lake_var is None:
-        return mask.astype(bool)
-
-    ds_lake = xr.open_dataset(lake_file)
-    lake = ds_lake[lake_var]
-
-    mask = mask | (lake >= lake_thresh)
-
-    return mask.astype(bool)
-
-
 def preprocess_netcdf_monthly(
     source,
     file_path,
@@ -226,7 +202,6 @@ def preprocess_netcdf_monthly(
     years=None,
     lats=None,
     lons=None,
-    land_only=False,
     trim_border=None,
     rotpole_sel=ccrs.PlateCarree(),
     rotpole_native=ccrs.PlateCarree(),
@@ -259,40 +234,6 @@ def preprocess_netcdf_monthly(
 
     # 4. select variable and convert units where needed
     da = ds[var_name].astype('float32')
-
-    if land_only:
-
-        if 'ERA5' in src:
-            landmask = make_landmask(
-                land_file='/nobackup/users/walj/landmasks/era5_landmask.nc',
-                land_var='lsm',
-                land_thresh=0.5
-            ).squeeze()
-            da = da.where(landmask)
-        
-        elif 'RACMO2.3' in src:
-            landmask = make_landmask(
-                land_file='/nobackup/users/walj/landmasks/lsm_racmo2.3_hxeur12.nc',
-                land_var='var81',
-                lake_file='/nobackup/users/walj/landmasks/lakefrac_racmo2.3_hxeur12.nc',
-                lake_var='clake',
-                land_thresh=0.5,
-                lake_thresh=1.0
-            ).squeeze()
-            landmask = landmask.isel(rlat=slice(16, -16), rlon=slice(16, -16))
-            landmask = landmask.assign_coords(rlat=da['rlat'], rlon=da['rlon'])
-            da = da.where(landmask)
-
-        elif 'RACMO2.4' in src:
-            landmask = make_landmask(
-                land_file='/nobackup/users/walj/landmasks/lsm_racmo2.4_kext06.nc',
-                land_var='var81',
-                lake_file='/nobackup/users/walj/landmasks/lakefrac_racmo2.4_kext06.nc',
-                lake_var='var26',
-                land_thresh=0.5,
-                lake_thresh=1.0
-            ).squeeze()
-            da = da.where(landmask)
 
     if 'RACMO' in src:
         if var_name == 't2m' or var_name == 'tas':
@@ -377,3 +318,154 @@ def preprocess_netcdf_monthly(
     out = out.chunk(chunk_dict).persist()
 
     return out
+
+
+#%%
+
+era5_landmask = xr.open_dataset('/nobackup/users/walj/landmasks/era5_landmask.nc')
+
+racmo23_landmask = xr.open_dataset('/nobackup/users/walj/landmasks/lsm_racmo2.3_hxeur12.nc')
+racmo23_lakemask = xr.open_dataset('/nobackup/users/walj/landmasks/lakefrac_racmo2.3_hxeur12.nc')
+
+racmo24_landmask = xr.open_dataset('/nobackup/users/walj/landmasks/lsm_racmo2.4_kext06.nc')
+racmo24_lakemask = xr.open_dataset('/nobackup/users/walj/landmasks/lakefrac_racmo2.4_kext06.nc')
+
+def make_era5_landmask_bool(ds, thresh=0.5):
+    lsm = ds['lsm']
+
+    mask = lsm >= thresh
+    return mask
+
+def make_racmo_landmask_bool(ds_land, ds_lake,
+                             land_var='var81',
+                             lake_var='clake',
+                             land_thresh=0.5,
+                             lake_thresh=1):
+    
+    lsm = ds_land[land_var]
+    lake = ds_lake[lake_var]
+
+    mask = (lsm >= land_thresh) | (lake > lake_thresh)
+
+    return mask
+
+era5_land_bool = make_era5_landmask_bool(era5_landmask)
+racmo23_land_bool = make_racmo_landmask_bool(
+    racmo23_landmask, racmo23_lakemask, lake_var='clake'
+)
+
+racmo24_land_bool = make_racmo_landmask_bool(
+    racmo24_landmask, racmo24_lakemask, lake_var='var26'
+)
+
+
+#%%
+
+import matplotlib.pyplot as plt
+
+# fig, ax = plt.subplots(figsize=(8, 6))
+
+# era5_landmask['lsm'].isel(valid_time=0).plot(
+#     ax=ax,
+#     cmap='gray'
+# )
+
+# ax.set_title('ERA5 Land-Sea Mask')
+
+# lat_min, lat_max = sorted([50.7, 53.6])
+# lon_min, lon_max = sorted([3.25, 7.35])
+
+# ax.set_xlim(lon_min, lon_max)
+# ax.set_ylim(lat_min, lat_max)
+
+# plt.show()
+
+
+
+fig, ax = plt.subplots(figsize=(8, 6))
+
+era5_land_bool.plot(
+    ax=ax,
+    cmap='gray'
+)
+
+ax.set_title('ERA5 Land-Sea Mask')
+
+lat_min, lat_max = sorted([20, 70])
+lon_min, lon_max = sorted([-20, 35])
+
+ax.set_xlim(lon_min, lon_max)
+ax.set_ylim(lat_min, lat_max)
+
+plt.show()
+
+
+#%%
+
+fig, ax = plt.subplots(figsize=(8, 6))
+
+racmo23_land_bool.plot(
+    ax=ax,
+    cmap='gray'
+)
+
+plt.show()
+
+
+
+#%%
+
+def make_landmask(
+    land_file,
+    land_var,
+    lake_file=None,
+    lake_var=None,
+    land_thresh=0.5,
+    lake_thresh=0.0
+):
+
+    # load land file
+    ds_land = xr.open_dataset(land_file)
+    land = ds_land[land_var]
+
+    mask = land >= land_thresh
+
+    if lake_file is None or lake_var is None:
+        return mask.astype(bool)
+
+    ds_lake = xr.open_dataset(lake_file)
+    lake = ds_lake[lake_var]
+
+    mask = mask | (lake > lake_thresh)
+
+    return mask.astype(bool)
+
+
+# ERA5, only land sea mask
+era5_land_bool = make_landmask(
+    land_file='/nobackup/users/walj/landmasks/era5_landmask.nc',
+    land_var='lsm',
+    lake_file=None,
+    lake_var=None,
+    land_thresh=0.5,
+)
+
+# RACMO2.3, land sea mask + lake fraction
+racmo23_land_bool = make_landmask(
+    land_file='/nobackup/users/walj/landmasks/lsm_racmo2.3_hxeur12.nc',
+    land_var='var81',
+    lake_file='/nobackup/users/walj/landmasks/lakefrac_racmo2.3_hxeur12.nc',
+    lake_var='clake',
+    land_thresh=0.5,
+    lake_thresh=0.0,   # any lake fraction counts as lake
+)
+
+# RACMO2.4, land sea mask + lake fraction
+racmo24_land_bool = make_landmask(
+    land_file='/nobackup/users/walj/landmasks/lsm_racmo2.4_kext06.nc',
+    land_var='var81',
+    lake_file='/nobackup/users/walj/landmasks/lakefrac_racmo2.4_kext06.nc',
+    lake_var='var26',
+    land_thresh=0.5,
+    lake_thresh=0.0,
+)

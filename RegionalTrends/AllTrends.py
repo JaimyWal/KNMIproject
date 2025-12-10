@@ -31,7 +31,7 @@ from ProcessStation import preprocess_station_monthly
 #%% User inputs
 
 # Main arguments
-var = 'Tg'
+var = 'P'
 data_base = 'RACMO2.4'
 data_compare = None
 
@@ -40,16 +40,16 @@ months = [12, 1, 2]
 years = [2016, 2020]
 lats = [38, 63]
 lons = [-13, 22]
-trim_border = None
 proj_sel = 'RACMO2.4'
-# Hier misschien ook argument voor land only? (of bij plotten?)
+land_only = True
+trim_border = None
 
 # Area selection arguments
-data_area = None
+data_area = ['Observed', 'ERA5_coarse', 'RACMO2.3', 'RACMO2.4']
 lats_area = [50.7, 53.6]
 lons_area = [3.25, 7.35]
 proj_area = 'RACMO2.4'
-land_only = True
+land_only_area = True
 
 # Plotting arguments
 avg_crange = [-15, 15]
@@ -286,6 +286,7 @@ def process_source(data_source,
                    years=None,
                    lats=None,
                    lons=None,
+                   land_only=False,
                    trim_border=None,
                    rotpole_sel=ccrs.PlateCarree(),
                    rolling_mean_var=False,
@@ -328,6 +329,7 @@ def process_source(data_source,
             years=years_load,
             lats=lats,
             lons=lons,
+            land_only=land_only,
             trim_border=trim_local,
             rotpole_sel=rotpole_sel,
             rotpole_native=cfg['proj']
@@ -467,6 +469,7 @@ if data_base is not None:
         years=years,
         lats=lats,
         lons=lons,
+        land_only=land_only,
         trim_border=trim_border, 
         rotpole_sel=proj_sel,
         rolling_mean_var=rolling_mean_var,
@@ -497,6 +500,7 @@ if data_base is not None:
             years=years,
             lats=lats,
             lons=lons,
+            land_only=land_only,
             trim_border=trim_border,
             rotpole_sel=proj_sel,
             rolling_mean_var=rolling_mean_var,
@@ -748,6 +752,7 @@ if lats_area is not None and lons_area is not None and data_area is not None:
             years=years,
             lats=lat_sel,
             lons=lon_sel,
+            land_only=land_only_area,
             trim_border=trim_border,
             rotpole_sel=proj_area,
             rolling_mean_var=rolling_mean_var,
@@ -762,7 +767,6 @@ if lats_area is not None and lons_area is not None and data_area is not None:
         ]
 
         if spatial_dims:
-            # build 2D lat
             if 'rlat' in data_avg.dims and 'rlon' in data_avg.dims:
                 lat2d = data_avg['latitude']
             else:
@@ -813,10 +817,8 @@ if lats_area is not None and lons_area is not None and data_area is not None:
         x_clean = x_arr[mask]
         y_clean = y_arr[mask]
 
-        # Add intercept column
         X = sm.add_constant(x_clean)
 
-        # Fit Ordinary Least Squares
         model = sm.OLS(y_clean, X).fit()
 
         slope = model.params[1]
@@ -931,7 +933,6 @@ if lats_area is not None and lons_area is not None and data_area is not None:
 
 
 
-# Mask sea values voor area!
 # Plotjes maken op het laatst van hoe de geselecteerde data eruit ziet
 
 
@@ -943,6 +944,8 @@ if lats_area is not None and lons_area is not None and data_area is not None:
 # Misschien optie voor alleen temporal of alleen spatial?
 # Kijk naar nieuwe versie van subset_space
 # Optie voor exacte contour of ongeveer contour! (voor ongeveer contour, gewoon simpel de 4 hoeken nemen...)
+# Mask sea values voor area!
+
 
 
 
