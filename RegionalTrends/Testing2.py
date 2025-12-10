@@ -1,26 +1,12 @@
-import os
 import glob
 import numpy as np
 import xarray as xr
 import pandas as pd
-from importlib import reload
-
-import ProcessEobs
-reload(ProcessEobs)          
-from ProcessEobs import preprocess_eobs_monthly 
-
-import ProcessERA5
-reload(ProcessERA5)          
-from ProcessERA5 import preprocess_era5 
-
-import ProcessRACMO
-reload(ProcessRACMO)          
-from ProcessRACMO import preprocess_racmo_monthly 
+import cartopy.crs as ccrs
 
 xr.set_options(use_new_combine_kwarg_defaults=True)
 
-
-def open_dataset_with_time_fallback(path):
+def open_dataset(path):
 
     files = sorted(glob.glob(path))
 
@@ -76,23 +62,68 @@ def align_month_to_start(time):
     return time - offset
 
 
-def subset_space(da, lat2d, lon2d, lats, lons, dim_lat, dim_lon):
+def subset_space(da, 
+                 lat2d, 
+                 lon2d, 
+                 lats, 
+                 lons, 
+                 dim_lat, 
+                 dim_lon, 
+                 rect_sel=True, 
+                 rotpole=False, 
+                 native_rotpole=False):
 
     if lats is None or lons is None:
         return da
 
     if isinstance(lats, (list, tuple)) and len(lats) == 2 and \
        isinstance(lons, (list, tuple)) and len(lons) == 2:
-
+        
         lat_min, lat_max = sorted(lats)
         lon_min, lon_max = sorted(lons)
 
-        mask = (
+        mask_geo = (
             (lat2d >= lat_min) & (lat2d <= lat_max) &
             (lon2d >= lon_min) & (lon2d <= lon_max)
-        ).compute()
+        )
 
-        return da.where(mask, drop=True)
+        if rotpole == ccrs.PlateCarree():
+            use_rotpole = False
+        else:
+            use_rotpole = True
+
+        if rect_sel == False or use_rotpole == False:
+            return da.where(mask_geo.compute(), drop=True)
+        
+        elif rect_sel == True and use_rotpole == True and native_rotpole == False:
+            plate = ccrs.PlateCarree()
+            pts = rotpole.transform_points(plate, lon2d.values, lat2d.values)
+            rlon2d = xr.DataArray(pts[..., 0], coords=lat2d.coords, dims=lat2d.dims)
+            rlat2d = xr.DataArray(pts[..., 1], coords=lat2d.coords, dims=lat2d.dims)
+
+            rlon_masked = rlon2d.where(mask_geo)
+            rlat_masked = rlat2d.where(mask_geo)
+
+            rlat_min = np.nanmin(rlat_masked.values)
+            rlat_max = np.nanmax(rlat_masked.values)
+            rlon_min = np.nanmin(rlon_masked.values)
+            rlon_max = np.nanmax(rlon_masked.values)
+
+            # Hier goed kijken naar rlat en rlon min en max gewoon verkrijgen vanuit lats en lons roteren
+            # Dat zou veel simpeler moeten zijn.
+
+            mask_rot = (
+                (rlat2d >= rlat_min) & (rlat2d <= rlat_max) &
+                (rlon2d >= rlon_min) & (rlon2d <= rlon_max)
+            )
+
+            return da.where(mask_rot, drop=True)
+
+        elif rect_sel == True and use_rotpole == True and native_rotpole == True:
+            valid_lat = mask_geo.any(dim=dim_lon).compute()
+            valid_lon = mask_geo.any(dim=dim_lat).compute()
+        
+        return da.isel({dim_lat: valid_lat, dim_lon: valid_lon})
 
     if isinstance(lats, (int, float)) and isinstance(lons, (int, float)):
         target_lat = float(lats)
@@ -138,6 +169,7 @@ def subset_time(time, months=None, years=None):
 
     return tsel
 
+
 def preprocess_netcdf_monthly(
     source,
     file_path,
@@ -146,15 +178,19 @@ def preprocess_netcdf_monthly(
     years=None,
     lats=None,
     lons=None,
+    trim_border=None,
+    rect_sel=True,
+    rotpole=ccrs.PlateCarree(),
+    native_rotpole=False,
     chunks_time=180,
     chunks_lat=200,
-    chunks_lon=200,
+    chunks_lon=200
 ):
     
     src = source.upper()
 
     # 1. read data and fix time if needed
-    ds = open_dataset_with_time_fallback(file_path)
+    ds = open_dataset(file_path)
 
     # 2. rename coords to a common convention
     rename = {}
@@ -196,25 +232,46 @@ def preprocess_netcdf_monthly(
             da = da*1000.0
             da.attrs['units'] = 'mm/day'
 
-    # 5. make sure 1D latitude is ascending
+    # 5. determine spatial dims on the raw grid
+    if 'rlat' in da.dims and 'rlon' in da.dims:
+        dim_lat, dim_lon = 'rlat', 'rlon'
+    else:
+        dim_lat, dim_lon = 'latitude', 'longitude'
+
+    # 5a. ensure 1D latitude is ascending (only for 1D lat)
     if 'latitude' in da.coords and da['latitude'].ndim == 1:
         lat1d = da['latitude']
         if lat1d[0] > lat1d[-1]:
             da = da.isel(latitude=slice(None, None, -1))
-            lat1d = da['latitude']
 
-    # 6. build lat2d / lon2d and subset space
+    # 5b. optionally remove n grid cells from each spatial border on the raw field
+    if trim_border is not None:
+        n = int(trim_border)
+        da = da.isel({dim_lat: slice(n, -n), dim_lon: slice(n, -n)})
+
+    # 6. build lat2d / lon2d on the trimmed grid and subset in space
     if 'rlat' in da.dims and 'rlon' in da.dims:
+        # rotated grid already has 2D lat/lon
         lat2d = da['latitude']
         lon2d = da['longitude']
-        dim_lat, dim_lon = 'rlat', 'rlon'
     else:
+        # regular lat/lon grid, build 2D lat/lon by broadcasting
         lat1d = da['latitude']
         lon1d = da['longitude']
         lat2d, lon2d = xr.broadcast(lat1d, lon1d)
-        dim_lat, dim_lon = 'latitude', 'longitude'
 
-    da = subset_space(da, lat2d, lon2d, lats, lons, dim_lat, dim_lon)
+    da = subset_space(
+        da, 
+        lat2d, 
+        lon2d, 
+        lats, 
+        lons, 
+        dim_lat, 
+        dim_lon, 
+        rect_sel=rect_sel, 
+        rotpole=rotpole, 
+        native_rotpole=native_rotpole
+    )
 
     # 7. decide if resampling is needed
     #    If time spacing is monthly already, do not resample.
@@ -238,7 +295,7 @@ def preprocess_netcdf_monthly(
 
     out = out.chunk(chunk_dict).persist()
 
-    return out
+    return out, ds
 
 
 # era5_old = preprocess_era5(
@@ -250,16 +307,15 @@ def preprocess_netcdf_monthly(
 #     lons=[-40, 56]
 # )
 
-# era5_new = preprocess_climate(
-#     source='ERA5',
-#     dir_path='/nobackup/users/walj/era5/',
-#     var_name='tp',
-#     months=[6, 7, 8],
-#     years=[1987, 2020],
-#     lats=[20, 75],
-#     lons=[-40, 56],
-#     file_pattern='era5_coarse_full_tp.nc'
-# )
+era5_new, ds_era5 = preprocess_netcdf_monthly(
+    source='ERA5',
+    file_path='/nobackup/users/walj/era5/era5_coarse_full_tp.nc',
+    var_name='tp',
+    months=[12, 1, 2],
+    years=[2016, 2025],
+    lats=[20, 75],
+    lons=[-40, 56]
+)
 
 # eobs_old = preprocess_eobs_monthly(
 #     file_path='/nobackup/users/walj/eobs/rr_ens_mean_0.1deg_reg_v31.0e.nc',
@@ -270,16 +326,15 @@ def preprocess_netcdf_monthly(
 #     lons=[-40, 56]
 # )
 
-# eobs_new = preprocess_climate(
-#     source='EOBS',
-#     dir_path='/nobackup/users/walj/eobs/',
-#     var_name='rr',
-#     months=[6, 7, 8],
-#     years=[1987, 2020],
-#     lats=[20, 75],
-#     lons=[-40, 56],
-#     file_pattern='rr_ens_mean_0.1deg_reg_v31.0e.nc'
-# )
+eobs_new, ds_eobs = preprocess_netcdf_monthly(
+    source='EOBS',
+    file_path='/nobackup/users/walj/eobs/rr_ens_mean_0.1deg_reg_v31.0e.nc',
+    var_name='rr',
+    months=[12, 1, 2],
+    years=[2016, 2025],
+    lats=[20, 75],
+    lons=[-40, 56]
+)
 
 # racmo_old = preprocess_racmo_monthly(
 #     dir_path='/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/precip',
@@ -316,22 +371,25 @@ def preprocess_netcdf_monthly(
 # process_netcdf en een functie process_txt ofzo.
 
 
-racmo24_daily = preprocess_netcdf_monthly(
-    source='RACMO2.4',
-    file_path='/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/pr.*.nc',
-    var_name='pr',
-    months=[6, 7, 8],
-    years=[1987, 2020],
-    lats=[20, 75],
-    lons=[-40, 56],
-)
+# racmo24_daily, ds_daily = preprocess_netcdf_monthly(
+#     source='RACMO2.4',
+#     file_path='/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/pr.*.nc',
+#     var_name='pr',
+#     months=[6, 7, 8],
+#     years=[1987, 2020],
+#     lats=[20, 75],
+#     lons=[-40, 56],
+# )
 
-racmo24_monthly = preprocess_netcdf_monthly(
-    source='RACMO2.4',
-    file_path='/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/pr_*.nc',
-    var_name='pr',
-    months=[6, 7, 8],
-    years=[1987, 2020],
-    lats=[20, 75],
-    lons=[-40, 56],
-)
+# racmo24_monthly, ds_monthly = preprocess_netcdf_monthly(
+#     source='RACMO2.4',
+#     file_path='/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/pr_*.nc',
+#     var_name='pr',
+#     months=[6, 7, 8],
+#     years=[1987, 2020],
+#     lats=[20, 75],
+#     lons=[-40, 56],
+# )
+
+
+

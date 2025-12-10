@@ -70,7 +70,7 @@ def subset_space(da,
                  dim_lat, 
                  dim_lon, 
                  rect_sel=True, 
-                 rotpole=False, 
+                 rotpole=ccrs.PlateCarree(), 
                  native_rotpole=False):
 
     if lats is None or lons is None:
@@ -166,6 +166,7 @@ def subset_time(time, months=None, years=None):
 
     return tsel
 
+
 def preprocess_netcdf_monthly(
     source,
     file_path,
@@ -176,7 +177,7 @@ def preprocess_netcdf_monthly(
     lons=None,
     trim_border=None,
     rect_sel=True,
-    rotpole=None,
+    rotpole=ccrs.PlateCarree(),
     native_rotpole=False,
     chunks_time=180,
     chunks_lat=200,
@@ -228,7 +229,7 @@ def preprocess_netcdf_monthly(
             da = da*1000.0
             da.attrs['units'] = 'mm/day'
 
-        # 5. determine spatial dims on the raw grid
+    # 5. determine spatial dims on the raw grid
     if 'rlat' in da.dims and 'rlon' in da.dims:
         dim_lat, dim_lon = 'rlat', 'rlon'
     else:

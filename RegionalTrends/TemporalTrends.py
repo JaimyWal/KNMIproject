@@ -18,9 +18,9 @@ import ProcessERA5
 reload(ProcessERA5)          
 from ProcessERA5 import preprocess_era5 
 
-import ProcessKNMI
-reload(ProcessKNMI)          
-from ProcessKNMI import preprocess_knmi_monthly
+import ProcessStation as ProcessStation
+reload(ProcessStation)          
+from ProcessStation import preprocess_station_monthly
 
 import ProcessRACMO
 reload(ProcessRACMO)          
@@ -30,11 +30,11 @@ from ProcessRACMO import preprocess_racmo_monthly
 
 var = 'Tg'
 relative_precip = False
-location = 'Cabauw'
-data_sources = ['KNMI', 'RACMO_monthly', 'ERA5_coarse']
+location = 'Bilt'
+data_sources = ['KNMI', 'ERA5_coarse', 'Eobs_fine']
 
 months = [12, 1, 2]
-years = [1987, 2020]
+years = [2016, 2020]
 
 fit_against_gmst = False
 rolling_mean_var = False
@@ -226,7 +226,7 @@ for src in data_sources:
         ).squeeze()
 
     elif 'KNMI' in src:
-        data_all[src] = preprocess_knmi_monthly(
+        data_all[src] = preprocess_station_monthly(
             file_path=input_file_data,
             var_name=cfg[src]['variable'],
             months=months,

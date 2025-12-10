@@ -18,9 +18,9 @@ import ProcessERA5
 reload(ProcessERA5)          
 from ProcessERA5 import preprocess_era5 
 
-import ProcessKNMI
-reload(ProcessKNMI)          
-from ProcessKNMI import preprocess_knmi_monthly
+import RegionalTrends.ProcessStation as ProcessStation
+reload(ProcessStation)          
+from RegionalTrends.ProcessStation import preprocess_knmi_monthly
 
 import ProcessRACMO
 reload(ProcessRACMO)          
