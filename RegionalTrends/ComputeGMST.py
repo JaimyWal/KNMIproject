@@ -3,9 +3,9 @@ import xarray as xr
 import matplotlib.pyplot as plt
 from importlib import reload
 
-import ProcessERA5
-reload(ProcessERA5)          
-from ProcessERA5 import preprocess_era5 
+import ProcessNetCDF
+reload(ProcessNetCDF)          
+from ProcessNetCDF import preprocess_netcdf_monthly 
 
 def area_weights(lat_val, lon_val): 
     lat_180 = lat_val + 90
@@ -25,8 +25,11 @@ def weighted_mean(variable, weights, n_time=None):
         mean_var = np.nanmean(variable*weights) / np.nanmean(weights)
     return mean_var
 
-t2m = preprocess_era5('/nobackup/users/walj/era5/era5_coarse_full_t2m.nc',
-                      't2m')
+t2m = preprocess_netcdf_monthly(
+    'ERA5',
+    '/nobackup/users/walj/era5/era5_coarse_full_t2m.nc',
+    't2m'
+)
 
 t2m_yearly = t2m.resample(time='YS').mean()
 

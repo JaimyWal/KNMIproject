@@ -2,7 +2,7 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 
-def preprocess_knmi_monthly(
+def preprocess_station_monthly(
     file_path,
     var_name,
     months=None,
@@ -70,6 +70,3 @@ def preprocess_knmi_monthly(
     )
 
     return data_monthly
-
-
-# Hier nog aanpassen!

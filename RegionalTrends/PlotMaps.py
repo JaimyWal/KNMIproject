@@ -1,4 +1,5 @@
 import numpy as np
+import xarray as xr
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
@@ -8,7 +9,30 @@ from matplotlib.colors import ListedColormap
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.ticker import MultipleLocator
 import matplotlib.path as mpath
+from shapely.geometry import Polygon
+from shapely.ops import unary_union
 import os
+from importlib import reload
+
+import ProcessNetCDF
+reload(ProcessNetCDF)
+from ProcessNetCDF import rect_sel
+
+
+def cbar_extension(datasets, crange):
+    dmin = min(float(np.nanmin(d)) for d in datasets)
+    dmax = max(float(np.nanmax(d)) for d in datasets)
+
+    vmin, vmax = crange
+    if dmin < vmin and dmax > vmax:
+        return 'both'
+    elif dmin < vmin and dmax <= vmax:
+        return 'min'
+    elif dmin >= vmin and dmax > vmax:
+        return 'max'
+    else:
+        return 'neither'
+
 
 def plot_map(fig, ax, data, lon, lat,
              crange=None,
@@ -37,7 +61,23 @@ def plot_map(fig, ax, data, lon, lat,
              add_colorbar=True,
              title=None,
              title_size=36,
-             show_plot=True):
+             show_plot=True,
+             lats_area=None,
+             lons_area=None,
+             proj_area=ccrs.PlateCarree(),
+             area_facecolor='none',
+             area_edgecolor='xkcd:black',
+             area_linewidth=2.0,
+             area_linestyle='-',
+             area_alpha=1,
+             mask_area=None,
+             lat_b_area=None,
+             lon_b_area=None,
+             area_grid_facecolor='none',
+             area_grid_edgecolor='xkcd:crimson',
+             area_grid_linewidth=2.0,
+             area_grid_linestyle='-',
+             area_grid_alpha=1):
 
     plt.rcParams['axes.unicode_minus'] = False # Nicer minus signs
 
@@ -55,16 +95,7 @@ def plot_map(fig, ax, data, lon, lat,
 
     # Determine color range and extension
     if crange is not None:
-        dmin = np.nanmin(data)
-        dmax = np.nanmax(data)
-        if dmin < crange[0] and dmax > crange[1]:
-            extension = 'both'
-        elif dmin < crange[0] and dmax <= crange[1]:
-            extension = 'min'
-        elif dmin >= crange[0] and dmax > crange[1]:
-            extension = 'max'
-        else:
-            extension = 'neither'
+        extension = cbar_extension([data], crange)
     else:
         crange = (np.nanmin(data), np.nanmax(data))
         extension = 'neither'
@@ -297,6 +328,7 @@ def plot_map(fig, ax, data, lon, lat,
         Lon, Lat, data, transform=ccrs.PlateCarree(),
         cmap=cmap, shading=shading, rasterized=True
     )
+
     mesh.set_clim(crange)
 
     # colorbar
@@ -333,6 +365,81 @@ def plot_map(fig, ax, data, lon, lat,
         if cbar is not None:
             cbar.set_label(label, fontsize=clabel_size, labelpad=10)
 
+    # Selected area
+    if mask_area is not None and lat_b_area is not None and lon_b_area is not None:
+        polys = []
+        for ii, jj in np.argwhere(mask_area):
+            ring = [
+                (lon_b_area[ii, jj],     lat_b_area[ii, jj]),
+                (lon_b_area[ii, jj+1],   lat_b_area[ii, jj+1]),
+                (lon_b_area[ii+1, jj+1], lat_b_area[ii+1, jj+1]),
+                (lon_b_area[ii+1, jj],   lat_b_area[ii+1, jj]),
+            ]
+            poly = Polygon(ring)
+            if poly.is_valid and not poly.is_empty:
+                polys.append(poly)
+
+        if polys:
+            merged = unary_union(polys)
+            geoms = []
+            if merged.geom_type == 'GeometryCollection':
+                geoms = [g for g in merged.geoms if not g.is_empty]
+            else:
+                geoms = [merged]
+
+            ax.add_geometries(
+                geoms,
+                crs=ccrs.PlateCarree(),
+                facecolor=area_grid_facecolor,
+                edgecolor=area_grid_edgecolor,
+                alpha=area_grid_alpha,
+                linestyle=area_grid_linestyle,
+                linewidth=area_grid_linewidth,
+                zorder=10
+            )
+        
+    if isinstance(lats_area, (list, tuple)) and len(lats_area) == 2 and \
+    isinstance(lons_area, (list, tuple)) and len(lons_area) == 2:
+        
+        if proj_area == ccrs.PlateCarree():
+            y_min, y_max = sorted(lats_area)
+            x_min, x_max = sorted(lons_area)
+        else:
+            y_min, y_max, x_min, x_max = rect_sel(lats_area, lons_area, proj_area)
+
+        n_edge = int(5e4)
+
+        x_bottom = np.linspace(x_min, x_max, n_edge)
+        y_bottom = np.full_like(x_bottom, y_min)
+
+        x_top = np.linspace(x_min, x_max, n_edge)
+        y_top = np.full_like(x_top, y_max)
+
+        y_left = np.linspace(y_min, y_max, n_edge)
+        x_left = np.full_like(y_left, x_min)
+
+        y_right = np.linspace(y_min, y_max, n_edge)
+        x_right = np.full_like(y_right, x_max)
+
+        x_area = np.concatenate([x_bottom, x_right, x_top[::-1], x_left[::-1]])
+        y_area = np.concatenate([y_bottom, y_right, y_top[::-1], y_left[::-1]])
+
+        ax.fill(
+            x_area,
+            y_area,
+            transform=proj_area,
+            facecolor=area_facecolor,
+            edgecolor=area_edgecolor,
+            linewidth=area_linewidth,
+            linestyle=area_linestyle,
+            alpha=area_alpha,
+            zorder=15,
+        )
+
+    # Title and saving
+    if title is not None:
+        ax.set_title(title, fontsize=title_size, fontweight='bold')
+
     if save_name is not None:
         folder = '/usr/people/walj/figures/'
         save_path = os.path.join(folder, save_name + '.jpg')
@@ -344,7 +451,95 @@ def plot_map(fig, ax, data, lon, lat,
     if show_plot:
         plt.show()
 
-    if title is not None:
-        ax.set_title(title, fontsize=title_size, fontweight='bold')
-
     return mesh, cbar
+
+
+def shared_colorbar(
+    fig,
+    axes,
+    mesh,
+    datasets,
+    crange,
+    label,
+    orientation='horizontal',
+    c_ticks=10,
+    c_ticks_num=True,
+    tick_labelsize=24,
+    labelsize=30,
+    pad=0.02,
+    thickness=0.03
+):
+
+    extension = cbar_extension(datasets, crange)
+
+    fig.canvas.draw()
+    axes = np.atleast_1d(axes)
+    positions = [ax.get_position() for ax in axes]
+
+    if orientation == 'vertical':
+        bottom = min(p.y0 for p in positions)
+        top    = max(p.y1 for p in positions)
+        height = top - bottom
+
+        left = max(p.x1 for p in positions) + pad
+        width = thickness
+
+        ax_cb = fig.add_axes([left, bottom, width, height])
+        ax_cb.set_in_layout(False)
+
+        cbar = plt.colorbar(
+            mesh,
+            cax=ax_cb,
+            orientation='vertical',
+            extend=extension
+        )
+
+        cbar.ax.tick_params(
+            labelsize=tick_labelsize,
+            direction='in',
+            length=8,
+            left=True,
+            right=True
+        )
+
+        if c_ticks_num:
+            cbar.ax.yaxis.set_major_locator(ticker.MaxNLocator(nbins=c_ticks))
+        else:
+            cbar.ax.yaxis.set_major_locator(MultipleLocator(c_ticks))
+
+    else:
+        left  = min(p.x0 for p in positions)
+        right = max(p.x1 for p in positions)
+        width = right - left
+
+        bottom = min(p.y0 for p in positions) - (pad + thickness)
+        height = thickness
+
+        ax_cb = fig.add_axes([left, bottom, width, height])
+        ax_cb.set_in_layout(False)
+
+        cbar = plt.colorbar(
+            mesh,
+            cax=ax_cb,
+            orientation='horizontal',
+            extend=extension,
+            location='bottom'
+        )
+
+        cbar.ax.tick_params(
+            labelsize=tick_labelsize,
+            direction='in',
+            length=8,
+            top=True,
+            bottom=True
+        )
+
+        if c_ticks_num:
+            cbar.ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=c_ticks))
+        else:
+            cbar.ax.xaxis.set_major_locator(MultipleLocator(c_ticks))
+
+    cbar.set_label(label, fontsize=labelsize, labelpad=10)
+    return cbar
+
+
