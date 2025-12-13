@@ -18,6 +18,22 @@ import ProcessNetCDF
 reload(ProcessNetCDF)
 from ProcessNetCDF import rect_sel
 
+
+def cbar_extension(datasets, crange):
+    dmin = min(float(np.nanmin(d)) for d in datasets)
+    dmax = max(float(np.nanmax(d)) for d in datasets)
+
+    vmin, vmax = crange
+    if dmin < vmin and dmax > vmax:
+        return 'both'
+    elif dmin < vmin and dmax <= vmax:
+        return 'min'
+    elif dmin >= vmin and dmax > vmax:
+        return 'max'
+    else:
+        return 'neither'
+
+
 def plot_map(fig, ax, data, lon, lat,
              crange=None,
              label=None,
@@ -79,16 +95,7 @@ def plot_map(fig, ax, data, lon, lat,
 
     # Determine color range and extension
     if crange is not None:
-        dmin = np.nanmin(data)
-        dmax = np.nanmax(data)
-        if dmin < crange[0] and dmax > crange[1]:
-            extension = 'both'
-        elif dmin < crange[0] and dmax <= crange[1]:
-            extension = 'min'
-        elif dmin >= crange[0] and dmax > crange[1]:
-            extension = 'max'
-        else:
-            extension = 'neither'
+        extension = cbar_extension([data], crange)
     else:
         crange = (np.nanmin(data), np.nanmax(data))
         extension = 'neither'
@@ -445,3 +452,94 @@ def plot_map(fig, ax, data, lon, lat,
         plt.show()
 
     return mesh, cbar
+
+
+def shared_colorbar(
+    fig,
+    axes,
+    mesh,
+    datasets,
+    crange,
+    label,
+    orientation='horizontal',
+    c_ticks=10,
+    c_ticks_num=True,
+    tick_labelsize=24,
+    labelsize=30,
+    pad=0.02,
+    thickness=0.03
+):
+
+    extension = cbar_extension(datasets, crange)
+
+    fig.canvas.draw()
+    axes = np.atleast_1d(axes)
+    positions = [ax.get_position() for ax in axes]
+
+    if orientation == 'vertical':
+        bottom = min(p.y0 for p in positions)
+        top    = max(p.y1 for p in positions)
+        height = top - bottom
+
+        left = max(p.x1 for p in positions) + pad
+        width = thickness
+
+        ax_cb = fig.add_axes([left, bottom, width, height])
+        ax_cb.set_in_layout(False)
+
+        cbar = plt.colorbar(
+            mesh,
+            cax=ax_cb,
+            orientation='vertical',
+            extend=extension
+        )
+
+        cbar.ax.tick_params(
+            labelsize=tick_labelsize,
+            direction='in',
+            length=8,
+            left=True,
+            right=True
+        )
+
+        if c_ticks_num:
+            cbar.ax.yaxis.set_major_locator(ticker.MaxNLocator(nbins=c_ticks))
+        else:
+            cbar.ax.yaxis.set_major_locator(MultipleLocator(c_ticks))
+
+    else:
+        left  = min(p.x0 for p in positions)
+        right = max(p.x1 for p in positions)
+        width = right - left
+
+        bottom = min(p.y0 for p in positions) - (pad + thickness)
+        height = thickness
+
+        ax_cb = fig.add_axes([left, bottom, width, height])
+        ax_cb.set_in_layout(False)
+
+        cbar = plt.colorbar(
+            mesh,
+            cax=ax_cb,
+            orientation='horizontal',
+            extend=extension,
+            location='bottom'
+        )
+
+        cbar.ax.tick_params(
+            labelsize=tick_labelsize,
+            direction='in',
+            length=8,
+            top=True,
+            bottom=True
+        )
+
+        if c_ticks_num:
+            cbar.ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=c_ticks))
+        else:
+            cbar.ax.xaxis.set_major_locator(MultipleLocator(c_ticks))
+
+    cbar.set_label(label, fontsize=labelsize, labelpad=10)
+    return cbar
+
+

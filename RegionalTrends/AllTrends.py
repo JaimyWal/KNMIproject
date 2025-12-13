@@ -18,7 +18,7 @@ from importlib import reload
 # Custom functions
 import PlotMaps
 reload(PlotMaps)          
-from PlotMaps import plot_map 
+from PlotMaps import plot_map, shared_colorbar
 
 import ProcessNetCDF
 reload(ProcessNetCDF)          
@@ -32,29 +32,28 @@ from ProcessStation import preprocess_station_monthly
 
 # Main arguments
 var = 'P'
-data_base = 'RACMO2.4'
+data_base = None
 data_compare = None
 
 # Data selection arguments
-months = [12, 1, 2]
-years = [2016, 2020]
+months = [6, 7, 8]
+years = [2016, 2024]
 lats = [38, 63]
 lons = [-13, 22]
 proj_sel = 'RACMO2.4'
-land_only = True
+land_only = False
 trim_border = None
 
 # Area selection arguments
-data_area = ['Observed', 'ERA5_coarse', 'RACMO2.3', 'RACMO2.4']
+data_area = ['ERA5_coarse', 'RACMO2.4', 'Observed']
 lats_area = [50.7, 53.6]
 lons_area = [3.25, 7.35]
-proj_area = 'RACMO2.4'
 land_only_area = True
+proj_area = 'RACMO2.4'
 
-# Plotting arguments
+# Spatial plotting arguments
 avg_crange = [-15, 15]
-trend_crange = [-4, 4]
-fit_range = None
+trend_crange = [-2, 2]
 proj_plot = 'RACMO2.4'
 plot_lats = [38, 63]
 plot_lons = [-13, 22]
@@ -63,11 +62,18 @@ grid_contour = True
 switch_sign = False
 cut_boundaries = False
 
+# Area plotting arguments
+fit_range = None
+plots_area = True
+crange_area = trend_crange
+lats_area_plot = [50.2, 54.1]
+lons_area_plot = [2.5, 8.1]
+
 # Other arguments
 relative_precip = False
 rolling_mean_var = False
 fit_against_gmst = False
-rolling_mean_years = 5
+rolling_mean_years = 7
 min_periods = 1
 
 # lats = [38, 63]
@@ -571,8 +577,8 @@ if data_base is not None:
         trend_plot = minus_scaling*(trend_plot_comp - trend_plot_base).compute()
 
     trend_plot = trend_plot.assign_coords(
-                latitude=data_avg_base['latitude'],
-                longitude=data_avg_base['longitude']
+                    latitude=data_avg_base['latitude'],
+                    longitude=data_avg_base['longitude']
                 )
 
     lat_plot = data_avg_plot['latitude'].values
@@ -586,9 +592,9 @@ if data_base is not None:
     lat_b_area = None
     lon_b_area = None
 
-    lats_area_plot = None
-    lons_area_plot = None 
-    proj_area_plot = None
+    lats_area_cont = None
+    lons_area_cont = None 
+    proj_area_cont = None
 
     if isinstance(lats_area, (list, tuple)) and len(lats_area) == 2 and \
     isinstance(lons_area, (list, tuple)) and len(lons_area) == 2 and grid_contour == True:
@@ -632,11 +638,11 @@ if data_base is not None:
     if isinstance(lats_area, (list, tuple)) and len(lats_area) == 2 and \
     isinstance(lons_area, (list, tuple)) and len(lons_area) == 2 and true_contour == True:
         
-        lats_area_plot = lats_area
-        lons_area_plot = lons_area
-        proj_area_plot = proj_area
+        lats_area_cont = lats_area
+        lons_area_cont = lons_area
+        proj_area_cont = proj_area
 
-#%% Calculate mean and plot
+#%% Plot climatology
 
 if data_base is not None:
 
@@ -665,15 +671,15 @@ if data_base is not None:
         extent=[*plot_lons, *plot_lats],
         proj=proj_plot,
         rotated_grid=cut_boundaries,
-        lats_area=lats_area_plot,
-        lons_area=lons_area_plot,
-        proj_area=proj_area_plot,
+        lats_area=lats_area_cont,
+        lons_area=lons_area_cont,
+        proj_area=proj_area_cont,
         mask_area=mask_area,
         lat_b_area=lat_b_area,
         lon_b_area=lon_b_area
     )
 
-#%% Linear trends and plot
+#%% Plot linear trends
 
 if data_base is not None:
     fig, ax = plt.subplots(
@@ -701,9 +707,9 @@ if data_base is not None:
         extent=[*plot_lons, *plot_lats],
         proj=proj_plot,
         rotated_grid=cut_boundaries,
-        lats_area=lats_area_plot,
-        lons_area=lons_area_plot,
-        proj_area=proj_area_plot,
+        lats_area=lats_area_cont,
+        lons_area=lons_area_cont,
+        proj_area=proj_area_cont,
         mask_area=mask_area,
         lat_b_area=lat_b_area,
         lon_b_area=lon_b_area
@@ -725,6 +731,8 @@ if lats_area is not None and lons_area is not None and data_area is not None:
             for x in data_area
         ]
 
+    data_area_avg_raw = {}
+    data_area_yearly_raw = {}
     data_area_avg = {}
     data_area_monthly = {}
     data_area_yearly = {}
@@ -760,6 +768,9 @@ if lats_area is not None and lons_area is not None and data_area is not None:
             rolling_mean_years=rolling_mean_years,
             min_periods=min_periods
         )
+
+        data_area_avg_raw[src] = data_avg
+        data_area_yearly_raw[src] = data_fit
 
         spatial_dims = [
             d for d in data_avg.dims
@@ -844,7 +855,7 @@ if lats_area is not None and lons_area is not None and data_area is not None:
 
     colors = ['#000000', '#DB2525', '#0168DE', '#00A236']
 
-    fig, ax = plt.subplots(1, figsize=(12, 8))
+    fig, ax = plt.subplots(1, figsize=(16, 6))
 
     for ii, src in enumerate(data_area):
 
@@ -901,7 +912,8 @@ if lats_area is not None and lons_area is not None and data_area is not None:
             c=color,
             linewidth=3,
             alpha=1,
-            label=label
+            label=label,
+            zorder=15
         )
 
         ax.fill_between(
@@ -928,12 +940,114 @@ if lats_area is not None and lons_area is not None and data_area is not None:
         line.set_linewidth(4.0)
     leg.set_zorder(20)
 
+#%% Spatial plotting for area
+
+if isinstance(lats_area, (list, tuple)) and len(lats_area) == 2 and \
+    isinstance(lons_area, (list, tuple)) and len(lons_area) == 2 and plots_area == True:
+
+    meshes = []
+    trend_fields = [] 
+
+    n_panels = len(data_area)
+
+    if n_panels == 4:
+        nrows, ncols = 2, 2
+        figsize = (14, 12)
+        x_tick_bool = [False, False, True, True]
+        y_tick_bool = [True, False, True, False]
+    else:
+        nrows, ncols = 1, n_panels
+        figsize = (18, 5)
+        x_tick_bool = [True]*n_panels    
+        y_tick_bool = [False]*n_panels
+        y_tick_bool[0] = True
+
+    fig, axes = plt.subplots(
+        nrows, ncols,
+        figsize=figsize,
+        constrained_layout=True,
+        subplot_kw={'projection': proj_plot},
+        sharex=True,
+        sharey=True
+    )
+
+    axes = np.atleast_1d(axes).ravel()
+
+    for ii, (ax, src) in enumerate(zip(axes, data_area)):
+
+        data_fit_area = data_area_yearly_raw[src]
+
+        fits_area = data_fit_area.polyfit(dim='fit_against', deg=1, skipna=True)
+        slope_area = fits_area.polyfit_coefficients.sel(degree=1)
+        trend_area = (slope_area*fit_scaling).astype('float32').compute()
+
+        if relative_precip and var == 'P':
+            trend_plot_area = (trend_area / data_area_avg_raw[src])*100.0
+        else:
+            trend_plot_area = trend_area
+
+        trend_plot_area = trend_plot_area.assign_coords(
+            latitude=data_area_avg_raw[src]['latitude'],
+            longitude=data_area_avg_raw[src]['longitude']
+        )
+
+        trend_fields.append(trend_plot_area)
+
+        title = next(key for key in data_sources if key in src)
+        if title == 'Eobs':
+            title = 'E-OBS'
+
+        mesh, _ = plot_map(
+            fig, ax,
+            trend_plot_area,
+            trend_plot_area['longitude'],
+            trend_plot_area['latitude'],
+            crange=crange_area, 
+            cmap=plot_cfg[var]['cmap_trend'],
+            extreme_colors=plot_cfg[var]['extreme_trend'],
+            show_plot=False,
+            x_ticks=1,
+            y_ticks=1,
+            x_ticks_num=False,
+            y_ticks_num=False,
+            show_x_labels=x_tick_bool[ii],
+            show_y_labels=y_tick_bool[ii],
+            tick_size=24,
+            extent=[*lons_area_plot, *lats_area_plot],
+            lats_area=lats_area,
+            lons_area=lons_area,
+            proj=proj_plot,
+            proj_area=proj_area,
+            add_colorbar=False,
+            title=title
+        )
+
+        meshes.append(mesh)
+
+    cbar = shared_colorbar(
+        fig=fig,
+        axes=axes,
+        mesh=meshes[0],
+        datasets=trend_fields,
+        crange=plot_cfg[var]['crange_trend'],
+        label=plot_cfg[var]['label_trend'],
+        orientation='horizontal',
+        c_ticks=10,
+        c_ticks_num=True,
+        tick_labelsize=28,
+        labelsize=34,
+        pad=0.11,
+        thickness=0.06
+    )
+
+    plt.show()
 
 #%%
 
 
 
-# Plotjes maken op het laatst van hoe de geselecteerde data eruit ziet
+# Correlation plots?
+# Correlation per maand? En if so, andere climate years weghalen.
 
 
 # Gedaan: 
@@ -945,7 +1059,7 @@ if lats_area is not None and lons_area is not None and data_area is not None:
 # Kijk naar nieuwe versie van subset_space
 # Optie voor exacte contour of ongeveer contour! (voor ongeveer contour, gewoon simpel de 4 hoeken nemen...)
 # Mask sea values voor area!
-
+# Plotjes maken op het laatst van hoe de geselecteerde data eruit ziet
 
 
 
