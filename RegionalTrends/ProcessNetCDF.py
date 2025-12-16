@@ -305,6 +305,20 @@ def preprocess_netcdf_monthly(
             days_in_month = da['time'].dt.days_in_month
             da = da / days_in_month
             da.attrs['units'] = 'mm/day'
+        if var_name == 'sund':
+            if ('2.4' in src) and is_monthly_time(da['time']):
+                scale_to_seconds = 1e-5
+                days_in_month = da['time'].dt.days_in_month
+                da = scale_to_seconds*da / (days_in_month*3600.0)
+                da.attrs['units'] = 'hours/day'
+            else:
+                da = da / 3600.0
+                da.attrs['units'] = 'hours/day'
+        if var_name == 'rsds':
+            if ('2.4' in src) and is_monthly_time(da['time']):
+                days_in_month = da['time'].dt.days_in_month
+                da = da / (days_in_month*86400.0)
+                da.attrs['units'] = 'W/m2'
 
     if 'ERA5' in src:
         if var_name == 't2m':
@@ -313,6 +327,9 @@ def preprocess_netcdf_monthly(
         elif var_name in ['tp', 'precip']:
             da = da*1000.0
             da.attrs['units'] = 'mm/day'
+        elif var_name == 'ssrd':
+            da = da / 86400.0
+            da.attrs['units'] = 'W/m2'
 
     # 5. determine spatial dims on the raw grid
     if 'rlat' in da.dims and 'rlon' in da.dims:

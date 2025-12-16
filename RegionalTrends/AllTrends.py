@@ -7,6 +7,8 @@ import pandas as pd
 import colormaps as cmaps
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+from matplotlib.colors import ListedColormap
+from matplotlib.colors import LinearSegmentedColormap
 import cartopy.crs as ccrs
 import cmocean
 import xesmf as xe
@@ -31,13 +33,13 @@ from ProcessStation import preprocess_station_monthly
 #%% User inputs
 
 # Main arguments
-var = 'P'
+var = 'Tg'
 data_base = None
 data_compare = None
 
 # Data selection arguments
-months = [6, 7, 8]
-years = [2016, 2024]
+months = [12, 1, 2]
+years = [2016, 2020]
 lats = [38, 63]
 lons = [-13, 22]
 proj_sel = 'RACMO2.4'
@@ -45,14 +47,15 @@ land_only = False
 trim_border = None
 
 # Area selection arguments
-data_area = ['ERA5_coarse', 'RACMO2.4', 'Observed']
+data_area = ['ERA5_coarse', 'Eobs_fine', 'RACMO2.3', 'RACMO2.4']
+stations = ['Bilt', 'Eelde', 'Maastricht', 'Vlissingen', 'Kooy']
 lats_area = [50.7, 53.6]
 lons_area = [3.25, 7.35]
 land_only_area = True
 proj_area = 'RACMO2.4'
 
 # Spatial plotting arguments
-avg_crange = [-15, 15]
+avg_crange = [-12, 12]
 trend_crange = [-2, 2]
 proj_plot = 'RACMO2.4'
 plot_lats = [38, 63]
@@ -68,6 +71,7 @@ plots_area = True
 crange_area = trend_crange
 lats_area_plot = [50.2, 54.1]
 lons_area_plot = [2.5, 8.1]
+uncertainty_band = False
 
 # Other arguments
 relative_precip = False
@@ -79,6 +83,7 @@ min_periods = 1
 # lats = [38, 63]
 # lons = [-13, 22]
 # data_area = ['Observed', 'ERA5_coarse', 'RACMO2.3', 'RACMO2.4']
+# stations = ['Bilt', 'Eelde', 'Maastricht', 'Vlissingen', 'Kooy']
 # lats_area = [50.7, 53.6]
 # lons_area = [3.25, 7.35]
 
@@ -117,7 +122,7 @@ except ValueError:
     client = Client(n_workers=1, threads_per_worker=8, processes=False)
 
 data_sources = ['Eobs', 'ERA5', 'RACMO2.3', 'RACMO2.4']
-station_sources = ['Bilt', 'Cabauw']
+station_sources = ['Bilt', 'Cabauw', 'Eelde', 'Maastricht', 'Vlissingen', 'Kooy']
 
 if fit_against_gmst:
     fit_unit = '°C GMST'
@@ -136,6 +141,17 @@ else:
     precip_trend_label = 'Trend (mm / ' + fit_unit + ')'
     precip_ylabel = 'Precipitation (mm)'
     precip_trend_unit = 'mm / ' + fit_unit
+
+sun_colors = [
+    '#2b0a3d',
+    '#5c1a1b',
+    '#8b2f1c',
+    '#c45a1a',
+    '#e39b2d',
+    '#f4e27a'
+]
+
+cmap_sun = LinearSegmentedColormap.from_list('sunshine', sun_colors, N=256)
 
 plot_cfg = {
     'Tg': {
@@ -164,9 +180,35 @@ plot_cfg = {
         'trend_unit': precip_trend_unit,
         'ylim_fit': fit_range,
     },
+    'Sq': {
+        'label_mean': 'Sunshine duration (hours/day)',
+        'label_trend': 'Trend (hours/day / ' + fit_unit + ')',
+        'cmap_mean': cmap_sun,
+        'cmap_trend': ListedColormap(cmaps.cmp_b2r(np.linspace(0, 1, 20))),
+        'crange_mean': avg_crange,
+        'crange_trend': trend_crange,
+        'extreme_mean': (None, "#fff3b2"),
+        'extreme_trend': ("#1B1C70", "#7e060c"),
+        'ylabel_fit': 'Sunshine duration (hours/day)',
+        'trend_unit': 'hours/day / ' + fit_unit,
+        'ylim_fit': fit_range,
+    },
+    'SW': {
+        'label_mean': 'Shortwave radiation (W/m²)',
+        'label_trend': 'Trend (W/m² / ' + fit_unit + ')',
+        'cmap_mean': cmocean.cm.solar,
+        'cmap_trend': ListedColormap(cmaps.cmp_b2r(np.linspace(0, 1, 20))),
+        'crange_mean': avg_crange,
+        'crange_trend': trend_crange,
+        'extreme_mean': (None, "#fff3b2"),
+        'extreme_trend': ("#1B1C70", "#7e060c"),
+        'ylabel_fit': 'Shortwave radiation (W/m²)',
+        'trend_unit': 'W/m² / ' + fit_unit,
+        'ylim_fit': fit_range,
+    },
 }
 
-cfg_plot = plot_cfg[var]
+cfg_plot = plot_cfg[var].copy()
 if data_compare is not None:
     cfg_plot['cmap_mean'] = cfg_plot['cmap_trend']
     cfg_plot['extreme_mean'] = cfg_plot['extreme_trend']
@@ -177,22 +219,29 @@ var_name_cfg = {
     'Eobs': {
         'Tg': 'tg',
         'P': 'rr',
+        'SW': 'qq',
     },
     'ERA5': {
         'Tg': 't2m',
         'P': 'tp',
+        'SW': 'ssrd',
     },
     'RACMO2.3': {
         'Tg': 't2m',
         'P': 'precip',
+        'Sq': 'sund'
     },
     'RACMO2.4': {
         'Tg': 'tas',
         'P': 'pr',
+        'Sq': 'sund',
+        'SW': 'rsds',
     },
     'Station': {
         'Tg': 'TG',
         'P': 'RH',
+        'Sq': 'SQ',
+        'SW': 'Q'
     },
 }
 
@@ -205,12 +254,29 @@ station_coord_cfg = {
         'latitude': 51.970212171384865,
         'longitude': 4.926283190645085,
     },
+    'Eelde': {
+        'latitude': 53.12385846866912,
+        'longitude': 6.584799434350561
+    },
+    'Maastricht': {
+        'latitude': 50.90548320406765,
+        'longitude': 5.761839846736004
+    },
+    'Vlissingen': {
+        'latitude': 51.441328455552586,
+        'longitude': 3.5958610840956884
+    },
+    'Kooy': {
+        'latitude': 52.924172463538795,
+        'longitude': 4.779336630180403
+    },
 }
 
 file_cfg = {
     'Eobs_fine': {
         'Tg': 'tg_ens_mean_0.1deg_reg_v31.0e.nc',
         'P': 'rr_ens_mean_0.1deg_reg_v31.0e.nc',
+        'SW': 'qq_ens_mean_0.1deg_reg_v31.0e.nc',
     },
     'Eobs_coarse': {
         'Tg': 'tg_ens_mean_0.25deg_reg_v31.0e.nc',
@@ -224,19 +290,28 @@ file_cfg = {
     'ERA5_coarse': {
         'Tg': 'era5_coarse_full_t2m.nc',
         'P': 'era5_coarse_full_tp.nc',
+        'SW': 'era5_rsds.nc',
     },
 
     'RACMO2.3': {
         'Tg': 't2m/*.nc',
         'P': 'precip/*.nc',
+        'Sq': 'sund/*.nc',
     },
     'RACMO2.4': {
-        'Tg': 'tas_*.nc',
-        'P': 'pr_*.nc',
+        'Tg': 'Monthly/tas_*.nc',
+        'P': 'Monthly/pr_*.nc',
+        'Sq': 'Daily/sund.*.nc',
+        'SW': 'Monthly/rsds_*.nc',
     },
+
     'Station': {
         'Bilt': 'KNMI_Bilt.txt',
         'Cabauw': 'KNMI_Cabauw.txt',
+        'Eelde': 'KNMI_Eelde.txt',
+        'Maastricht': 'KNMI_Maastricht.txt',
+        'Vlissingen': 'KNMI_Vlissingen.txt',
+        'Kooy': 'KNMI_Kooy.txt'
     },
 }
 
@@ -244,7 +319,7 @@ base_dir_cfg = {
     'Eobs': '/nobackup/users/walj/eobs',
     'ERA5': '/nobackup/users/walj/era5',
     'RACMO2.3': '/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Monthly_data',
-    'RACMO2.4': '/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly',
+    'RACMO2.4': '/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning',
     'Station': '/nobackup/users/walj/knmi',
 }
 
@@ -531,7 +606,7 @@ if data_base is not None:
             elif data_compare == 'RACMO2.4':
                 src_grid = racmo_bounds_grid(data_avg_comp, rotpole24)
 
-        elif var == 'Tg':
+        elif var in ['Tg', 'Sq', 'SW']:
             method = 'bilinear'
 
         regridder = xe.Regridder(
@@ -717,19 +792,14 @@ if data_base is not None:
 
 #%% Loading data for chosen area
 
-if lats_area is not None and lons_area is not None and data_area is not None:
+def combine_lists(a, b):
+    if a is None and b is None:
+        return None
+    return (a or []) + (b or [])
 
-    if 'Observed' in data_area:
+data_area_all = combine_lists(data_area, stations)
 
-        if isinstance(lats_area, str) or isinstance(lons_area, str):
-            replacement = lats_area if isinstance(lats_area, str) else lons_area
-        else:
-            replacement = 'Eobs_fine'
-
-        data_area = [
-            replacement if x == 'Observed' else x
-            for x in data_area
-        ]
+if data_area_all is not None:
 
     data_area_avg_raw = {}
     data_area_yearly_raw = {}
@@ -737,7 +807,7 @@ if lats_area is not None and lons_area is not None and data_area is not None:
     data_area_monthly = {}
     data_area_yearly = {}
 
-    for src in data_area:
+    for src in data_area_all:
 
         is_station = src in station_sources
 
@@ -808,18 +878,42 @@ if lats_area is not None and lons_area is not None and data_area is not None:
 
         if var == 'P' and relative_precip:
             data_area_monthly[src] = 100*monthly_raw / data_area_avg[src]
-            data_area_yearly[src] = 100*yearly_raw  / data_area_avg[src]
+            data_area_yearly[src] = 100*yearly_raw / data_area_avg[src]
         else:
             data_area_monthly[src] = monthly_raw
             data_area_yearly[src] = yearly_raw
 
-#%% Fit stastitics for area
+    station_keys = [k for k in data_area_avg if k in station_sources]
 
-if lats_area is not None and lons_area is not None and data_area is not None:
+    if station_keys:
+        data_area_avg['Stations'] = xr.concat(
+            [data_area_avg[k] for k in station_keys],
+            dim='station'
+        ).mean(dim='station')
+
+        data_area_monthly['Stations'] = xr.concat(
+            [data_area_monthly[k] for k in station_keys],
+            dim='station'
+        ).mean(dim='station')
+
+        data_area_yearly['Stations'] = xr.concat(
+            [data_area_yearly[k] for k in station_keys],
+            dim='station'
+        ).mean(dim='station')
+
+#%% Fit statistics for area
+
+data_area_sources = (
+    ['Stations'] + (data_area or [])
+    if stations is not None
+    else data_area
+)
+
+if data_area_sources is not None:
 
     trend_stats = {}
 
-    for src in data_area:
+    for src in data_area_sources:
 
         x_arr = data_area_yearly[src]['fit_against'].values
         y_arr = data_area_yearly[src].values
@@ -851,13 +945,13 @@ if lats_area is not None and lons_area is not None and data_area is not None:
 
 #%% Temporal plotting for area
 
-if lats_area is not None and lons_area is not None and data_area is not None:
+if data_area_sources is not None:
 
-    colors = ['#000000', '#DB2525', '#0168DE', '#00A236']
+    colors = ['#000000', '#DB2525', '#0168DE', '#00A236', "#CA721B", '#7B2CBF']
 
-    fig, ax = plt.subplots(1, figsize=(16, 6))
+    fig, ax = plt.subplots(1, figsize=(12, 8))
 
-    for ii, src in enumerate(data_area):
+    for ii, src in enumerate(data_area_sources):
 
         stats = trend_stats[src]
 
@@ -870,8 +964,8 @@ if lats_area is not None and lons_area is not None and data_area is not None:
 
         color = colors[ii]
 
-        if 'Bilt' in src or 'Cabauw' in src:
-            base_name = 'Station'
+        if src == 'Stations':
+            base_name = 'Stations'
         else:
             base_name = next(key for key in data_sources if key in src)
 
@@ -916,14 +1010,15 @@ if lats_area is not None and lons_area is not None and data_area is not None:
             zorder=15
         )
 
-        ax.fill_between(
-            x_sorted,
-            y_lo,
-            y_hi,
-            color=color,
-            alpha=0.15,
-            linewidth=0,
-        )
+        if uncertainty_band:
+            ax.fill_between(
+                x_sorted,
+                y_lo,
+                y_hi,
+                color=color,
+                alpha=0.15,
+                linewidth=0,
+            )
 
     ax.grid()
     ax.set_xlabel(fit_x_label, fontsize=28)
@@ -1002,7 +1097,7 @@ if isinstance(lats_area, (list, tuple)) and len(lats_area) == 2 and \
             trend_plot_area,
             trend_plot_area['longitude'],
             trend_plot_area['latitude'],
-            crange=crange_area, 
+            crange=plot_cfg[var]['crange_trend'], 
             cmap=plot_cfg[var]['cmap_trend'],
             extreme_colors=plot_cfg[var]['extreme_trend'],
             show_plot=False,
@@ -1046,6 +1141,11 @@ if isinstance(lats_area, (list, tuple)) and len(lats_area) == 2 and \
 
 
 
+# Raw values van sunshine duration in monthly racmo2.4 niet realistisch!!!!
+# Nieuwe presentatie maken van main results
+# Main results opsommen
+# Variabelen tegen elkaar plotten!!! Dus van ene dataset tegenover de andere
+
 # Correlation plots?
 # Correlation per maand? En if so, andere climate years weghalen.
 
@@ -1060,6 +1160,10 @@ if isinstance(lats_area, (list, tuple)) and len(lats_area) == 2 and \
 # Optie voor exacte contour of ongeveer contour! (voor ongeveer contour, gewoon simpel de 4 hoeken nemen...)
 # Mask sea values voor area!
 # Plotjes maken op het laatst van hoe de geselecteerde data eruit ziet
+# Sunshine duration van stations!!!!
+# Voor zoomed in plots the difference weghalen!!!
+
+
 
 
 

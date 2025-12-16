@@ -7,6 +7,8 @@ import pandas as pd
 import colormaps as cmaps
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+from matplotlib.colors import ListedColormap
+from matplotlib.colors import LinearSegmentedColormap
 import cartopy.crs as ccrs
 import cmocean
 import xesmf as xe
@@ -26,9 +28,9 @@ from ProcessNetCDF import preprocess_netcdf_monthly
 #%% User inputs
 
 # Main arguments
-var = 'P' #
-data_base = ['ERA5_coarse', 'RACMO2.4', 'Eobs_fine'] #
-data_compare = None
+var = 'SW' #
+data_base = ['ERA5_coarse', 'ERA5_coarse', 'Eobs_fine'] #
+data_compare = ['RACMO2.4', 'Eobs_fine', 'RACMO2.4'] #
 n_runs = 3
 
 # Data selection arguments
@@ -41,8 +43,8 @@ land_only = False
 trim_border = None
 
 # Spatial plotting arguments
-avg_crange = [0, 5]
-trend_crange = [-2, 2]
+avg_crange = [-10, 10]
+trend_crange = [-4, 4]
 proj_plot = 'RACMO2.4'
 plot_lats = [38, 63] 
 plot_lons = [-13, 22]
@@ -109,6 +111,17 @@ else:
     precip_trend_label = 'Trend (mm / ' + fit_unit + ')'
     precip_trend_unit = 'mm / ' + fit_unit
 
+sun_colors = [
+    '#2b0a3d',
+    '#5c1a1b',
+    '#8b2f1c',
+    '#c45a1a',
+    '#e39b2d',
+    '#f4e27a'
+]
+
+cmap_sun = LinearSegmentedColormap.from_list('sunshine', sun_colors, N=256)
+
 plot_cfg = {
     'Tg': {
         'label_mean': 'Temperature (°C)',
@@ -130,24 +143,50 @@ plot_cfg = {
         'extreme_mean': (None, "#040812"),
         'extreme_trend': ("#271500", "#001f1f"),
     },
+    'Sq': {
+        'label_mean': 'Sunshine duration (hours/day)',
+        'label_trend': 'Trend (hours/day / ' + fit_unit + ')',
+        'cmap_mean': cmap_sun,
+        'cmap_trend': ListedColormap(cmaps.cmp_b2r(np.linspace(0, 1, 20))),
+        'crange_mean': avg_crange,
+        'crange_trend': trend_crange,
+        'extreme_mean': (None, "#fff3b2"),
+        'extreme_trend': ("#1B1C70", "#7e060c"),
+    },
+    'SW': {
+        'label_mean': 'Shortwave radiation (W/m²)',
+        'label_trend': 'Trend (W/m² / ' + fit_unit + ')',
+        'cmap_mean': cmap_sun,
+        'cmap_trend': ListedColormap(cmaps.cmp_b2r(np.linspace(0, 1, 20))),
+        'crange_mean': avg_crange,
+        'crange_trend': trend_crange,
+        'extreme_mean': (None, "#fff3b2"),
+        'extreme_trend': ("#1B1C70", "#7e060c"),
+    },
 }
+
 
 var_name_cfg = {
     'Eobs': {
         'Tg': 'tg',
         'P': 'rr',
+        'SW': 'qq',
     },
     'ERA5': {
         'Tg': 't2m',
         'P': 'tp',
+        'SW': 'ssrd',
     },
     'RACMO2.3': {
         'Tg': 't2m',
         'P': 'precip',
+        'Sq': 'sund'
     },
     'RACMO2.4': {
         'Tg': 'tas',
         'P': 'pr',
+        'Sq': 'sund',
+        'SW': 'rsds',
     }
 }
 
@@ -155,6 +194,7 @@ file_cfg = {
     'Eobs_fine': {
         'Tg': 'tg_ens_mean_0.1deg_reg_v31.0e.nc',
         'P': 'rr_ens_mean_0.1deg_reg_v31.0e.nc',
+        'SW': 'qq_ens_mean_0.1deg_reg_v31.0e.nc',
     },
     'Eobs_coarse': {
         'Tg': 'tg_ens_mean_0.25deg_reg_v31.0e.nc',
@@ -168,27 +208,27 @@ file_cfg = {
     'ERA5_coarse': {
         'Tg': 'era5_coarse_full_t2m.nc',
         'P': 'era5_coarse_full_tp.nc',
+        'SW': 'era5_rsds.nc',
     },
 
     'RACMO2.3': {
         'Tg': 't2m/*.nc',
         'P': 'precip/*.nc',
+        'Sq': 'sund/*.nc',
     },
     'RACMO2.4': {
-        'Tg': 'tas_*.nc',
-        'P': 'pr_*.nc',
-    },
-    'Station': {
-        'Bilt': 'KNMI_Bilt.txt',
-        'Cabauw': 'KNMI_Cabauw.txt',
-    },
+        'Tg': 'Monthly/tas_*.nc',
+        'P': 'Monthly/pr_*.nc',
+        'Sq': 'Daily/sund.*.nc',
+        'SW': 'Monthly/rsds_*.nc',
+    }
 }
 
 base_dir_cfg = {
     'Eobs': '/nobackup/users/walj/eobs',
     'ERA5': '/nobackup/users/walj/era5',
     'RACMO2.3': '/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Monthly_data',
-    'RACMO2.4': '/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly',
+    'RACMO2.4': '/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning',
 }
 
 proj_cfg = {
@@ -489,7 +529,7 @@ for ii in range(n_runs):
                 elif data_compare_list[ii] == 'RACMO2.4':
                     src_grid = racmo_bounds_grid(data_avg_comp, rotpole24)
 
-            elif var_list[ii] == 'Tg':
+            elif var in ['Tg', 'Sq', 'SW']:
                 method = 'bilinear'
 
             regridder = xe.Regridder(
@@ -643,7 +683,6 @@ cbar = shared_colorbar(
 plt.show()
 
 #%% Linear trends and plot
-
 
 meshes = []
 data_trend_field = []
