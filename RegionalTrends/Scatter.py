@@ -4,11 +4,11 @@
 import numpy as np
 import xarray as xr
 import pandas as pd
+import dask
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import cartopy.crs as ccrs
 import os
-from dask.distributed import Client, get_client
 from importlib import reload
 
 # Custom libraries
@@ -81,10 +81,7 @@ rotpole24 = load_rotpole(
 
 #%% Dataset configurations
 
-try:
-    client = get_client()
-except ValueError:
-    client = Client(n_workers=1, threads_per_worker=8, processes=False)
+dask.config.set(scheduler='threads', num_workers=12)
 
 data_sources = ['Eobs', 'ERA5', 'RACMO2.3', 'RACMO2.4']
 station_sources = ['Bilt', 'Cabauw', 'Eelde', 'Maastricht', 'Vlissingen', 'Kooy']

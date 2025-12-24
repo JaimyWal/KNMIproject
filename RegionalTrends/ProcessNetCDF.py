@@ -391,6 +391,6 @@ def preprocess_netcdf(
         elif dim in ['longitude', 'rlon']:
             chunk_dict[dim] = chunks_lon
 
-    out = out.chunk(chunk_dict).persist()
+    out = out.chunk(chunk_dict)
 
     return out

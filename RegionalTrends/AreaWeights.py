@@ -44,8 +44,8 @@ def area_weights(ds, rotpole_native=None):
         dim_lat, dim_lon = 'rlat', 'rlon'
         lat_b, lon_b = rotated_bounds(ds, rotpole_native)
     else:
-        lat1d, lon1d = ds['latitude'], ds['longitude']
         dim_lat, dim_lon = 'latitude', 'longitude'
+        lat1d, lon1d = ds['latitude'], ds['longitude']
         lat_b1d = bounds_from_centers(lat1d.values)
         lon_b1d = bounds_from_centers(lon1d.values)
         lon_b, lat_b = np.meshgrid(lon_b1d, lat_b1d)

@@ -4,6 +4,7 @@
 import numpy as np
 import xarray as xr
 import pandas as pd
+import dask
 import colormaps as cmaps
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
@@ -15,7 +16,6 @@ import cmocean
 import xesmf as xe
 import statsmodels.api as sm
 import os
-from dask.distributed import Client, get_client
 from importlib import reload
 
 # Custom libraries
@@ -33,7 +33,7 @@ from ProcessStation import preprocess_station
 
 import GridBounds
 reload(GridBounds)          
-from GridBounds import bounds_from_centers, rotated_bounds, racmo_bounds_grid
+from GridBounds import grid_with_bounds
 
 import AreaWeights
 reload(AreaWeights)
@@ -56,8 +56,8 @@ land_only = False
 trim_border = None
 
 # Area selection arguments
-data_area = ['Eobs_fine', 'ERA5_coarse', 'RACMO2.3', 'RACMO2.4']
-stations = ['Bilt', 'Eelde', 'Maastricht', 'Vlissingen', 'Kooy']
+data_area = None
+stations = None
 lats_area = [50.7, 53.6]
 lons_area = [3.25, 7.35]
 land_only_area = True
@@ -81,7 +81,7 @@ corr_crange = [0, 1]
 
 # Area plotting arguments
 fit_range = None
-plots_area = True
+plots_area = False
 crange_area = trend_crange
 lats_area_plot = [50.2, 54.1]
 lons_area_plot = [2.5, 8.1]
@@ -130,10 +130,7 @@ rotpole24 = load_rotpole(
 
 #%% Dataset configurations
 
-try:
-    client = get_client()
-except ValueError:
-    client = Client(n_workers=1, threads_per_worker=8, processes=False)
+dask.config.set(scheduler='threads', num_workers=12)
 
 data_sources = ['Eobs', 'ERA5', 'RACMO2.3', 'RACMO2.4']
 station_sources = ['Bilt', 'Cabauw', 'Eelde', 'Maastricht', 'Vlissingen', 'Kooy']
@@ -589,24 +586,15 @@ if data_base is not None:
             min_periods=min_periods
         )
 
-        trg_grid = data_avg_base
-        src_grid = data_avg_comp
-
         if var == 'P':
             method = 'conservative_normed'
-
-            if data_base == 'RACMO2.3':
-                trg_grid = racmo_bounds_grid(data_avg_base, rotpole23)
-            elif data_base == 'RACMO2.4':
-                trg_grid = racmo_bounds_grid(data_avg_base, rotpole24)
-            
-            if data_compare == 'RACMO2.3':
-                src_grid = racmo_bounds_grid(data_avg_comp, rotpole23)
-            elif data_compare == 'RACMO2.4':
-                src_grid = racmo_bounds_grid(data_avg_comp, rotpole24)
+            trg_grid = grid_with_bounds(data_avg_base, rotpole_native=proj_cfg.get(data_base, ccrs.PlateCarree()))
+            src_grid = grid_with_bounds(data_avg_comp, rotpole_native=proj_cfg.get(data_compare, ccrs.PlateCarree()))
 
         elif var in ['Tg', 'Sq', 'SW']:
             method = 'bilinear'
+            trg_grid = data_avg_base
+            src_grid = data_avg_comp
 
         regridder = xe.Regridder(
             src_grid,
@@ -737,15 +725,11 @@ if data_base is not None:
 
         mask_area = np.isfinite(contour_area.values)
 
-        if 'rlat' in contour_area.dims and 'rlon' in contour_area.dims:
-            rotpole_native = rotpole23 if data_base == 'RACMO2.3' else rotpole24
-            lat_b_area, lon_b_area = rotated_bounds(contour_area, rotpole_native)
-        else:
-            lat1d_area = contour_area['latitude'].values
-            lon1d_area = contour_area['longitude'].values
-            lat_b_1d = bounds_from_centers(lat1d_area)
-            lon_b_1d = bounds_from_centers(lon1d_area)
-            lon_b_area, lat_b_area = np.meshgrid(lon_b_1d, lat_b_1d)
+        contour_area_bounds = grid_with_bounds(
+            contour_area,
+            rotpole_native=proj_cfg.get(data_base, ccrs.PlateCarree())
+        )
+        lon_b_area, lat_b_area = contour_area_bounds['lon_b'], contour_area_bounds['lat_b']
 
     if isinstance(lats_area, (list, tuple)) and len(lats_area) == 2 and \
     isinstance(lons_area, (list, tuple)) and len(lons_area) == 2 and true_contour == True:
@@ -1178,10 +1162,7 @@ if isinstance(lats_area, (list, tuple)) and len(lats_area) == 2 and \
 
 #%%
 
-# Variabelen tegen elkaar plotten!!! Dus van ene dataset tegenover de andere
-# Doen voor LWin en SWin en voor cloud cover voor RACMO2.3 en RACMO2.4'
-# Nieuwe file hiervoor (ook optie voor dagelijks/maandelijks/jaarlijks)
-
+# Opletten met dagelijkse station waardes voor NaNs!!
 
 # Gedaan: 
 # Lijnen toevoegen over gebied waarover ik average
@@ -1198,6 +1179,7 @@ if isinstance(lats_area, (list, tuple)) and len(lats_area) == 2 and \
 # Nieuwe presentatie maken van main results
 # Main results opsommen
 # Correlation plots toegevoegd
+# Variabelen tegen elkaar plotten!!! Dus van ene dataset tegenover de andere
 
 
 

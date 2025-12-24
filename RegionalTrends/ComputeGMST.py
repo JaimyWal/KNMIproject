@@ -5,50 +5,20 @@ from importlib import reload
 
 import ProcessNetCDF
 reload(ProcessNetCDF)          
-from ProcessNetCDF import preprocess_netcdf_monthly 
+from ProcessNetCDF import preprocess_netcdf
 
-def area_weights(lat_val, lon_val): 
-    lat_180 = lat_val + 90
-    dlat = lat_val[0] - lat_val[1]
-    area_weight =  np.zeros((len(lat_180), len(lon_val)))
-    for ii in range(len(lat_180)):
-        area_weight[ii, :] = np.cos((lat_180[ii] - dlat/2)*np.pi/180) - \
-                             np.cos((lat_180[ii] + dlat/2)*np.pi/180)
-    return area_weight
+import AreaWeights
+reload(AreaWeights)          
+from AreaWeights import area_weighted_mean
 
-def weighted_mean(variable, weights, n_time=None):
-    if n_time is not None:
-        mean_var = np.zeros(n_time)
-        for ii in range(n_time):
-            mean_var[ii] = np.nanmean(variable[ii, :, :]*weights) / np.nanmean(weights)
-    else:
-        mean_var = np.nanmean(variable*weights) / np.nanmean(weights)
-    return mean_var
-
-t2m = preprocess_netcdf_monthly(
+t2m = preprocess_netcdf(
     'ERA5',
     '/nobackup/users/walj/era5/era5_coarse_full_t2m.nc',
     't2m'
 )
 
 t2m_yearly = t2m.resample(time='YS').mean()
-
-lat = t2m_yearly['latitude'].values
-lon = t2m_yearly['longitude'].values
-
-weights = area_weights(lat, lon)
-
-t2m_yearly_np = t2m_yearly.values
-
-ntime = t2m_yearly_np.shape[0]
-gmst_yearly = weighted_mean(t2m_yearly_np, weights, n_time=ntime)
-
-gmst_yearly_da = xr.DataArray(
-    gmst_yearly,
-    coords={'time': t2m_yearly['time']},
-    dims=['time'],
-    name='GMST'
-)
+gmst_yearly_da = area_weighted_mean(t2m_yearly)
 
 #%% plotting GMST
 

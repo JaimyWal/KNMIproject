@@ -39,23 +39,58 @@ def rotated_bounds(ds_rot, rotpole_crs):
     return lat_b, lon_b
 
 
-def racmo_bounds_grid(ds_racmo_grid, rotpole_native):
+def grid_with_bounds(ds, rotpole_native=None):
 
-    lat_rac = ds_racmo_grid['latitude'].values
-    lon_rac = ds_racmo_grid['longitude'].values
+    spatial_dims = [
+        d for d in ds.dims
+        if d in ('rlat', 'rlon', 'latitude', 'longitude')
+    ]
 
-    lat_b_full, lon_b_full = rotated_bounds(ds_racmo_grid, rotpole_native)
+    if 'rlat' in spatial_dims and 'rlon' in spatial_dims:
 
-    grid = xr.Dataset(
+        dim_lat, dim_lon = 'rlat', 'rlon'
+        lat = ds['latitude'].values
+        lon = ds['longitude'].values 
+        lat_b, lon_b = rotated_bounds(ds, rotpole_native)
+
+    else:
+        dim_lat, dim_lon = 'latitude', 'longitude'
+        lat1d, lon1d = ds['latitude'].values, ds['longitude'].values
+        lat_b1d = bounds_from_centers(lat1d)
+        lon_b1d = bounds_from_centers(lon1d)
+
+        lon, lat = np.meshgrid(lon1d, lat1d)
+        lon_b, lat_b = np.meshgrid(lon_b1d, lat_b1d)
+
+    grid_bounds =  xr.Dataset(
         {
-            'lon':   (('rlat', 'rlon'), lon_rac),
-            'lat':   (('rlat', 'rlon'), lat_rac),
-            'lon_b': (('rlat_b', 'rlon_b'), lon_b_full),
-            'lat_b': (('rlat_b', 'rlon_b'), lat_b_full),
+            'lon':   ((dim_lat, dim_lon), lon),
+            'lat':   ((dim_lat, dim_lon), lat),
+            'lon_b': ((f'{dim_lat}_b', f'{dim_lon}_b'), lon_b),
+            'lat_b': ((f'{dim_lat}_b', f'{dim_lon}_b'), lat_b),
         }
     )
 
-    return grid
+    return grid_bounds
+
+
+# def racmo_bounds_grid(ds_racmo_grid, rotpole_native):
+
+#     lat_rac = ds_racmo_grid['latitude'].values
+#     lon_rac = ds_racmo_grid['longitude'].values
+
+#     lat_b_full, lon_b_full = rotated_bounds(ds_racmo_grid, rotpole_native)
+
+#     grid = xr.Dataset(
+#         {
+#             'lon':   (('rlat', 'rlon'), lon_rac),
+#             'lat':   (('rlat', 'rlon'), lat_rac),
+#             'lon_b': (('rlat_b', 'rlon_b'), lon_b_full),
+#             'lat_b': (('rlat_b', 'rlon_b'), lat_b_full),
+#         }
+#     )
+
+#     return grid
 
 
 # import os
