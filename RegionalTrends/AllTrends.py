@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 from matplotlib.colors import ListedColormap
 from matplotlib.colors import LinearSegmentedColormap
+import matplotlib.colors as clr
 import cartopy.crs as ccrs
 import cmocean
 import xesmf as xe
@@ -17,37 +18,45 @@ import os
 from dask.distributed import Client, get_client
 from importlib import reload
 
-# Custom functions
+# Custom libraries
 import PlotMaps
 reload(PlotMaps)          
 from PlotMaps import plot_map, shared_colorbar
 
 import ProcessNetCDF
 reload(ProcessNetCDF)          
-from ProcessNetCDF import preprocess_netcdf_monthly, subset_space
+from ProcessNetCDF import preprocess_netcdf, subset_space
 
 import ProcessStation
 reload(ProcessStation)          
-from ProcessStation import preprocess_station_monthly
+from ProcessStation import preprocess_station
+
+import GridBounds
+reload(GridBounds)          
+from GridBounds import bounds_from_centers, rotated_bounds, racmo_bounds_grid
+
+import AreaWeights
+reload(AreaWeights)
+from AreaWeights import area_weights, area_weighted_mean
 
 #%% User inputs
 
 # Main arguments
 var = 'Tg'
-data_base = None
-data_compare = None
+data_base = 'ERA5_coarse'
+data_compare = 'RACMO2.4'
 
 # Data selection arguments
 months = [12, 1, 2]
 years = [2016, 2020]
-lats = [38, 63]
-lons = [-13, 22]
+lats = [37.7, 63.3]
+lons = [-13.3, 22.3]
 proj_sel = 'RACMO2.4'
 land_only = False
 trim_border = None
 
 # Area selection arguments
-data_area = ['ERA5_coarse', 'Eobs_fine', 'RACMO2.3', 'RACMO2.4']
+data_area = ['Eobs_fine', 'ERA5_coarse', 'RACMO2.3', 'RACMO2.4']
 stations = ['Bilt', 'Eelde', 'Maastricht', 'Vlissingen', 'Kooy']
 lats_area = [50.7, 53.6]
 lons_area = [3.25, 7.35]
@@ -55,8 +64,8 @@ land_only_area = True
 proj_area = 'RACMO2.4'
 
 # Spatial plotting arguments
-avg_crange = [-12, 12]
-trend_crange = [-2, 2]
+avg_crange = [-4, 4]
+trend_crange = [-4, 4]
 proj_plot = 'RACMO2.4'
 plot_lats = [38, 63]
 plot_lons = [-13, 22]
@@ -64,6 +73,11 @@ true_contour = True
 grid_contour = True
 switch_sign = False
 cut_boundaries = False
+
+# Correlation plotting arguments
+corr_calc = False
+corr_freq = 'Daily'
+corr_crange = [0, 1] 
 
 # Area plotting arguments
 fit_range = None
@@ -142,6 +156,13 @@ else:
     precip_ylabel = 'Precipitation (mm)'
     precip_trend_unit = 'mm / ' + fit_unit
 
+if corr_freq == 'Daily' and corr_calc == True and data_compare is not None:
+    freq_str = 'Daily'
+    racmo24_sep = '.'
+else:
+    freq_str = 'Monthly'
+    racmo24_sep = '_'
+
 sun_colors = [
     '#2b0a3d',
     '#5c1a1b',
@@ -150,8 +171,22 @@ sun_colors = [
     '#e39b2d',
     '#f4e27a'
 ]
-
 cmap_sun = LinearSegmentedColormap.from_list('sunshine', sun_colors, N=256)
+
+corr_colors = [
+    '#ffffff',
+    '#fff7bc',
+    '#fee391',
+    '#fec44f',
+    '#fe9929',
+    '#ec7014',
+    '#cc4c02',
+    '#993404',
+    '#662506',
+    '#3d1f0f',
+]
+corr_cmap = clr.ListedColormap(corr_colors)
+corr_extreme = ("#999898", None)
 
 plot_cfg = {
     'Tg': {
@@ -181,7 +216,7 @@ plot_cfg = {
         'ylim_fit': fit_range,
     },
     'Sq': {
-        'label_mean': 'Sunshine duration (hours/day)',
+        'label_mean': 'Sund. (hours/day)',
         'label_trend': 'Trend (hours/day / ' + fit_unit + ')',
         'cmap_mean': cmap_sun,
         'cmap_trend': ListedColormap(cmaps.cmp_b2r(np.linspace(0, 1, 20))),
@@ -189,21 +224,21 @@ plot_cfg = {
         'crange_trend': trend_crange,
         'extreme_mean': (None, "#fff3b2"),
         'extreme_trend': ("#1B1C70", "#7e060c"),
-        'ylabel_fit': 'Sunshine duration (hours/day)',
+        'ylabel_fit': 'Sund. (hours/day)',
         'trend_unit': 'hours/day / ' + fit_unit,
         'ylim_fit': fit_range,
     },
     'SW': {
-        'label_mean': 'Shortwave radiation (W/m²)',
-        'label_trend': 'Trend (W/m² / ' + fit_unit + ')',
+        'label_mean': r'SW_{in} (W/m$^2$)',
+        'label_trend': r'Trend (W/m$^2$ / ' + fit_unit + ')',
         'cmap_mean': cmocean.cm.solar,
         'cmap_trend': ListedColormap(cmaps.cmp_b2r(np.linspace(0, 1, 20))),
         'crange_mean': avg_crange,
         'crange_trend': trend_crange,
         'extreme_mean': (None, "#fff3b2"),
         'extreme_trend': ("#1B1C70", "#7e060c"),
-        'ylabel_fit': 'Shortwave radiation (W/m²)',
-        'trend_unit': 'W/m² / ' + fit_unit,
+        'ylabel_fit': r'SW_{in} (W/m$^2$)',
+        'trend_unit': r'W/m$^2$ / ' + fit_unit,
         'ylim_fit': fit_range,
     },
 }
@@ -299,10 +334,10 @@ file_cfg = {
         'Sq': 'sund/*.nc',
     },
     'RACMO2.4': {
-        'Tg': 'Monthly/tas_*.nc',
-        'P': 'Monthly/pr_*.nc',
+        'Tg': f'{freq_str}/tas{racmo24_sep}*.nc',
+        'P': f'{freq_str}/pr{racmo24_sep}*.nc',
         'Sq': 'Daily/sund.*.nc',
-        'SW': 'Monthly/rsds_*.nc',
+        'SW': f'{freq_str}/rsds{racmo24_sep}*.nc',
     },
 
     'Station': {
@@ -318,7 +353,7 @@ file_cfg = {
 base_dir_cfg = {
     'Eobs': '/nobackup/users/walj/eobs',
     'ERA5': '/nobackup/users/walj/era5',
-    'RACMO2.3': '/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Monthly_data',
+    'RACMO2.3': f'/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/{freq_str}_data',
     'RACMO2.4': '/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning',
     'Station': '/nobackup/users/walj/knmi',
 }
@@ -333,7 +368,7 @@ proj_sel = proj_cfg.get(proj_sel, ccrs.PlateCarree())
 proj_area = proj_cfg.get(proj_area, ccrs.PlateCarree())
 proj_plot = proj_cfg.get(proj_plot, ccrs.PlateCarree())
 
-#%% Some functions
+#%% Loading and processing data
 
 def make_cfg(data_source, var):
 
@@ -402,7 +437,7 @@ def process_source(data_source,
         trim_local = 8
 
     if cfg['datatype'] == 'netcdf':
-        data = preprocess_netcdf_monthly(
+        data = preprocess_netcdf(
             source=cfg['file_key'],
             file_path=input_file_data,
             var_name=cfg['variable'],
@@ -417,39 +452,58 @@ def process_source(data_source,
         ).squeeze()
 
     elif cfg['datatype'] == 'station':
-        data = preprocess_station_monthly(
+        data = preprocess_station(
             file_path=input_file_data,
             var_name=cfg['variable'],
             months=months,
             years=years_load,
         ).squeeze()
 
-    month = data['time'].dt.month
-    year = data['time'].dt.year
+    month_d = data['time'].dt.month
+    year_d = data['time'].dt.year
 
     month_start = months_local[0]
     month_end = months_local[-1]
 
     if month_start <= month_end:
-        clim_year = year
+        clim_year_d = year_d
     else:
-        clim_year = xr.where(month >= month_start, year + 1, year)
+        clim_year_d = xr.where(month_d >= month_start, year_d + 1, year_d)
+
+    data = data.assign_coords(clim_year=clim_year_d)
+
+    data_monthly = data.resample(time='MS').mean('time')
+    existing = pd.DatetimeIndex(data['time'].values).to_period('M').unique().to_timestamp()
+    data_monthly = data_monthly.sel(time=existing)
+
+    month_m = data_monthly['time'].dt.month
+    year_m = data_monthly['time'].dt.year
 
     if month_start <= month_end:
-        clim_year = year
+        clim_year_m = year_m
     else:
-        clim_year = xr.where(month >= month_start, year + 1, year)
+        clim_year_m = xr.where(month_m >= month_start, year_m + 1, year_m)
 
-    data = data.assign_coords(clim_year=clim_year)
-    data_year = data.groupby('clim_year').mean('time')
+    data_monthly = data_monthly.assign_coords(clim_year=clim_year_m)
+
+    data_year = data_monthly.groupby('clim_year').mean('time')
 
     if years_req is not None:
-        data_year = data_year.sel(clim_year=slice(years_req[0], years_req[-1]))
+        y0, y1 = years_req[0], years_req[-1]
+
+        data = data.where((data['clim_year'] >= y0) & (data['clim_year'] <= y1), drop=True)
+        data_monthly = data_monthly.where(
+            (data_monthly['clim_year'] >= y0) & (data_monthly['clim_year'] <= y1),
+            drop=True
+        )
+
+        data_year = data_year.sel(clim_year=slice(y0, y1))
 
     data_avg = data_year.mean(dim='clim_year').astype('float32')
 
     time_coord = pd.to_datetime(data_year['clim_year'].astype(str))
     data_year_time = data_year.assign_coords(time=('clim_year', time_coord)).swap_dims({'clim_year': 'time'})
+    data_yearly = data_year_time.copy()
 
     if rolling_mean_var:
         data_year_time = data_year_time.rolling(
@@ -482,68 +536,13 @@ def process_source(data_source,
         .assign_coords(fit_against=('fit_against', fit_coord.values))
     ).astype('float32')
 
-    return data, data_avg, data_fit
+    return data, data_monthly, data_yearly, data_fit, data_avg
 
-
-def bounds_from_centers(coord):
-
-    coord = np.asarray(coord)
-    n = coord.size
-    steps = coord[1:] - coord[:-1]
-
-    bounds = np.empty(n + 1, dtype=coord.dtype)
-    bounds[0] = coord[0] - 0.5*steps[0]
-    bounds[1:n] = coord[:-1] + 0.5*steps
-    bounds[-1] = coord[-1] + 0.5*steps[-1]
-
-    return bounds
-
-
-def rotated_bounds(ds_rot, rotpole_crs):
-
-    rlat_1d = ds_rot['rlat'].values
-    rlon_1d = ds_rot['rlon'].values
-
-    rlat_b_1d = bounds_from_centers(rlat_1d)
-    rlon_b_1d = bounds_from_centers(rlon_1d)
-
-    rlon_b_2d, rlat_b_2d = np.meshgrid(rlon_b_1d, rlat_b_1d)
-
-    plate = ccrs.PlateCarree()
-
-    pts = plate.transform_points(rotpole_crs,
-                                 rlon_b_2d,  
-                                 rlat_b_2d) 
-
-    lon_b = pts[..., 0]
-    lat_b = pts[..., 1]
-
-    return lat_b, lon_b
-
-
-def racmo_bounds_grid(ds_racmo_grid, rotpole_native):
-
-    lat_rac = ds_racmo_grid['latitude'].values
-    lon_rac = ds_racmo_grid['longitude'].values
-
-    lat_b_full, lon_b_full = rotated_bounds(ds_racmo_grid, rotpole_native)
-
-    grid = xr.Dataset(
-        {
-            'lon':   (('rlat', 'rlon'), lon_rac),
-            'lat':   (('rlat', 'rlon'), lat_rac),
-            'lon_b': (('rlat_b', 'rlon_b'), lon_b_full),
-            'lat_b': (('rlat_b', 'rlon_b'), lat_b_full),
-        }
-    )
-
-    return grid
-
-#%% Process data
+#%% Further processing of base and comparison data
 
 if data_base is not None:
 
-    data_base_ds, data_avg_base, data_fit_base = process_source(
+    data_raw_base, data_mm_base, data_yy_base, data_fit_base, data_avg_base = process_source(
         data_base, 
         var,
         months=months,
@@ -574,7 +573,7 @@ if data_base is not None:
 
     elif data_compare is not None:
 
-        data_comp_ds, data_avg_comp, data_fit_comp = process_source(
+        data_raw_comp, data_mm_comp, data_yy_comp, data_fit_comp, data_avg_comp = process_source(
             data_compare, 
             var, 
             months=months,
@@ -651,10 +650,48 @@ if data_base is not None:
         data_avg_plot = minus_scaling*(data_avg_comp_reg - data_avg_base).compute()
         trend_plot = minus_scaling*(trend_plot_comp - trend_plot_base).compute()
 
+        if corr_calc:
+
+            if corr_freq == 'Daily':
+                data_corr_base = data_raw_base
+                data_corr_comp = data_raw_comp
+            elif corr_freq == 'Monthly':
+                data_corr_base = data_mm_base
+                data_corr_comp = data_mm_comp
+            elif corr_freq == 'Yearly':
+                data_corr_base = data_yy_base
+                data_corr_comp = data_yy_comp
+            
+            data_corr_comp_reg = regridder(
+                data_corr_comp,
+                output_chunks=target_chunks
+            ).astype('float32')
+
+            x, y = xr.align(data_corr_base, data_corr_comp_reg, join='inner')
+
+            x = x.chunk({'time': -1}).compute()
+            y = y.chunk({'time': -1}).compute()
+
+            valid = np.isfinite(x) & np.isfinite(y)
+            x = x.where(valid)
+            y = y.where(valid)
+
+            n = valid.sum('time')
+            sx = x.std('time')
+            sy = y.std('time')
+
+            corr_plot = xr.corr(x, y, dim='time')
+            corr_plot = corr_plot.where((n >= 2) & (sx > 0) & (sy > 0))
+
+            corr_plot = corr_plot.assign_coords(
+                latitude=data_corr_base['latitude'],
+                longitude=data_corr_base['longitude']
+            ).astype('float32')
+
     trend_plot = trend_plot.assign_coords(
                     latitude=data_avg_base['latitude'],
                     longitude=data_avg_base['longitude']
-                )
+                ).astype('float32')
 
     lat_plot = data_avg_plot['latitude'].values
     lon_plot = data_avg_plot['longitude'].values
@@ -790,6 +827,37 @@ if data_base is not None:
         lon_b_area=lon_b_area
     )
 
+#%% Plot correlation map
+
+if data_base is not None and data_compare is not None and corr_calc:
+
+    fig, ax = plt.subplots(
+        1, figsize=(14, 12), 
+        constrained_layout=True,
+        subplot_kw={'projection': proj_plot}
+    )
+
+    plot_map(
+        fig, ax,
+        corr_plot, 
+        lon_plot, 
+        lat_plot, 
+        crange=corr_crange, 
+        label='Correlation', 
+        cmap=corr_cmap,
+        extreme_colors=corr_extreme,
+        c_ticks=10,
+        show_x_ticks=True,
+        show_y_ticks=True,
+        y_ticks_num=False,
+        y_ticks=5,
+        x_ticks_num=False,
+        x_ticks=10,
+        extent=[*plot_lons, *plot_lats],
+        proj=proj_plot,
+        rotated_grid=cut_boundaries
+    )
+
 #%% Loading data for chosen area
 
 def combine_lists(a, b):
@@ -802,10 +870,10 @@ data_area_all = combine_lists(data_area, stations)
 if data_area_all is not None:
 
     data_area_avg_raw = {}
-    data_area_yearly_raw = {}
+    data_area_fit_raw = {}
     data_area_avg = {}
     data_area_monthly = {}
-    data_area_yearly = {}
+    data_area_fit = {}
 
     for src in data_area_all:
 
@@ -823,7 +891,7 @@ if data_area_all is not None:
             lat_sel = None
             lon_sel = None
 
-        data_ds, data_avg, data_fit = process_source(
+        data_raw, data_mm, data_yy, data_fit, data_avg = process_source(
             src,
             var,
             months=months,
@@ -840,48 +908,19 @@ if data_area_all is not None:
         )
 
         data_area_avg_raw[src] = data_avg
-        data_area_yearly_raw[src] = data_fit
+        data_area_fit_raw[src] = data_fit
 
-        spatial_dims = [
-            d for d in data_avg.dims
-            if d in ('rlat', 'rlon', 'latitude', 'longitude')
-        ]
-
-        if spatial_dims:
-            if 'rlat' in data_avg.dims and 'rlon' in data_avg.dims:
-                lat2d = data_avg['latitude']
-            else:
-                lat1d = data_avg['latitude']
-                lon1d = data_avg['longitude']
-                lat2d, lon2d = xr.broadcast(lat1d, lon1d)
-
-            weights = np.cos(np.deg2rad(lat2d))
-
-            w_da = xr.DataArray(
-                weights,
-                coords=lat2d.coords,
-                dims=lat2d.dims,
-            )
-
-            mask_spatial = data_avg.notnull()
-            w_masked = w_da.where(mask_spatial)
-            w_sum = w_masked.sum(dim=spatial_dims)
-
-            data_area_avg[src] = (data_avg*w_masked).sum(dim=spatial_dims) / w_sum
-            monthly_raw = (data_ds*w_masked).sum(dim=spatial_dims) / w_sum
-            yearly_raw = (data_fit*w_masked).sum(dim=spatial_dims) / w_sum
-
-        else:
-            data_area_avg[src] = data_avg
-            monthly_raw = data_ds
-            yearly_raw = data_fit
+        weights = area_weights(data_avg, rotpole_native=proj_cfg.get(src, ccrs.PlateCarree()))
+        data_area_avg[src] = area_weighted_mean(data_avg, weights=weights)
+        monthly_raw = area_weighted_mean(data_mm, weights=weights)
+        yearly_raw = area_weighted_mean(data_fit, weights=weights)
 
         if var == 'P' and relative_precip:
             data_area_monthly[src] = 100*monthly_raw / data_area_avg[src]
-            data_area_yearly[src] = 100*yearly_raw / data_area_avg[src]
+            data_area_fit[src] = 100*yearly_raw / data_area_avg[src]
         else:
             data_area_monthly[src] = monthly_raw
-            data_area_yearly[src] = yearly_raw
+            data_area_fit[src] = yearly_raw
 
     station_keys = [k for k in data_area_avg if k in station_sources]
 
@@ -896,8 +935,8 @@ if data_area_all is not None:
             dim='station'
         ).mean(dim='station')
 
-        data_area_yearly['Stations'] = xr.concat(
-            [data_area_yearly[k] for k in station_keys],
+        data_area_fit['Stations'] = xr.concat(
+            [data_area_fit[k] for k in station_keys],
             dim='station'
         ).mean(dim='station')
 
@@ -915,8 +954,8 @@ if data_area_sources is not None:
 
     for src in data_area_sources:
 
-        x_arr = data_area_yearly[src]['fit_against'].values
-        y_arr = data_area_yearly[src].values
+        x_arr = data_area_fit[src]['fit_against'].values
+        y_arr = data_area_fit[src].values
 
         mask = np.isfinite(x_arr) & np.isfinite(y_arr)
         x_clean = x_arr[mask]
@@ -949,7 +988,7 @@ if data_area_sources is not None:
 
     colors = ['#000000', '#DB2525', '#0168DE', '#00A236', "#CA721B", '#7B2CBF']
 
-    fig, ax = plt.subplots(1, figsize=(12, 8))
+    fig, ax = plt.subplots(1, figsize=(16, 6)) #12, 8
 
     for ii, src in enumerate(data_area_sources):
 
@@ -1070,7 +1109,7 @@ if isinstance(lats_area, (list, tuple)) and len(lats_area) == 2 and \
 
     for ii, (ax, src) in enumerate(zip(axes, data_area)):
 
-        data_fit_area = data_area_yearly_raw[src]
+        data_fit_area = data_area_fit_raw[src]
 
         fits_area = data_fit_area.polyfit(dim='fit_against', deg=1, skipna=True)
         slope_area = fits_area.polyfit_coefficients.sel(degree=1)
@@ -1139,15 +1178,9 @@ if isinstance(lats_area, (list, tuple)) and len(lats_area) == 2 and \
 
 #%%
 
-
-
-# Raw values van sunshine duration in monthly racmo2.4 niet realistisch!!!!
-# Nieuwe presentatie maken van main results
-# Main results opsommen
 # Variabelen tegen elkaar plotten!!! Dus van ene dataset tegenover de andere
-
-# Correlation plots?
-# Correlation per maand? En if so, andere climate years weghalen.
+# Doen voor LWin en SWin en voor cloud cover voor RACMO2.3 en RACMO2.4'
+# Nieuwe file hiervoor (ook optie voor dagelijks/maandelijks/jaarlijks)
 
 
 # Gedaan: 
@@ -1162,6 +1195,9 @@ if isinstance(lats_area, (list, tuple)) and len(lats_area) == 2 and \
 # Plotjes maken op het laatst van hoe de geselecteerde data eruit ziet
 # Sunshine duration van stations!!!!
 # Voor zoomed in plots the difference weghalen!!!
+# Nieuwe presentatie maken van main results
+# Main results opsommen
+# Correlation plots toegevoegd
 
 
 
@@ -1171,6 +1207,7 @@ if isinstance(lats_area, (list, tuple)) and len(lats_area) == 2 and \
 # Ambitieus of niet slim om te doen:
 # # Is het wel mogelijk om over bepaalde gebieden te masken? (Bijvoorbeeld Utrecht / Nederland) (niet doen!)
 # Marker toevoegen wanneer point coordinate???
+# Internal variability toevoegen!?
 
 
 

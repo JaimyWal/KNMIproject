@@ -41,7 +41,7 @@ def open_dataset(path):
 
 def is_monthly_time(time):
 
-    year  = time.dt.year.values
+    year = time.dt.year.values
     month = time.dt.month.values
     unique_pairs = np.unique(np.stack([year, month], axis=1), axis=0)
 
@@ -218,7 +218,7 @@ def make_landmask(
     return mask.astype(bool)
 
 
-def preprocess_netcdf_monthly(
+def preprocess_netcdf(
     source,
     file_path,
     var_name,
@@ -374,14 +374,14 @@ def preprocess_netcdf_monthly(
     # 7. decide if resampling is needed
     #    If time spacing is monthly already, do not resample.
     #    If not monthly (daily / subdaily), resample to monthly.
-    if is_monthly_time(da['time']):
-        da_month = da
-    else:
-        da_month = da.resample(time='MS').mean('time')
+    # if is_monthly_time(da['time']):
+    #     da_month = da
+    # else:
+    #     da_month = da.resample(time='MS').mean('time')
 
     # 8. select months and years on the monthly time axis
-    tsel = subset_time(da_month['time'], months=months, years=years)
-    out = da_month.sel(time=tsel)
+    tsel = subset_time(da['time'], months=months, years=years)
+    out = da.sel(time=tsel)
 
     # 9. chunk
     chunk_dict = {'time': chunks_time}

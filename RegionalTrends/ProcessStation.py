@@ -2,13 +2,11 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 
-def preprocess_station_monthly(
+def preprocess_station(
     file_path,
     var_name,
     months=None,
-    years=None,
-    aggregate=True,
-    scale_factor=0.1):
+    years=None):
     
     # Find header line and its line number
     with open(file_path, 'r') as f:
@@ -34,11 +32,10 @@ def preprocess_station_monthly(
         low_memory=False,
     )
 
-    sf = scale_factor
     if var_name == 'Q':
         sf = 1.0
     else:
-        sf = scale_factor
+        sf = 0.1
 
     df[var_name] = pd.to_numeric(df[var_name], errors='coerce')
 
@@ -54,11 +51,11 @@ def preprocess_station_monthly(
 
     # Convert SWin to W/m2
     if var_name == 'Q':
-        series = series * 1e4 / 86400.0
+        series = series*1e4 / 86400.0
 
-    # Aggregate to monthly means (start of month, like 'MS')
-    if aggregate == True:
-        series = series.resample('MS').mean()
+    # # Aggregate to monthly means (start of month, like 'MS')
+    # if aggregate == True:
+    #     series = series.resample('MS').mean()
 
     # Select months
     if months is not None:
@@ -75,17 +72,11 @@ def preprocess_station_monthly(
         else:
             series = series[series.index.year.isin(years)]
 
-    data_monthly = xr.DataArray(
+    data = xr.DataArray(
         series.values.astype('float32'),
         coords={'time': series.index},
         dims=['time'],
         name=var_name
     )
 
-    return data_monthly
-
-
-test = preprocess_station_monthly(
-    file_path='/nobackup/users/walj/knmi/KNMI_Bilt.txt',
-    var_name='Q'
-)
+    return data
