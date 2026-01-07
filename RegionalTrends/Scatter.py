@@ -29,23 +29,23 @@ plt.rcParams['axes.unicode_minus'] = False
 #%% User inputs
 
 # Main arguments
-n_runs = 3
-var = 'SW' #
-data_base = ['L5', 'L5', 'L5'] # 
-data_compare = ['Eobs_fine', 'RACMO2.4', 'ERA5_coarse'] # 
+n_runs = 1
+var = 'SHF' #
+data_base = 'RACMO2.4' # 
+data_compare = 'RACMO2.3' # 
 
 # Data selection arguments
-freq_sel = 'Monthly' #
-months = None # 
-years = [2016, 2024]
+freq_sel = 'Daily' #
+months = [12, 1, 2] # 
+years = [2016, 2020]
 lats = [50.7, 53.6]
 lons = [3.25, 7.35]
 proj_sel = 'RACMO2.4'
-land_only = False
+land_only = True
 trim_border = None
 
 # Plotting arguments
-share_labels = True
+share_labels = False
 
 # Other arguments
 rolling_mean_var = False
@@ -90,29 +90,60 @@ var_name_cfg = {
     'Eobs': {
         'Tg': 'tg',
         'P': 'rr',
-        'SW': 'qq',
+        'SWin': 'qq',
     },
     'ERA5': {
         'Tg': 't2m',
         'P': 'tp',
-        'SW': 'ssrd',
+        'SWin': 'ssrd',
     },
     'RACMO2.3': {
         'Tg': 't2m',
         'P': 'precip',
-        'Sq': 'sund'
+        'Sq': 'sund',
+        'SWin': 'swsd',
+        'SWnet': 'swsn',
+        'SWincs': 'swsdcs',
+        'SWnetcs': 'swsncs',
+        'LWin': 'lwsd',
+        'LWnet': 'lwsn',
+        'LWincs': 'lwsdcs',
+        'LWnetcs': 'lwsncs',
+        'SHF': 'senf',
+        'LHF': 'latf',
+        'CloudLow': 'aclcovL',
+        'CloudMid': 'aclcovM',
+        'CloudHigh': 'aclcovH',
+        'CloudTotal': 'aclcov',
+        'LWP': 'qli',
+        'IWP': 'qii',
     },
     'RACMO2.4': {
         'Tg': 'tas',
         'P': 'pr',
         'Sq': 'sund',
-        'SW': 'rsds',
+        'SWin': 'rsds',
+        'SWnet': 'ssr',
+        'SWincs': 'rsdscs',
+        'SWnetcs': 'ssrc',
+        'LWin': 'rlds',
+        'LWnet': 'str',
+        'LWincs': 'rldscs',
+        'LWnetcs': 'strc',
+        'SHF': 'hfss',
+        'LHF': 'hfls',
+        'CloudLow': 'cll',
+        'CloudMid': 'clm',
+        'CloudHigh': 'clh',
+        'CloudTotal': 'clt',
+        'LWP': 'clwvi',
+        'IWP': 'clivi',
     },
     'Station': {
         'Tg': 'TG',
         'P': 'RH',
         'Sq': 'SQ',
-        'SW': 'Q'
+        'SWin': 'Q'
     },
 }
 
@@ -143,55 +174,87 @@ station_coord_cfg = {
     },
 }
 
-file_cfg = {
-    'Eobs_fine': {
-        'Tg': 'tg_ens_mean_0.1deg_reg_v31.0e.nc',
-        'P': 'rr_ens_mean_0.1deg_reg_v31.0e.nc',
-        'SW': 'qq_ens_mean_0.1deg_reg_v31.0e.nc',
-    },
-    'Eobs_coarse': {
-        'Tg': 'tg_ens_mean_0.25deg_reg_v31.0e.nc',
-        'P': 'rr_ens_mean_0.25deg_reg_v31.0e.nc',
-    },
-
-    'ERA5_fine': {
-        'Tg': 'era5_fine.nc',
-        'P': 'era5_fine.nc',
-    },
-    'ERA5_coarse': {
-        'Tg': 'era5_coarse_full_t2m.nc',
-        'P': 'era5_coarse_full_tp.nc',
-        'SW': 'era5_rsds.nc',
-    },
-
-    'RACMO2.3': {
-        'Tg': 't2m/*.nc',
-        'P': 'precip/*.nc',
-        'Sq': 'sund/*.nc',
-    },
-    'RACMO2.4': {
-        'Tg': 'Daily/tas.*.nc',
-        'P': 'Daily/pr.*.nc',
-        'Sq': 'Daily/sund.*.nc',
-        'SW': 'Daily/rsds.*.nc',
-    },
-
-    'Station': {
-        'Bilt': 'KNMI_Bilt.txt',
-        'Cabauw': 'KNMI_Cabauw.txt',
-        'Eelde': 'KNMI_Eelde.txt',
-        'Maastricht': 'KNMI_Maastricht.txt',
-        'Vlissingen': 'KNMI_Vlissingen.txt',
-        'Kooy': 'KNMI_Kooy.txt'
-    },
-}
-
 base_dir_cfg = {
     'Eobs': '/nobackup/users/walj/eobs',
     'ERA5': '/nobackup/users/walj/era5',
-    'RACMO2.3': f'/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data',
+    'RACMO2.3': '/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data',
+    'RACMO2.3_ERIK': '/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data',
     'RACMO2.4': '/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning',
     'Station': '/nobackup/users/walj/knmi',
+}
+
+file_cfg = {
+    'Eobs_fine': {
+        'Tg': os.path.join(base_dir_cfg['Eobs'], 'tg_ens_mean_0.1deg_reg_v31.0e.nc'),
+        'P': os.path.join(base_dir_cfg['Eobs'], 'rr_ens_mean_0.1deg_reg_v31.0e.nc'),
+        'SWin': os.path.join(base_dir_cfg['Eobs'], 'qq_ens_mean_0.1deg_reg_v31.0e.nc'),
+    },
+    'Eobs_coarse': {
+        'Tg': os.path.join(base_dir_cfg['Eobs'], 'tg_ens_mean_0.25deg_reg_v31.0e.nc'),
+        'P': os.path.join(base_dir_cfg['Eobs'], 'rr_ens_mean_0.25deg_reg_v31.0e.nc'),
+    },
+
+    'ERA5_fine': {
+        'Tg': os.path.join(base_dir_cfg['ERA5'], 'era5_fine.nc'),
+        'P': os.path.join(base_dir_cfg['ERA5'], 'era5_fine.nc'),
+    },
+    'ERA5_coarse': {
+        'Tg': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_full_t2m.nc'),
+        'P': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_full_tp.nc'),
+        'SWin': os.path.join(base_dir_cfg['ERA5'], 'era5_rsds.nc'),
+    },
+
+    'RACMO2.3': {
+        'Tg': os.path.join(base_dir_cfg['RACMO2.3'], 't2m/*.nc'),
+        'P': os.path.join(base_dir_cfg['RACMO2.3'], 'precip/*.nc'),
+        'Sq': os.path.join(base_dir_cfg['RACMO2.3'], 'sund/*.nc'),
+        'SWin': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'swsd/*.nc'),
+        'SWnet': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'swsn/*.nc'),
+        'SWincs': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'swsdcs/*.nc'),
+        'SWnetcs': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'swsncs/*.nc'),
+        'LWin': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'lwsd/*.nc'),
+        'LWnet': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'lwsn/*.nc'),
+        'LWincs': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'lwsdcs/*.nc'),
+        'LWnetcs': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'lwsncs/*.nc'),
+        'SHF': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'senf/*.nc'),
+        'LHF': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'latf/*.nc'),
+        'CloudLow': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'aclcovL/*.nc'),
+        'CloudMid': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'aclcovM/*.nc'),
+        'CloudHigh': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'aclcovH/*.nc'),
+        'CloudTotal': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'aclcov/*.nc'),
+        'LWP': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'qli/*.nc'),
+        'IWP': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'qii/*.nc'),
+    },
+    'RACMO2.4': {
+        'Tg': os.path.join(base_dir_cfg['RACMO2.4'], 'Daily/tas.*.nc'),
+        'P': os.path.join(base_dir_cfg['RACMO2.4'], 'Daily/pr.*.nc'),
+        'Sq': os.path.join(base_dir_cfg['RACMO2.4'], 'Daily/sund.*.nc'),
+        'SWin': os.path.join(base_dir_cfg['RACMO2.4'], 'Daily/rsds.*.nc'),
+        'SWnet': os.path.join(base_dir_cfg['RACMO2.4'], 'Daily/ssr.*.nc'),
+        'SWincs': os.path.join(base_dir_cfg['RACMO2.4'], 'Daily/rsdscs.*.nc'),
+        'SWnetcs': os.path.join(base_dir_cfg['RACMO2.4'], 'Daily/ssrc.*.nc'),
+        'LWin': os.path.join(base_dir_cfg['RACMO2.4'], 'Daily/rlds.*.nc'),
+        'LWnet': os.path.join(base_dir_cfg['RACMO2.4'], 'Daily/str.*.nc'),
+        'LWincs': os.path.join(base_dir_cfg['RACMO2.4'], 'Daily/rldscs.*.nc'),
+        'LWnetcs': os.path.join(base_dir_cfg['RACMO2.4'], 'Daily/strc.*.nc'),
+        'SHF': os.path.join(base_dir_cfg['RACMO2.4'], 'Daily/hfss.*.nc'),
+        'LHF': os.path.join(base_dir_cfg['RACMO2.4'], 'Daily/hfls.*.nc'),
+        'CloudLow': os.path.join(base_dir_cfg['RACMO2.4'], 'Daily/cll.*.nc'),
+        'CloudMid': os.path.join(base_dir_cfg['RACMO2.4'], 'Daily/clm.*.nc'),
+        'CloudHigh': os.path.join(base_dir_cfg['RACMO2.4'], 'Daily/clh.*.nc'),
+        'CloudTotal': os.path.join(base_dir_cfg['RACMO2.4'], 'Daily/clt.*.nc'),
+        'LWP': os.path.join(base_dir_cfg['RACMO2.4'], 'Daily/clwvi.*.nc'),
+        'IWP': os.path.join(base_dir_cfg['RACMO2.4'], 'Daily/clivi.*.nc'),
+    },
+
+    'Station': {
+        'Bilt': os.path.join(base_dir_cfg['Station'], 'KNMI_Bilt.txt'),
+        'Cabauw': os.path.join(base_dir_cfg['Station'], 'KNMI_Cabauw.txt'),
+        'Eelde': os.path.join(base_dir_cfg['Station'], 'KNMI_Eelde.txt'),
+        'Maastricht': os.path.join(base_dir_cfg['Station'], 'KNMI_Maastricht.txt'),
+        'Vlissingen': os.path.join(base_dir_cfg['Station'], 'KNMI_Vlissingen.txt'),
+        'Kooy': os.path.join(base_dir_cfg['Station'], 'KNMI_Kooy.txt')
+    },
 }
 
 proj_cfg = {
@@ -549,7 +612,7 @@ var_labels = {
     'Tg': 'Temperature (°C)',
     'P': 'Precipitation (mm)',
     'Sq': 'Sund. (hours/day)',
-    'SW': r'SW$_{\text{in}}$ (W/m$^2$)',
+    'SWin': r'SWin (W/m$^2$)',
 }
 
 def make_axis_label(source, var):
@@ -619,7 +682,11 @@ for ii, ax in enumerate(axes):
     ax.set_xlim(lo, hi)
     ax.set_ylim(lo, hi)
 
-    ax.plot([lo*2 - 2, hi*2 + 2], [lo*2 - 2, hi*2 + 2], lw=1, color='k', ls='--')
+    ax.plot([0, 1], [0, 1],
+        transform=ax.transAxes,
+        lw=1.5,
+        color='xkcd:brick red',
+        ls='--')
 
     ax.set_aspect('equal', adjustable='box')
     ax.set_box_aspect(1)
@@ -641,7 +708,9 @@ for ii, ax in enumerate(axes):
     ax.tick_params(axis='both', labelsize=14, length=6)
 
     comp_lab = source_labels.get(data_compare_list[ii], data_compare_list[ii])
-    ax.set_title(f'{comp_lab}', fontsize=26, fontweight='bold')
+
+    if share_y is True or n_runs > 1:
+        ax.set_title(f'{comp_lab}', fontsize=26, fontweight='bold')
 
     ax.grid()
 
@@ -717,7 +786,7 @@ for ii, ax in enumerate(axes):
     x, d = diff_data[ii]
 
     ax.scatter(x, d, s=12, color='k', alpha=0.4)
-    ax.axhline(0, lw=1, color='k', ls='--')
+    ax.axhline(0, lw=1.5, color='xkcd:brick red', ls='--')
 
     if share_y:
         d_all = np.concatenate(all_diffs)

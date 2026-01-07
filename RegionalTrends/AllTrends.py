@@ -42,8 +42,8 @@ from AreaWeights import area_weights, area_weighted_mean
 #%% User inputs
 
 # Main arguments
-var = 'Tg'
-data_base = 'ERA5_coarse'
+var = 'CloudTotal'
+data_base = 'RACMO2.3'
 data_compare = 'RACMO2.4'
 
 # Data selection arguments
@@ -64,8 +64,8 @@ land_only_area = True
 proj_area = 'RACMO2.4'
 
 # Spatial plotting arguments
-avg_crange = [-4, 4]
-trend_crange = [-4, 4]
+avg_crange = [0, 100]
+trend_crange = [-20, 20]
 proj_plot = 'RACMO2.4'
 plot_lats = [38, 63]
 plot_lons = [-13, 22]
@@ -75,9 +75,10 @@ switch_sign = False
 cut_boundaries = False
 
 # Correlation plotting arguments
-corr_calc = False
+corr_calc = True
 corr_freq = 'Daily'
-corr_crange = [0, 1] 
+corr_crange = [-1, 1]
+corr_cmap_neg = True 
 
 # Area plotting arguments
 fit_range = None
@@ -128,7 +129,17 @@ rotpole24 = load_rotpole(
     'pr_monthlyS_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc'
 )
 
-#%% Dataset configurations
+proj_cfg = {
+    'RACMO2.3': rotpole23,
+    'RACMO2.4': rotpole24,
+}
+
+# Assign projections
+proj_sel = proj_cfg.get(proj_sel, ccrs.PlateCarree())
+proj_area = proj_cfg.get(proj_area, ccrs.PlateCarree())
+proj_plot = proj_cfg.get(proj_plot, ccrs.PlateCarree())
+
+#%% Dataset configurations (misschien in een aparte script doen?)
 
 dask.config.set(scheduler='threads', num_workers=12)
 
@@ -170,20 +181,54 @@ sun_colors = [
 ]
 cmap_sun = LinearSegmentedColormap.from_list('sunshine', sun_colors, N=256)
 
-corr_colors = [
-    '#ffffff',
-    '#fff7bc',
-    '#fee391',
-    '#fec44f',
-    '#fe9929',
-    '#ec7014',
-    '#cc4c02',
-    '#993404',
-    '#662506',
-    '#3d1f0f',
-]
-corr_cmap = clr.ListedColormap(corr_colors)
-corr_extreme = ("#999898", None)
+if corr_cmap_neg:
+    colors = [
+        "#570088", "#3700b3", "#1d00d7", "#0300f6", "#0231be",
+        "#056775", "#079d2c", "#35c13b", "#80d883",
+        "#ffffff", "#ffffff", "#ffffff",
+        "#fff400", "#ffe400", "#ffc900", "#ffad00",
+        "#ff8200", "#ff5500", "#ff2800", "#a30e03", "#6b0902"
+    ]
+    corr_cmap = clr.ListedColormap(colors)
+    corr_extreme = (None, None)
+
+else:
+    corr_colors = [
+        '#ffffff',
+        '#fff7bc',
+        '#fee391',
+        '#fec44f',
+        '#fe9929',
+        '#ec7014',
+        '#cc4c02',
+        '#993404',
+        '#662506',
+        '#3d1f0f',
+    ]
+    corr_cmap = clr.ListedColormap(corr_colors)
+    corr_extreme = ("#999898", None)
+
+cmap_trend_signed = ListedColormap(cmaps.cmp_b2r(np.linspace(0, 1, 20)))
+
+cmap_sw_mean = cmocean.cm.solar
+extreme_sw_mean = (None, '#fff3b2')
+extreme_sw_trend = ('#1B1C70', '#7e060c')
+
+cmap_lw_mean = cmocean.cm.balance
+extreme_lw_mean = ('#0a0a86', '#700c0c')
+extreme_lw_trend = ('#000020', '#350000')
+
+cmap_turb_mean = cmocean.cm.balance
+extreme_turb_mean = ('#0a0a86', '#700c0c')
+extreme_turb_trend = ('#000020', '#350000')
+
+cmap_cloud_mean = cmocean.cm.gray
+extreme_cloud_mean = ('#000000', '#ffffff')
+extreme_cloud_trend = ('#1B1C70', '#7e060c')
+
+cmap_wp_mean = cmocean.cm.matter
+extreme_wp_mean = ('#0a0a86', '#fff3b2')
+extreme_wp_trend = ('#1B1C70', '#7e060c')
 
 plot_cfg = {
     'Tg': {
@@ -224,21 +269,126 @@ plot_cfg = {
         'ylabel_fit': 'Sund. (hours/day)',
         'trend_unit': 'hours/day / ' + fit_unit,
         'ylim_fit': fit_range,
-    },
-    'SW': {
-        'label_mean': r'SW_{in} (W/m$^2$)',
-        'label_trend': r'Trend (W/m$^2$ / ' + fit_unit + ')',
-        'cmap_mean': cmocean.cm.solar,
-        'cmap_trend': ListedColormap(cmaps.cmp_b2r(np.linspace(0, 1, 20))),
-        'crange_mean': avg_crange,
-        'crange_trend': trend_crange,
-        'extreme_mean': (None, "#fff3b2"),
-        'extreme_trend': ("#1B1C70", "#7e060c"),
-        'ylabel_fit': r'SW_{in} (W/m$^2$)',
-        'trend_unit': r'W/m$^2$ / ' + fit_unit,
-        'ylim_fit': fit_range,
-    },
+    }
 }
+
+def add_plot_cfg(
+    label_mean,
+    label_trend,
+    cmap_mean,
+    cmap_trend,
+    extreme_mean,
+    extreme_trend,
+    ylabel_fit,
+    trend_unit,
+    ylim_fit,
+    crange_mean=avg_crange,
+    crange_trend=trend_crange,
+):
+    return {
+        'label_mean': label_mean,
+        'label_trend': label_trend,
+        'cmap_mean': cmap_mean,
+        'cmap_trend': cmap_trend,
+        'crange_mean': crange_mean,
+        'crange_trend': crange_trend,
+        'extreme_mean': extreme_mean,
+        'extreme_trend': extreme_trend,
+        'ylabel_fit': ylabel_fit,
+        'trend_unit': trend_unit,
+        'ylim_fit': ylim_fit,
+    }
+
+sw_vars = {
+    'SWin': r'SW_{in} (W/m$^2$)',
+    'SWnet': r'SW_{net} (W/m$^2$)',
+    'SWincs': r'SW_{in,cs} (W/m$^2$)',
+    'SWnetcs': r'SW_{net,cs} (W/m$^2$)',
+}
+for v, lab in sw_vars.items():
+    plot_cfg[v] = add_plot_cfg(
+        label_mean=lab,
+        label_trend=r'Trend (W/m$^2$ / ' + fit_unit + ')',
+        cmap_mean=cmap_sw_mean,
+        cmap_trend=cmap_trend_signed,
+        extreme_mean=extreme_sw_mean,
+        extreme_trend=extreme_sw_trend,
+        ylabel_fit=lab,
+        trend_unit=r'W/m$^2$ / ' + fit_unit,
+        ylim_fit=fit_range,
+    )
+
+lw_vars = {
+    'LWin': r'LW_{in} (W/m$^2$)',
+    'LWincs': r'LW_{in,cs} (W/m$^2$)',
+    'LWnet': r'LW_{net} (W/m$^2$)',
+    'LWnetcs': r'LW_{net,cs} (W/m$^2$)',
+}
+for v, lab in lw_vars.items():
+    plot_cfg[v] = add_plot_cfg(
+        label_mean=lab,
+        label_trend=r'Trend (W/m$^2$ / ' + fit_unit + ')',
+        cmap_mean=cmap_lw_mean,
+        cmap_trend=cmap_trend_signed,
+        extreme_mean=extreme_lw_mean,
+        extreme_trend=extreme_lw_trend,
+        ylabel_fit=lab,
+        trend_unit=r'W/m$^2$ / ' + fit_unit,
+        ylim_fit=fit_range,
+    )
+
+turb_vars = {
+    'SHF': r'SHF (W/m$^2$)',
+    'LHF': r'LHF (W/m$^2$)',
+}
+for v, lab in turb_vars.items():
+    plot_cfg[v] = add_plot_cfg(
+        label_mean=lab,
+        label_trend=r'Trend (W/m$^2$ / ' + fit_unit + ')',
+        cmap_mean=cmap_turb_mean,
+        cmap_trend=cmap_trend_signed,
+        extreme_mean=extreme_turb_mean,
+        extreme_trend=extreme_turb_trend,
+        ylabel_fit=lab,
+        trend_unit=r'W/m$^2$ / ' + fit_unit,
+        ylim_fit=fit_range,
+    )
+
+cloud_vars = {
+    'CloudLow': 'Low cloud (%)',
+    'CloudMid': 'Mid cloud (%)',
+    'CloudHigh': 'High cloud (%)',
+    'CloudTotal': 'Total cloud (%)',
+}
+for v, lab in cloud_vars.items():
+    plot_cfg[v] = add_plot_cfg(
+        label_mean=lab,
+        label_trend='Trend (% / ' + fit_unit + ')',
+        cmap_mean=cmap_cloud_mean,
+        cmap_trend=cmap_trend_signed,
+        extreme_mean=extreme_cloud_mean,
+        extreme_trend=extreme_cloud_trend,
+        ylabel_fit=lab,
+        trend_unit='% / ' + fit_unit,
+        ylim_fit=fit_range,
+    )
+
+wp_vars = {
+    'LWP': 'LWP (g/m$^2$)',
+    'IWP': 'IWP (g/m$^2$)',
+}
+for v, lab in wp_vars.items():
+    plot_cfg[v] = add_plot_cfg(
+        label_mean=lab,
+        label_trend=r'Trend (g/m$^2$ / ' + fit_unit + ')',
+        cmap_mean=cmap_wp_mean,
+        cmap_trend=cmap_trend_signed,
+        extreme_mean=extreme_wp_mean,
+        extreme_trend=extreme_wp_trend,
+        ylabel_fit=lab,
+        trend_unit=r'g/m$^2$ / ' + fit_unit,
+        ylim_fit=fit_range,
+    )
 
 cfg_plot = plot_cfg[var].copy()
 if data_compare is not None:
@@ -251,29 +401,60 @@ var_name_cfg = {
     'Eobs': {
         'Tg': 'tg',
         'P': 'rr',
-        'SW': 'qq',
+        'SWin': 'qq',
     },
     'ERA5': {
         'Tg': 't2m',
         'P': 'tp',
-        'SW': 'ssrd',
+        'SWin': 'ssrd',
     },
     'RACMO2.3': {
         'Tg': 't2m',
         'P': 'precip',
-        'Sq': 'sund'
+        'Sq': 'sund',
+        'SWin': 'swsd',
+        'SWnet': 'swsn',
+        'SWincs': 'swsdcs',
+        'SWnetcs': 'swsncs',
+        'LWin': 'lwsd',
+        'LWnet': 'lwsn',
+        'LWincs': 'lwsdcs',
+        'LWnetcs': 'lwsncs',
+        'SHF': 'senf',
+        'LHF': 'latf',
+        'CloudLow': 'aclcovL',
+        'CloudMid': 'aclcovM',
+        'CloudHigh': 'aclcovH',
+        'CloudTotal': 'aclcov',
+        'LWP': 'qli',
+        'IWP': 'qii',
     },
     'RACMO2.4': {
         'Tg': 'tas',
         'P': 'pr',
         'Sq': 'sund',
-        'SW': 'rsds',
+        'SWin': 'rsds',
+        'SWnet': 'ssr',
+        'SWincs': 'rsdscs',
+        'SWnetcs': 'ssrc',
+        'LWin': 'rlds',
+        'LWnet': 'str',
+        'LWincs': 'rldscs',
+        'LWnetcs': 'strc',
+        'SHF': 'hfss',
+        'LHF': 'hfls',
+        'CloudLow': 'cll',
+        'CloudMid': 'clm',
+        'CloudHigh': 'clh',
+        'CloudTotal': 'clt',
+        'LWP': 'clwvi',
+        'IWP': 'clivi',
     },
     'Station': {
         'Tg': 'TG',
         'P': 'RH',
         'Sq': 'SQ',
-        'SW': 'Q'
+        'SWin': 'Q'
     },
 }
 
@@ -304,66 +485,88 @@ station_coord_cfg = {
     },
 }
 
-file_cfg = {
-    'Eobs_fine': {
-        'Tg': 'tg_ens_mean_0.1deg_reg_v31.0e.nc',
-        'P': 'rr_ens_mean_0.1deg_reg_v31.0e.nc',
-        'SW': 'qq_ens_mean_0.1deg_reg_v31.0e.nc',
-    },
-    'Eobs_coarse': {
-        'Tg': 'tg_ens_mean_0.25deg_reg_v31.0e.nc',
-        'P': 'rr_ens_mean_0.25deg_reg_v31.0e.nc',
-    },
-
-    'ERA5_fine': {
-        'Tg': 'era5_fine.nc',
-        'P': 'era5_fine.nc',
-    },
-    'ERA5_coarse': {
-        'Tg': 'era5_coarse_full_t2m.nc',
-        'P': 'era5_coarse_full_tp.nc',
-        'SW': 'era5_rsds.nc',
-    },
-
-    'RACMO2.3': {
-        'Tg': 't2m/*.nc',
-        'P': 'precip/*.nc',
-        'Sq': 'sund/*.nc',
-    },
-    'RACMO2.4': {
-        'Tg': f'{freq_str}/tas{racmo24_sep}*.nc',
-        'P': f'{freq_str}/pr{racmo24_sep}*.nc',
-        'Sq': 'Daily/sund.*.nc',
-        'SW': f'{freq_str}/rsds{racmo24_sep}*.nc',
-    },
-
-    'Station': {
-        'Bilt': 'KNMI_Bilt.txt',
-        'Cabauw': 'KNMI_Cabauw.txt',
-        'Eelde': 'KNMI_Eelde.txt',
-        'Maastricht': 'KNMI_Maastricht.txt',
-        'Vlissingen': 'KNMI_Vlissingen.txt',
-        'Kooy': 'KNMI_Kooy.txt'
-    },
-}
-
 base_dir_cfg = {
     'Eobs': '/nobackup/users/walj/eobs',
     'ERA5': '/nobackup/users/walj/era5',
     'RACMO2.3': f'/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/{freq_str}_data',
+    'RACMO2.3_ERIK': '/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data',
     'RACMO2.4': '/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning',
     'Station': '/nobackup/users/walj/knmi',
 }
 
-proj_cfg = {
-    'RACMO2.3': rotpole23,
-    'RACMO2.4': rotpole24,
-}
+file_cfg = {
+    'Eobs_fine': {
+        'Tg': os.path.join(base_dir_cfg['Eobs'], 'tg_ens_mean_0.1deg_reg_v31.0e.nc'),
+        'P': os.path.join(base_dir_cfg['Eobs'], 'rr_ens_mean_0.1deg_reg_v31.0e.nc'),
+        'SWin': os.path.join(base_dir_cfg['Eobs'], 'qq_ens_mean_0.1deg_reg_v31.0e.nc'),
+    },
+    'Eobs_coarse': {
+        'Tg': os.path.join(base_dir_cfg['Eobs'], 'tg_ens_mean_0.25deg_reg_v31.0e.nc'),
+        'P': os.path.join(base_dir_cfg['Eobs'], 'rr_ens_mean_0.25deg_reg_v31.0e.nc'),
+    },
 
-# Assign projections
-proj_sel = proj_cfg.get(proj_sel, ccrs.PlateCarree())
-proj_area = proj_cfg.get(proj_area, ccrs.PlateCarree())
-proj_plot = proj_cfg.get(proj_plot, ccrs.PlateCarree())
+    'ERA5_fine': {
+        'Tg': os.path.join(base_dir_cfg['ERA5'], 'era5_fine.nc'),
+        'P': os.path.join(base_dir_cfg['ERA5'], 'era5_fine.nc'),
+    },
+    'ERA5_coarse': {
+        'Tg': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_full_t2m.nc'),
+        'P': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_full_tp.nc'),
+        'SWin': os.path.join(base_dir_cfg['ERA5'], 'era5_rsds.nc'),
+    },
+
+    'RACMO2.3': {
+        'Tg': os.path.join(base_dir_cfg['RACMO2.3'], 't2m/*.nc'),
+        'P': os.path.join(base_dir_cfg['RACMO2.3'], 'precip/*.nc'),
+        'Sq': os.path.join(base_dir_cfg['RACMO2.3'], 'sund/*.nc'),
+        'SWin': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'swsd/*.nc'),
+        'SWnet': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'swsn/*.nc'),
+        'SWincs': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'swsdcs/*.nc'),
+        'SWnetcs': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'swsncs/*.nc'),
+        'LWin': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'lwsd/*.nc'),
+        'LWnet': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'lwsn/*.nc'),
+        'LWincs': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'lwsdcs/*.nc'),
+        'LWnetcs': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'lwsncs/*.nc'),
+        'SHF': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'senf/*.nc'),
+        'LHF': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'latf/*.nc'),
+        'CloudLow': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'aclcovL/*.nc'),
+        'CloudMid': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'aclcovM/*.nc'),
+        'CloudHigh': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'aclcovH/*.nc'),
+        'CloudTotal': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'aclcov/*.nc'),
+        'LWP': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'qli/*.nc'),
+        'IWP': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'qii/*.nc'),
+    },
+    'RACMO2.4': {
+        'Tg': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/tas{racmo24_sep}*.nc'),
+        'P': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/pr{racmo24_sep}*.nc'),
+        'Sq': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/sund{racmo24_sep}*.nc'),
+        'SWin': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/rsds{racmo24_sep}*.nc'),
+        'SWnet': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/ssr{racmo24_sep}*.nc'),
+        'SWincs': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/rsdscs{racmo24_sep}*.nc'),
+        'SWnetcs': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/ssrc{racmo24_sep}*.nc'),
+        'LWin': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/rlds{racmo24_sep}*.nc'),
+        'LWnet': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/str{racmo24_sep}*.nc'),
+        'LWincs': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/rldscs{racmo24_sep}*.nc'),
+        'LWnetcs': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/strc{racmo24_sep}*.nc'),
+        'SHF': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/hfss{racmo24_sep}*.nc'),
+        'LHF': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/hfls{racmo24_sep}*.nc'),
+        'CloudLow': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/cll{racmo24_sep}*.nc'),
+        'CloudMid': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/clm{racmo24_sep}*.nc'),
+        'CloudHigh': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/clh{racmo24_sep}*.nc'),
+        'CloudTotal': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/clt{racmo24_sep}*.nc'),
+        'LWP': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/clwvi{racmo24_sep}*.nc'),
+        'IWP': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/clivi{racmo24_sep}*.nc'),
+    },
+
+    'Station': {
+        'Bilt': os.path.join(base_dir_cfg['Station'], 'KNMI_Bilt.txt'),
+        'Cabauw': os.path.join(base_dir_cfg['Station'], 'KNMI_Cabauw.txt'),
+        'Eelde': os.path.join(base_dir_cfg['Station'], 'KNMI_Eelde.txt'),
+        'Maastricht': os.path.join(base_dir_cfg['Station'], 'KNMI_Maastricht.txt'),
+        'Vlissingen': os.path.join(base_dir_cfg['Station'], 'KNMI_Vlissingen.txt'),
+        'Kooy': os.path.join(base_dir_cfg['Station'], 'KNMI_Kooy.txt')
+    },
+}
 
 #%% Loading and processing data
 
@@ -374,7 +577,6 @@ def make_cfg(data_source, var):
         cfg = {
             'variable': var_name_cfg[file_key][var],
             'file': file_cfg[data_source][var],
-            'base_dir': base_dir_cfg[file_key],
             'file_key': file_key,
             'datatype': 'netcdf',
             'proj': proj_cfg.get(file_key, ccrs.PlateCarree()),
@@ -385,7 +587,6 @@ def make_cfg(data_source, var):
         cfg = {
             'variable': var_name_cfg['Station'][var],
             'file': file_cfg['Station'][data_source],
-            'base_dir': base_dir_cfg['Station'],
             'file_key': 'Station',
             'datatype': 'station',
             'proj': ccrs.PlateCarree(),
@@ -427,8 +628,6 @@ def process_source(data_source,
         if month_start > month_end:
             years_load[0] = years_req[0] - 1
 
-    input_file_data = os.path.join(cfg['base_dir'], cfg['file'])
-
     trim_local = trim_border
     if data_source == 'RACMO2.4' and trim_border is None:
         trim_local = 8
@@ -436,7 +635,7 @@ def process_source(data_source,
     if cfg['datatype'] == 'netcdf':
         data = preprocess_netcdf(
             source=cfg['file_key'],
-            file_path=input_file_data,
+            file_path=cfg['file'],
             var_name=cfg['variable'],
             months=months_local,
             years=years_load,
@@ -450,7 +649,7 @@ def process_source(data_source,
 
     elif cfg['datatype'] == 'station':
         data = preprocess_station(
-            file_path=input_file_data,
+            file_path=cfg['file'],
             var_name=cfg['variable'],
             months=months,
             years=years_load,
@@ -591,7 +790,7 @@ if data_base is not None:
             trg_grid = grid_with_bounds(data_avg_base, rotpole_native=proj_cfg.get(data_base, ccrs.PlateCarree()))
             src_grid = grid_with_bounds(data_avg_comp, rotpole_native=proj_cfg.get(data_compare, ccrs.PlateCarree()))
 
-        elif var in ['Tg', 'Sq', 'SW']:
+        else:
             method = 'bilinear'
             trg_grid = data_avg_base
             src_grid = data_avg_comp

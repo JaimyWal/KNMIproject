@@ -305,7 +305,7 @@ def preprocess_netcdf(
             days_in_month = da['time'].dt.days_in_month
             da = da / days_in_month
             da.attrs['units'] = 'mm/day'
-        if var_name == 'sund':
+        elif var_name == 'sund':
             if ('2.4' in src) and is_monthly_time(da['time']):
                 scale_to_seconds = 1e-5
                 days_in_month = da['time'].dt.days_in_month
@@ -314,11 +314,18 @@ def preprocess_netcdf(
             else:
                 da = da / 3600.0
                 da.attrs['units'] = 'hours/day'
-        if var_name == 'rsds':
+        elif var_name == 'rsds':
             if ('2.4' in src) and is_monthly_time(da['time']):
                 days_in_month = da['time'].dt.days_in_month
                 da = da / (days_in_month*86400.0)
                 da.attrs['units'] = 'W/m2'
+        elif var_name == 'LWP' or var_name == 'IWP':
+            da = da*1e3
+            da.attrs['units'] = 'g/m2'
+        elif var_name == 'senf' or var_name == 'latf':
+            da = -1*da
+        elif var_name in ['aclcov', 'aclcovH', 'aclcovM', 'aclcovL', 'clt', 'clh', 'clm', 'cll']:
+            da = da*100
 
     if 'ERA5' in src:
         if var_name == 't2m':
