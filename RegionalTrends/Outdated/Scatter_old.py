@@ -9,34 +9,39 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import cartopy.crs as ccrs
 import os
+from pathlib import Path
+import sys
 from importlib import reload
 
 # Custom libraries
-import ProcessNetCDF
+PROJECT_ROOT = Path.home() / 'KNMIproject'
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from RegionalTrends.Helpers import ProcessNetCDF
 reload(ProcessNetCDF)          
-from ProcessNetCDF import preprocess_netcdf
+from RegionalTrends.Helpers.ProcessNetCDF import preprocess_netcdf
 
-import ProcessStation
+from RegionalTrends.Helpers import ProcessStation
 reload(ProcessStation)          
-from ProcessStation import preprocess_station
+from RegionalTrends.Helpers.ProcessStation import preprocess_station
 
-import AreaWeights
+from RegionalTrends.Helpers import AreaWeights
 reload(AreaWeights)
-from AreaWeights import area_weights, area_weighted_mean
+from RegionalTrends.Helpers.AreaWeights import area_weights, area_weighted_mean
 
 plt.rcParams['axes.unicode_minus'] = False
 
 #%% User inputs
 
 # Main arguments
-n_runs = 1
-var = 'SHF' #
-data_base = 'RACMO2.4' # 
-data_compare = 'RACMO2.3' # 
+n_runs = 3
+var = 'Tg' #
+data_base = ['L5', 'Eobs_fine', 'Eobs_fine'] # 
+data_compare = ['Eobs_fine', 'RACMO2.3', 'RACMO2.4'] # 
 
 # Data selection arguments
 freq_sel = 'Daily' #
-months = [12, 1, 2] # 
+months = None # 
 years = [2016, 2020]
 lats = [50.7, 53.6]
 lons = [3.25, 7.35]
@@ -45,7 +50,7 @@ land_only = True
 trim_border = None
 
 # Plotting arguments
-share_labels = False
+share_labels = True
 
 # Other arguments
 rolling_mean_var = False
@@ -631,8 +636,8 @@ same_base = len(set(data_base_list)) == 1
 same_comp = len(set(data_compare_list)) == 1
 same_var = len(set(var_list)) == 1
 
-share_x = share_labels and same_base and same_var
-share_y = share_labels and same_var
+share_x = share_labels and same_base and same_var and n_runs > 1
+share_y = share_labels and same_var and n_runs > 1
 
 fig, axes = plt.subplots(
     1, n_runs,
@@ -851,3 +856,6 @@ if share_y:
 
 plt.show()
 
+
+
+# Variabele names van nieuwe functie vandaan halen

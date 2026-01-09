@@ -3,9 +3,9 @@ import xarray as xr
 from pyproj import Geod
 from importlib import reload
 
-import GridBounds
+from RegionalTrends.Helpers import GridBounds
 reload(GridBounds)          
-from GridBounds import bounds_from_centers, rotated_bounds
+from RegionalTrends.Helpers.GridBounds import bounds_from_centers, rotated_bounds
 
 
 def cell_areas_from_bounds(lat_b, lon_b, ellps='WGS84'):

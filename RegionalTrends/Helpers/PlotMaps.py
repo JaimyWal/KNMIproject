@@ -14,9 +14,9 @@ from shapely.ops import unary_union
 import os
 from importlib import reload
 
-import ProcessNetCDF
+from RegionalTrends.Helpers import ProcessNetCDF
 reload(ProcessNetCDF)
-from ProcessNetCDF import rect_sel
+from RegionalTrends.Helpers.ProcessNetCDF import rect_sel
 
 
 def cbar_extension(datasets, crange):
@@ -541,5 +541,3 @@ def shared_colorbar(
 
     cbar.set_label(label, fontsize=labelsize, labelpad=10)
     return cbar
-
-

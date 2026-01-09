@@ -26,7 +26,7 @@ def preprocess_station(
         header=None,
         names=col_names,
         usecols=['YYYYMMDD', var_name],
-        skiprows=header_line_no + 1,   # skip everything up to and including the header
+        skiprows=header_line_no + 1,
         na_values=[''],
         skipinitialspace=True,
         low_memory=False,
@@ -52,10 +52,6 @@ def preprocess_station(
     # Convert SWin to W/m2
     if var_name == 'Q':
         series = series*1e4 / 86400.0
-
-    # # Aggregate to monthly means (start of month, like 'MS')
-    # if aggregate == True:
-    #     series = series.resample('MS').mean()
 
     # Select months
     if months is not None:

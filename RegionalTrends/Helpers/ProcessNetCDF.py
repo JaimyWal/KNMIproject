@@ -314,12 +314,12 @@ def preprocess_netcdf(
             else:
                 da = da / 3600.0
                 da.attrs['units'] = 'hours/day'
-        elif var_name == 'rsds':
+        elif var_name in ['ssr', 'ssrc', 'rsds', 'rsdscs', 'str', 'strc', 'rlds', 'rldscs', 'hfss', 'hfls']:
             if ('2.4' in src) and is_monthly_time(da['time']):
                 days_in_month = da['time'].dt.days_in_month
                 da = da / (days_in_month*86400.0)
                 da.attrs['units'] = 'W/m2'
-        elif var_name == 'LWP' or var_name == 'IWP':
+        elif var_name in ['clwvi', 'clivi', 'qli', 'qii']:
             da = da*1e3
             da.attrs['units'] = 'g/m2'
         elif var_name == 'senf' or var_name == 'latf':
@@ -337,6 +337,12 @@ def preprocess_netcdf(
         elif var_name == 'ssrd':
             da = da / 86400.0
             da.attrs['units'] = 'W/m2'
+        elif var_name in ['tcc', 'hcc', 'mcc', 'lcc']:
+            da = da*100.0
+            da.attrs['units'] = '%'
+        elif var_name in ['tclw', 'tciw']:
+            da = da*1e3
+            da.attrs['units'] = 'g/m2'
 
     # 5. determine spatial dims on the raw grid
     if 'rlat' in da.dims and 'rlon' in da.dims:
@@ -377,14 +383,6 @@ def preprocess_netcdf(
         rotpole_sel=rotpole_sel, 
         rotpole_native=rotpole_native
     )
-
-    # 7. decide if resampling is needed
-    #    If time spacing is monthly already, do not resample.
-    #    If not monthly (daily / subdaily), resample to monthly.
-    # if is_monthly_time(da['time']):
-    #     da_month = da
-    # else:
-    #     da_month = da.resample(time='MS').mean('time')
 
     # 8. select months and years on the monthly time axis
     tsel = subset_time(da['time'], months=months, years=years)

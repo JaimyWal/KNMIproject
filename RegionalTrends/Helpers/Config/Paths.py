@@ -1,0 +1,108 @@
+import os
+
+
+def freq_tags(monthly_or_daily):
+    if monthly_or_daily == 'Daily':
+        return 'Daily', '.'
+    elif monthly_or_daily == 'Monthly':
+        return 'Monthly', '_'
+
+
+def build_base_dirs(freq_str):
+    return {
+        'Eobs': '/nobackup/users/walj/eobs',
+        'ERA5': '/nobackup/users/walj/era5',
+        'RACMO2.3': f'/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/{freq_str}_data',
+        'RACMO2.3_ERIK': '/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data',
+        'RACMO2.4': '/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning',
+        'Station': '/nobackup/users/walj/knmi',
+    }
+
+
+def build_file_cfg(freq_str, racmo24_sep):
+
+    base_dir_cfg = build_base_dirs(freq_str)
+
+    return {
+        'Eobs_fine': {
+            'Tg': os.path.join(base_dir_cfg['Eobs'], 'tg_ens_mean_0.1deg_reg_v31.0e.nc'),
+            'P': os.path.join(base_dir_cfg['Eobs'], 'rr_ens_mean_0.1deg_reg_v31.0e.nc'),
+            'SWin': os.path.join(base_dir_cfg['Eobs'], 'qq_ens_mean_0.1deg_reg_v31.0e.nc'),
+        },
+        'Eobs_coarse': {
+            'Tg': os.path.join(base_dir_cfg['Eobs'], 'tg_ens_mean_0.25deg_reg_v31.0e.nc'),
+            'P': os.path.join(base_dir_cfg['Eobs'], 'rr_ens_mean_0.25deg_reg_v31.0e.nc'),
+        },
+        'ERA5_fine': {'Tg': os.path.join(base_dir_cfg['ERA5'], 'era5_land.nc'),
+                     'P': os.path.join(base_dir_cfg['ERA5'], 'era5_land.nc')},
+        'ERA5_coarse': {
+            'Tg': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_t2m_ps.nc'),
+            'P': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_tp.nc'),
+            'SWin': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_sw_shf.nc'),
+            'SWnet': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_sw_shf.nc'),
+            'SWincs': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_sw_shf.nc'),
+            'SWnetcs': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_sw_shf.nc'),
+            'LWin': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_lw_lhf.nc'),
+            'LWnet': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_lw_lhf.nc'),
+            'LWincs': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_lw_lhf.nc'),
+            'LWnetcs': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_lw_lhf.nc'),
+            'SHF': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_sw_shf.nc'),
+            'LHF': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_lw_lhf.nc'),
+            'CloudLow': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_clouds.nc'),
+            'CloudMid': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_clouds.nc'),
+            'CloudHigh': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_clouds.nc'),
+            'CloudTotal': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_clouds.nc'),
+            'LWP': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_clouds.nc'),
+            'IWP': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_clouds.nc'),
+        },
+        'RACMO2.3': {
+            'Tg': os.path.join(base_dir_cfg['RACMO2.3'], 't2m/*.nc'),
+            'P': os.path.join(base_dir_cfg['RACMO2.3'], 'precip/*.nc'),
+            'Sq': os.path.join(base_dir_cfg['RACMO2.3'], 'sund/*.nc'),
+            'SWin': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'swsd/*.nc'),
+            'SWnet': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'swsn/*.nc'),
+            'SWincs': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'swsdcs/*.nc'),
+            'SWnetcs': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'swsncs/*.nc'),
+            'LWin': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'lwsd/*.nc'),
+            'LWnet': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'lwsn/*.nc'),
+            'LWincs': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'lwsdcs/*.nc'),
+            'LWnetcs': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'lwsncs/*.nc'),
+            'SHF': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'senf/*.nc'),
+            'LHF': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'latf/*.nc'),
+            'CloudLow': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'aclcovL/*.nc'),
+            'CloudMid': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'aclcovM/*.nc'),
+            'CloudHigh': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'aclcovH/*.nc'),
+            'CloudTotal': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'aclcov/*.nc'),
+            'LWP': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'qli/*.nc'),
+            'IWP': os.path.join(base_dir_cfg['RACMO2.3_ERIK'], 'qii/*.nc'),
+        },
+        'RACMO2.4': {
+            'Tg': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/tas{racmo24_sep}*.nc'),
+            'P': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/pr{racmo24_sep}*.nc'),
+            'Sq': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/sund{racmo24_sep}*.nc'),
+            'SWin': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/rsds{racmo24_sep}*.nc'),
+            'SWnet': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/ssr{racmo24_sep}*.nc'),
+            'SWincs': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/rsdscs{racmo24_sep}*.nc'),
+            'SWnetcs': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/ssrc{racmo24_sep}*.nc'),
+            'LWin': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/rlds{racmo24_sep}*.nc'),
+            'LWnet': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/str{racmo24_sep}*.nc'),
+            'LWincs': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/rldscs{racmo24_sep}*.nc'),
+            'LWnetcs': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/strc{racmo24_sep}*.nc'),
+            'SHF': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/hfss{racmo24_sep}*.nc'),
+            'LHF': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/hfls{racmo24_sep}*.nc'),
+            'CloudLow': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/cll{racmo24_sep}*.nc'),
+            'CloudMid': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/clm{racmo24_sep}*.nc'),
+            'CloudHigh': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/clh{racmo24_sep}*.nc'),
+            'CloudTotal': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/clt{racmo24_sep}*.nc'),
+            'LWP': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/clwvi{racmo24_sep}*.nc'),
+            'IWP': os.path.join(base_dir_cfg['RACMO2.4'], f'{freq_str}/clivi{racmo24_sep}*.nc'),
+        },
+        'Station': {
+            'Bilt': os.path.join(base_dir_cfg['Station'], 'KNMI_Bilt.txt'),
+            'Cabauw': os.path.join(base_dir_cfg['Station'], 'KNMI_Cabauw.txt'),
+            'Eelde': os.path.join(base_dir_cfg['Station'], 'KNMI_Eelde.txt'),
+            'Maastricht': os.path.join(base_dir_cfg['Station'], 'KNMI_Maastricht.txt'),
+            'Vlissingen': os.path.join(base_dir_cfg['Station'], 'KNMI_Vlissingen.txt'),
+            'Kooy': os.path.join(base_dir_cfg['Station'], 'KNMI_Kooy.txt'),
+        },
+    }
