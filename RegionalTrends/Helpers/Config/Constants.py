@@ -66,6 +66,49 @@ LABEL_PLOT_CFG = {
     'IWP': r'IWP (g/m$^2$)',
 }
 
+VAR_PHYS_CFG = {
+    'Tg': 'Temperature',
+    'P': 'Precipitation',
+    'Sq': 'Sund.',
+    'SWin': r'SW$_{\text{in}}$',
+    'SWnet': r'SW$_{\text{net}}$',
+    'SWincs': r'SW$_{\text{in,cs}}$',
+    'SWnetcs': r'SW$_{\text{net,cs}}$',
+    'LWin': r'LW$_{\text{in}}$',
+    'LWincs': r'LW$_{\text{in,cs}}$',
+    'LWnet': r'LW$_{\text{net}}$',
+    'LWnetcs': r'LW$_{\text{net,cs}}$',
+    'SHF': 'SHF',
+    'LHF': 'LHF',
+    'CloudLow': 'Low cloud',
+    'CloudMid': 'Mid cloud',
+    'CloudHigh': 'High cloud',
+    'CloudTotal': 'Total cloud',
+    'LWP': 'LWP',
+    'IWP': 'IWP',
+}
+
+VAR_UNIT_CFG = {
+    'Tg': '°C',
+    'P': 'mm',
+    'Sq': 'hours/day',
+    'SWin': r'W/m$^2$',
+    'SWnet': r'W/m$^2$',
+    'SWincs': r'W/m$^2$',
+    'SWnetcs': r'W/m$^2$',
+    'LWin': r'W/m$^2$',
+    'LWincs': r'W/m$^2$',
+    'LWnet': r'W/m$^2$',
+    'LWnetcs': r'W/m$^2$',
+    'SHF': r'W/m$^2$',
+    'LHF': r'W/m$^2$',
+    'CloudLow': '%',
+    'CloudMid': '%',
+    'CloudHigh': '%',
+    'CloudTotal': '%',
+    'LWP': r'g/m$^2$',
+    'IWP': r'g/m$^2$',
+}
 
 
 def load_rotpole(rotpole_dir, rotpole_file):

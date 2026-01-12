@@ -39,7 +39,7 @@ dask.config.set(scheduler='threads', num_workers=12)
 
 # Main arguments
 n_runs = 3
-var = 'LWnet' #
+var = 'IWP' #
 data_base = ['ERA5_coarse', 'ERA5_coarse', 'RACMO2.3'] # 
 data_compare = ['RACMO2.3', 'RACMO2.4', 'RACMO2.4'] # 
 
@@ -419,16 +419,17 @@ if share_x:
     )
 
 if share_y:
-    shared_ylabel = f'{var_labels_cfg.get(var, var)}'
-    pos0 = axes[0].get_position()
-    y_center = 0.5*(pos0.y0 + pos0.y1)
-    fig.text(
-        pos0.x0 - 0.06, y_center, shared_ylabel,
-        rotation=90,
-        ha='center',
-        va='center',
-        fontsize=22
-    )
+    # shared_ylabel = f'{var_labels_cfg.get(var, var)}'
+    # pos0 = axes[0].get_position()
+    # y_center = 0.5*(pos0.y0 + pos0.y1)
+    # fig.text(
+    #     pos0.x0 - 0.06, y_center, shared_ylabel,
+    #     rotation=90,
+    #     ha='center',
+    #     va='center',
+    #     fontsize=22
+    # )
+    axes[0].set_ylabel(var_labels_cfg.get(var, var), fontsize=22)
 
 plt.show()
 
@@ -540,15 +541,16 @@ if share_x:
     )
 
 if share_y:
-    shared_ylabel = fr'$\Delta${var_labels_cfg.get(var, var)}'
-    pos0 = axes[0].get_position()
-    y_center = 0.5*(pos0.y0 + pos0.y1)
-    fig.text(
-        pos0.x0 - 0.06, y_center, shared_ylabel,
-        rotation=90,
-        ha='center',
-        va='center',
-        fontsize=22
-    )
+    # shared_ylabel = fr'$\Delta${var_labels_cfg.get(var, var)}'
+    # pos0 = axes[0].get_position()
+    # y_center = 0.5*(pos0.y0 + pos0.y1)
+    # fig.text(
+    #     pos0.x0 - 0.06, y_center, shared_ylabel,
+    #     rotation=90,
+    #     ha='center',
+    #     va='center',
+    #     fontsize=22
+    # )
+    axes[0].set_ylabel(fr'$\Delta${var_labels_cfg.get(var, var)}', fontsize=22)
 
 plt.show()

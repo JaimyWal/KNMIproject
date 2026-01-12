@@ -40,8 +40,8 @@ def build_cmap_sun():
     return LinearSegmentedColormap.from_list('sunshine', sun_colors, N=256)
 
 
-def build_corr_cmap(corr_cmap_neg):
-    if corr_cmap_neg:
+def build_corr_cmap(corr_type):
+    if corr_type == 'Diverging':
         colors = [
             '#570088', '#3700b3', '#1d00d7', '#0300f6', '#0231be',
             '#056775', '#079d2c', '#35c13b', '#80d883',
@@ -51,19 +51,23 @@ def build_corr_cmap(corr_cmap_neg):
         ]
         return {'corr_cmap': clr.ListedColormap(colors), 'corr_extreme': (None, None)}
 
-    corr_colors = [
-        '#ffffff',
-        '#fff7bc',
-        '#fee391',
-        '#fec44f',
-        '#fe9929',
-        '#ec7014',
-        '#cc4c02',
-        '#993404',
-        '#662506',
-        '#3d1f0f',
-    ]
-    return {'corr_cmap': clr.ListedColormap(corr_colors), 'corr_extreme': ('#999898', None)}
+    elif corr_type == 'Sequential':
+        corr_colors = [
+            '#ffffff',
+            '#fff7bc',
+            '#fee391',
+            '#fec44f',
+            '#fe9929',
+            '#ec7014',
+            '#cc4c02',
+            '#993404',
+            '#662506',
+            '#3d1f0f',
+        ]
+        return {'corr_cmap': clr.ListedColormap(corr_colors), 'corr_extreme': ('#999898', None)}
+
+    else:
+        return {'corr_cmap': 'jet', 'corr_extreme': ("#790A77", "#510301")}
 
 
 def build_plot_cfg(
@@ -172,10 +176,10 @@ def build_plot_cfg(
         }
 
     sw_vars = {
-        'SWin': r'SW_{in} (W/m$^2$)',
-        'SWnet': r'SW_{net} (W/m$^2$)',
-        'SWincs': r'SW_{in,cs} (W/m$^2$)',
-        'SWnetcs': r'SW_{net,cs} (W/m$^2$)',
+        'SWin': r'SW$_{\text{in}}$ (W/m$^2$)',
+        'SWnet': r'SW$_{\text{net}}$ (W/m$^2$)',
+        'SWincs': r'SW$_{\text{in,cs}}$ (W/m$^2$)',
+        'SWnetcs': r'SW$_{\text{net,cs}}$ (W/m$^2$)',
     }
     for v, lab in sw_vars.items():
         plot_cfg[v] = add_plot_cfg(
@@ -191,10 +195,10 @@ def build_plot_cfg(
         )
 
     lw_vars = {
-        'LWin': r'LW_{in} (W/m$^2$)',
-        'LWincs': r'LW_{in,cs} (W/m$^2$)',
-        'LWnet': r'LW_{net} (W/m$^2$)',
-        'LWnetcs': r'LW_{net,cs} (W/m$^2$)',
+        'LWin': r'LW$_{\text{in}}$ (W/m$^2$)',
+        'LWincs': r'LW$_{\text{in,cs}}$ (W/m$^2$)',
+        'LWnet': r'LW$_{\text{net}}$ (W/m$^2$)',
+        'LWnetcs': r'LW$_{\text{net,cs}}$ (W/m$^2$)',
     }
     for v, lab in lw_vars.items():
         plot_cfg[v] = add_plot_cfg(
