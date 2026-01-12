@@ -6,6 +6,7 @@ import xarray as xr
 import dask
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+import cmocean
 import cartopy.crs as ccrs
 import xesmf as xe
 import statsmodels.api as sm
@@ -57,13 +58,13 @@ dask.config.set(scheduler='threads', num_workers=12)
 #%% User inputs
 
 # Main arguments
-var = 'CloudTotal'
-data_base = 'RACMO2.3'
+var = 'P'
+data_base = 'Eobs_fine'
 data_compare = 'RACMO2.4'
 
 # Data selection arguments
-months = [12, 1, 2]
-years = [2016, 2020]
+months = None
+years = [2015, 2020]
 lats = [37.7, 63.3]
 lons = [-13.3, 22.3]
 proj_sel = 'RACMO2.4'
@@ -79,21 +80,32 @@ land_only_area = True
 proj_area = 'RACMO2.4'
 
 # Spatial plotting arguments
-avg_crange = [0, 100]
-trend_crange = [-20, 20]
+avg_crange = [-1, 1]
 proj_plot = 'RACMO2.4'
 plot_lats = [38, 63]
 plot_lons = [-13, 22]
+std_mask_ref = 'Eobs_fine'
+std_dir = 'Lesser'
 true_contour = True
-grid_contour = True
+grid_contour = False
 switch_sign = False
 cut_boundaries = False
 
+# Trend plotting arguments
+trend_calc = False
+trend_crange = [-2, 2]
+fit_against_gmst = False
+
 # Correlation plotting arguments
 corr_calc = True
-corr_freq = 'Daily'
-corr_crange = [-1, 1]
-corr_cmap_neg = True 
+corr_freq = 'Monthly'
+corr_crange = [0.9, 1]
+corr_cmap_type = None 
+
+# RMSE plotting arguments
+rmse_calc = True
+rmse_freq = 'Monthly'
+rmse_crange = [0, 1]
 
 # Area plotting arguments
 fit_range = None
@@ -124,6 +136,8 @@ station_sources = Constants.STATION_SOURCES
 var_name_cfg = Constants.VAR_NAME_CFG
 station_coord_cfg = Constants.STATION_COORD_CFG
 proj_cfg = Constants.PROJ_CFG
+units_cfg = Constants.VAR_UNIT_CFG
+names_cfg = Constants.VAR_PHYS_CFG
 
 fit_unit, fit_scaling, fit_x_label = fit_settings(fit_against_gmst)
 
@@ -175,17 +189,18 @@ if data_base is not None:
     )
 
     if data_compare is None:
-        fits_base = data_base_res['fit'].polyfit(dim='fit_against', deg=1, skipna=True)
-        slope_base = fits_base.polyfit_coefficients.sel(degree=1)
-        trend_base = (slope_base*fit_scaling).astype('float32').compute()
-
-        if relative_precip and var == 'P':
-            trend_plot_base = (trend_base / data_base_res['avg'])*100.0
-        else:
-            trend_plot_base = trend_base
-
         data_avg_plot = data_base_res['avg']
-        trend_plot = trend_plot_base
+
+        if trend_calc:
+            fits_base = data_base_res['fit'].polyfit(dim='fit_against', deg=1, skipna=True)
+            slope_base = fits_base.polyfit_coefficients.sel(degree=1)
+            trend_base = (slope_base*fit_scaling).astype('float32').compute()
+
+            if relative_precip and var == 'P':
+                trend_plot_base = (trend_base / data_base_res['avg'])*100.0
+            else:
+                trend_plot_base = trend_base
+            trend_plot = trend_plot_base
 
     elif data_compare is not None:
 
@@ -234,33 +249,36 @@ if data_base is not None:
             output_chunks=target_chunks
         ).astype('float32')
 
-        data_fit_comp_reg = regridder(
-            data_comp_res['fit'],
-            output_chunks=target_chunks
-        ).astype('float32')
-
-        fits_base = data_base_res['fit'].polyfit(dim='fit_against', deg=1, skipna=True)
-        slope_base = fits_base.polyfit_coefficients.sel(degree=1)
-        trend_base = (slope_base*fit_scaling).astype('float32').compute()
-
-        fits_comp = data_fit_comp_reg.polyfit(dim='fit_against', deg=1, skipna=True)
-        slope_comp = fits_comp.polyfit_coefficients.sel(degree=1)
-        trend_comp = (slope_comp*fit_scaling).astype('float32').compute()
-
-        if relative_precip and var == 'P':
-            trend_plot_base = (trend_base / data_base_res['avg'])*100.0
-            trend_plot_comp = (trend_comp / data_avg_comp_reg)*100.0
-        else:
-            trend_plot_base = trend_base
-            trend_plot_comp = trend_comp
-
         if switch_sign:
             minus_scaling = -1
         else:
             minus_scaling = 1
 
         data_avg_plot = minus_scaling*(data_avg_comp_reg - data_base_res['avg']).compute()
-        trend_plot = minus_scaling*(trend_plot_comp - trend_plot_base).compute()
+
+        if trend_calc or (std_mask_ref == data_compare or std_mask_ref == 'Pool'):
+            data_fit_comp_reg = regridder(
+                data_comp_res['fit'],
+                output_chunks=target_chunks
+            ).astype('float32')
+
+        if trend_calc:
+            fits_base = data_base_res['fit'].polyfit(dim='fit_against', deg=1, skipna=True)
+            slope_base = fits_base.polyfit_coefficients.sel(degree=1)
+            trend_base = (slope_base*fit_scaling).astype('float32').compute()
+
+            fits_comp = data_fit_comp_reg.polyfit(dim='fit_against', deg=1, skipna=True)
+            slope_comp = fits_comp.polyfit_coefficients.sel(degree=1)
+            trend_comp = (slope_comp*fit_scaling).astype('float32').compute()
+
+            if relative_precip and var == 'P':
+                trend_plot_base = (trend_base / data_base_res['avg'])*100.0
+                trend_plot_comp = (trend_comp / data_avg_comp_reg)*100.0
+            else:
+                trend_plot_base = trend_base
+                trend_plot_comp = trend_comp
+
+            trend_plot = minus_scaling*(trend_plot_comp - trend_plot_base).compute()
 
         if corr_calc:
 
@@ -300,10 +318,127 @@ if data_base is not None:
                 longitude=data_corr_base['longitude']
             ).astype('float32')
 
-    trend_plot = trend_plot.assign_coords(
-                    latitude=data_base_res['avg']['latitude'],
-                    longitude=data_base_res['avg']['longitude']
-                ).astype('float32')
+        if rmse_calc:
+
+            if rmse_freq == 'Daily':
+                data_rmse_base = data_base_res['raw']
+                data_rmse_comp = data_comp_res['raw']
+            elif rmse_freq == 'Monthly':
+                data_rmse_base = data_base_res['monthly']
+                data_rmse_comp = data_comp_res['monthly']
+            elif rmse_freq == 'Yearly':
+                data_rmse_base = data_base_res['yearly']
+                data_rmse_comp = data_comp_res['yearly']
+
+            data_rmse_comp_reg = regridder(
+                data_rmse_comp,
+                output_chunks=target_chunks
+            ).astype('float32')
+
+            x, y = xr.align(data_rmse_base, data_rmse_comp_reg, join='inner')
+
+            x = x.chunk({'time': -1}).compute()
+            y = y.chunk({'time': -1}).compute()
+
+            valid = np.isfinite(x) & np.isfinite(y)
+            x = x.where(valid)
+            y = y.where(valid)
+
+            err = y - x
+            rmse_plot = np.sqrt((err**2).mean('time'))
+
+            rmse_plot = rmse_plot.assign_coords(
+                latitude=data_rmse_base['latitude'],
+                longitude=data_rmse_base['longitude']
+            ).astype('float32')
+
+        if std_mask_ref is not None:
+
+            if std_mask_ref == 'Pool':
+
+                xb, yc = xr.align(data_base_res['fit'], data_fit_comp_reg, join='inner')
+
+                valid = np.isfinite(xb) & np.isfinite(yc)
+                xb = xb.where(valid)
+                yc = yc.where(valid)
+
+                xb = xb.chunk({'fit_against': -1}).compute()
+                yc = yc.chunk({'fit_against': -1}).compute()
+
+                n = valid.sum('fit_against')
+
+                sx = xb.std('fit_against')
+                sy = yc.std('fit_against')
+
+                std_ref = np.sqrt(0.5 * (sx**2 + sy**2))
+                std_ref = std_ref.where(n >= 2)
+
+            elif std_mask_ref != 'Pool' and std_mask_ref is not None:
+                
+                if std_mask_ref == data_base:
+                    ref_std_reg = data_base_res['fit']
+                elif std_mask_ref == data_compare:
+                    ref_std_reg = data_fit_comp_reg 
+                else:
+                    data_ref_res = process_source(
+                        std_mask_ref, 
+                        var,
+                        data_sources,
+                        station_sources,
+                        var_name_cfg,
+                        file_cfg,
+                        proj_cfg, 
+                        months=months,
+                        years=years,
+                        lats=lats,
+                        lons=lons,
+                        land_only=land_only,
+                        trim_border=trim_border,
+                        rotpole_sel=proj_sel,
+                        rolling_mean_var=rolling_mean_var,
+                        fit_against_gmst=fit_against_gmst,
+                        rolling_mean_years=rolling_mean_years,
+                        min_periods=min_periods
+                    )
+
+                    if var == 'P':
+                        src_grid_ref = grid_with_bounds(
+                            data_ref_res['avg'],
+                            rotpole_native=proj_cfg.get(std_mask_ref, ccrs.PlateCarree())
+                        )
+                    else:
+                        src_grid_ref = data_ref_res['avg']
+
+                    regridder_std = xe.Regridder(
+                        src_grid_ref,
+                        trg_grid,
+                        method,
+                        unmapped_to_nan=True,
+                    )
+                    
+                    ref_std_reg = regridder_std(
+                        data_ref_res['fit'],
+                        output_chunks=target_chunks
+                    ).astype('float32')
+
+                _, ref_std_reg = xr.align(data_base_res['fit'], ref_std_reg, join='inner')
+
+                ref_std_reg = ref_std_reg.chunk({'fit_against': -1}).compute()
+                n_ref = np.isfinite(ref_std_reg).sum('fit_against')
+
+                std_ref = ref_std_reg.std('fit_against')
+                std_ref = std_ref.where(n_ref >= 2)
+
+            if std_dir == 'Greater':
+                mask_std = (np.abs(data_avg_plot) > std_ref).fillna(False).astype('int8')
+            elif std_dir == 'Lesser':
+                mask_std = (np.abs(data_avg_plot) < std_ref).fillna(False).astype('int8')
+
+    if trend_calc:
+        trend_plot = trend_plot.assign_coords(
+                        latitude=data_base_res['avg']['latitude'],
+                        longitude=data_base_res['avg']['longitude']
+                    ).astype('float32')
 
     lat_plot = data_avg_plot['latitude'].values
     lon_plot = data_avg_plot['longitude'].values
@@ -396,12 +531,25 @@ if data_base is not None:
         proj_area=proj_area_cont,
         mask_area=mask_area,
         lat_b_area=lat_b_area,
-        lon_b_area=lon_b_area
+        lon_b_area=lon_b_area,
+        show_plot=False
     )
+
+    ax.contourf(
+        lon_plot, lat_plot, mask_std,
+        levels=[0.5, 1.5],
+        colors='none',
+        hatches=['///'],
+        transform=ccrs.PlateCarree(),
+        zorder=50
+    )
+
+    plt.show()
 
 #%% Plot linear trends
 
-if data_base is not None:
+if data_base is not None and trend_calc:
+    
     fig, ax = plt.subplots(
         1, figsize=(14, 12), 
         constrained_layout=True,
@@ -439,7 +587,7 @@ if data_base is not None:
 
 if data_base is not None and data_compare is not None and corr_calc:
 
-    corr_meta = build_corr_cmap(corr_cmap_neg)
+    corr_meta = build_corr_cmap(corr_cmap_type)
     corr_cmap = corr_meta['corr_cmap']
     corr_extreme = corr_meta['corr_extreme']
 
@@ -455,9 +603,40 @@ if data_base is not None and data_compare is not None and corr_calc:
         lon_plot, 
         lat_plot, 
         crange=corr_crange, 
-        label='Correlation', 
+        label=names_cfg[var] + ' Correlation', 
         cmap=corr_cmap,
         extreme_colors=corr_extreme,
+        c_ticks=10,
+        show_x_ticks=True,
+        show_y_ticks=True,
+        y_ticks_num=False,
+        y_ticks=5,
+        x_ticks_num=False,
+        x_ticks=10,
+        extent=[*plot_lons, *plot_lats],
+        proj=proj_plot,
+        rotated_grid=cut_boundaries
+    )
+
+#%% Plot RMSE map
+
+if data_base is not None and data_compare is not None and rmse_calc:
+
+    fig, ax = plt.subplots(
+        1, figsize=(14, 12), 
+        constrained_layout=True,
+        subplot_kw={'projection': proj_plot}
+    )
+
+    plot_map(
+        fig, ax,
+        rmse_plot, 
+        lon_plot, 
+        lat_plot, 
+        crange=rmse_crange, 
+        label=names_cfg[var] + ' RMSE (' + units_cfg[var] + ')', 
+        cmap=cmocean.cm.amp,
+        extreme_colors=[None, "#24050a"],
         c_ticks=10,
         show_x_ticks=True,
         show_y_ticks=True,
@@ -801,3 +980,4 @@ if isinstance(lats_area, (list, tuple)) and len(lats_area) == 2 and \
 # Ipv corr ook misschien iets van SDEV?
 
     
+# IN DIT SCRIPT OOK EVEN TREND_CALC TOEVOEGEN!!
