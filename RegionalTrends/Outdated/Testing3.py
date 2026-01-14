@@ -1,6 +1,10 @@
-import numpy as np
 import xarray as xr
 
+#%% racmo24 daily
+
+racmo24_temp = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/tas.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
+racmo24_precip = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/pr.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
+racmo24_sund = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/sund.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
 
 racmo24_lowcloud = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/cll.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
 racmo24_midcloud = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/clm.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
@@ -22,33 +26,11 @@ racmo24_lhf = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO
 racmo24_lwp = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/clwvi.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
 racmo24_iwp = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/clivi.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
 
+#%% racmo24 monthly
 
-racmo23_lowcloud = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/aclcovL/aclcovL.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
-racmo23_midcloud = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/aclcovM/aclcovM.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
-racmo23_highcloud = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/aclcovH/aclcovH.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
-
-racmo23_swallnet = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/swsn/swsn.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
-racmo23_swclearnet = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/swsncs/swsncs.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
-racmo23_swalldown = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/swsd/swsd.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
-racmo23_swcleardown = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/swsdcs/swsdcs.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
-
-racmo23_lwallnet = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/lwsn/lwsn.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc') 
-racmo23_lwclearnet = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/lwsncs/lwsncs.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
-racmo23_lwalldown = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/lwsd/lwsd.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
-racmo23_lwcleardown = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/lwsdcs/lwsdcs.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
-
-racmo23_shf = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/senf/senf.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
-racmo23_lhf = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/latf/latf.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
-
-racmo23_lwp = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/qli/qli.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
-racmo23_iwp = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/qii/qii.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
-
-
-era5_sw_shf = xr.open_dataset('/nobackup/users/walj/era5/era5_coarse_sw_shf.nc')
-era5_lw_lhf = xr.open_dataset('/nobackup/users/walj/era5/era5_coarse_lw_lhf.nc')
-era5_clouds = xr.open_dataset('/nobackup/users/walj/era5/era5_coarse_clouds.nc')
-era5_sw = xr.open_dataset('/nobackup/users/walj/era5/era5_rsds.nc')
-
+racmo24_temp_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/tas_monthlyA_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
+racmo24_precip_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/pr_monthlyS_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
+racmo24_sund_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/sund_monthlyS_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
 
 racmo24_lowcloud_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/cll_monthlyA_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
 racmo24_midcloud_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/clm_monthlyA_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
@@ -70,6 +52,105 @@ racmo24_lhf_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2
 racmo24_lwp_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/clwvi_monthlyA_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
 racmo24_iwp_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/clivi_monthlyA_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
 
-# Cloud cover voor era5 aanpassen
-# Fluxes voor RACMO2.4 maandelijks aanpassen
+#%% racmo23 daily
+
+racmo23_temp = xr.open_dataset('/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/t2m/t2m.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+racmo23_precip = xr.open_dataset('/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/precip/precip.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+racmo23_sund = xr.open_dataset('/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/sund/sund.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+
+racmo23_lowcloud = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/aclcovL/aclcovL.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+racmo23_midcloud = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/aclcovM/aclcovM.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+racmo23_highcloud = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/aclcovH/aclcovH.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+
+racmo23_swallnet = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/swsn/swsn.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+racmo23_swclearnet = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/swsncs/swsncs.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+racmo23_swalldown = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/swsd/swsd.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+racmo23_swcleardown = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/swsdcs/swsdcs.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+
+racmo23_lwallnet = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/lwsn/lwsn.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc') 
+racmo23_lwclearnet = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/lwsncs/lwsncs.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+racmo23_lwalldown = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/lwsd/lwsd.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+racmo23_lwcleardown = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/lwsdcs/lwsdcs.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+
+racmo23_shf = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/senf/senf.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+racmo23_lhf = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/latf/latf.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+
+racmo23_lwp = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/qli/qli.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+racmo23_iwp = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/qii/qii.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+
+#%% racmo23 monthly
+
+racmo23_temp_monthly = xr.open_dataset('/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Monthly_data/t2m/t2m.KNMI-2011-2020.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc', decode_times=False)
+racmo23_precip_monthly = xr.open_dataset('/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Monthly_data/precip/precip.KNMI-2011-2020.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc', decode_times=False)
+racmo23_sund_monthly = xr.open_dataset('/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Monthly_data/sund/sund.KNMI-2011-2020.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc', decode_times=False)
+
+#%% era5 monthly
+
+era5_temp = xr.open_dataset('/nobackup/users/walj/era5/era5_coarse_t2m_ps.nc')
+era5_precip = xr.open_dataset('/nobackup/users/walj/era5/era5_coarse_tp.nc')
+era5_sw_shf = xr.open_dataset('/nobackup/users/walj/era5/era5_coarse_sw_shf.nc')
+era5_lw_lhf = xr.open_dataset('/nobackup/users/walj/era5/era5_coarse_lw_lhf.nc')
+era5_clouds = xr.open_dataset('/nobackup/users/walj/era5/era5_coarse_clouds.nc')
+# era5_sw = xr.open_dataset('/nobackup/users/walj/era5/era5_rsds.nc')
+
+#%% eobs daily
+
+eobs_temp = xr.open_dataset('/nobackup/users/walj/eobs/tg_ens_mean_0.1deg_reg_v31.0e.nc')
+eobs_precip = xr.open_dataset('/nobackup/users/walj/eobs/rr_ens_mean_0.1deg_reg_v31.0e.nc')
+eobs_swin = xr.open_dataset('/nobackup/users/walj/eobs/qq_ens_mean_0.1deg_reg_v31.0e.nc')
+
+#%% racmo24 daily kext12
+
+racmo24_temp_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/tas.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_precip_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/pr.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_sund_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/sund.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+
+racmo24_lowcloud_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/cll.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_midcloud_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/clm.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_highcloud_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/clh.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+
+racmo24_swallnet_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/ssr.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_swclearnet_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/ssrc.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_swalldown_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/rsds.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_swcleardown_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/rsdscs.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+
+racmo24_lwallnet_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/str.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc') 
+racmo24_lwclearnet_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/strc.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_lwalldown_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/rlds.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_lwcleardown_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/rldscs.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+
+racmo24_shf_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/hfss.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_lhf_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/hfls.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+
+racmo24_lwp_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/clwvi.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_iwp_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/clivi.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+
+#%% racmo24 monthly kext12
+
+racmo24_temp_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/tas_monthlyA_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+racmo24_precip_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/pr_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+racmo24_sund_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/sund_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+
+racmo24_lowcloud_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/cll_monthlyA_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+racmo24_midcloud_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/clm_monthlyA_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+racmo24_highcloud_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/clh_monthlyA_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+
+racmo24_swallnet_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/ssr_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+racmo24_swclearnet_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/ssrc_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+racmo24_swalldown_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/rsds_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+racmo24_swcleardown_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/rsdscs_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+
+racmo24_lwallnet_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/str_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc') 
+racmo24_lwclearnet_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/strc_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+racmo24_lwalldown_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/rlds_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+racmo24_lwcleardown_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/rldscs_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+
+racmo24_shf_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/hfss_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+racmo24_lhf_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/hfls_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+
+racmo24_lwp_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/clwvi_monthlyA_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+racmo24_iwp_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/clivi_monthlyA_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+
+
+# Kijken naar alle variabelen (incl neerslag en temperatuur en sund)
 # 

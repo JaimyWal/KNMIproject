@@ -58,13 +58,13 @@ dask.config.set(scheduler='threads', num_workers=12)
 #%% User inputs
 
 # Main arguments
-var = 'P'
-data_base = 'Eobs_fine'
-data_compare = 'RACMO2.4'
+var = 'Sq'
+data_base = 'RACMO2.4_KEXT12'
+data_compare = None
 
 # Data selection arguments
 months = None
-years = [2015, 2020]
+years = [1973, 1977]
 lats = [37.7, 63.3]
 lons = [-13.3, 22.3]
 proj_sel = 'RACMO2.4'
@@ -80,7 +80,7 @@ land_only_area = True
 proj_area = 'RACMO2.4'
 
 # Spatial plotting arguments
-avg_crange = [-1, 1]
+avg_crange = [0, 10]
 proj_plot = 'RACMO2.4'
 plot_lats = [38, 63]
 plot_lons = [-13, 22]
@@ -97,13 +97,13 @@ trend_crange = [-2, 2]
 fit_against_gmst = False
 
 # Correlation plotting arguments
-corr_calc = True
+corr_calc = False
 corr_freq = 'Monthly'
 corr_crange = [0.9, 1]
 corr_cmap_type = None 
 
 # RMSE plotting arguments
-rmse_calc = True
+rmse_calc = False
 rmse_freq = 'Monthly'
 rmse_crange = [0, 1]
 
@@ -122,8 +122,10 @@ fit_against_gmst = False
 rolling_mean_years = 7
 min_periods = 1
 
-# lats = [38, 63]
-# lons = [-13, 22]
+# plot_lats = [38, 63]
+# plot_lons = [-13, 22]
+# lats = [37.7, 63.3]
+# lons = [-13.3, 22.3]
 # data_area = ['Observed', 'ERA5_coarse', 'RACMO2.3', 'RACMO2.4']
 # stations = ['Bilt', 'Eelde', 'Maastricht', 'Vlissingen', 'Kooy']
 # lats_area = [50.7, 53.6]
@@ -535,14 +537,15 @@ if data_base is not None:
         show_plot=False
     )
 
-    ax.contourf(
-        lon_plot, lat_plot, mask_std,
-        levels=[0.5, 1.5],
-        colors='none',
-        hatches=['///'],
-        transform=ccrs.PlateCarree(),
-        zorder=50
-    )
+    if std_mask_ref is not None and data_compare is not None:
+        ax.contourf(
+            lon_plot, lat_plot, mask_std,
+            levels=[0.5, 1.5],
+            colors='none',
+            hatches=['///'],
+            transform=ccrs.PlateCarree(),
+            zorder=50
+        )
 
     plt.show()
 
@@ -974,10 +977,3 @@ if isinstance(lats_area, (list, tuple)) and len(lats_area) == 2 and \
 
 #%%
 
-# Combined plots for only one variable and one colorbar....
-# Maybe average over several station_coord_cfg stations for netcdf (similar to normal stations)
-
-# Ipv corr ook misschien iets van SDEV?
-
-    
-# IN DIT SCRIPT OOK EVEN TREND_CALC TOEVOEGEN!!

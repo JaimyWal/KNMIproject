@@ -132,12 +132,21 @@ rotpole23 = load_rotpole(
     'precip.KNMI-2000.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc'
 )
 
-rotpole24 = load_rotpole(
+rotpole24_kext06 = load_rotpole(
     '/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly',
     'pr_monthlyS_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc'
 )
 
+rotpole24_kext12 = load_rotpole(
+    '/nobackup/users/walj/TestRacmo24/Monthly',
+    'pr_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc'
+)
+
 PROJ_CFG = {
     'RACMO2.3': rotpole23,
-    'RACMO2.4': rotpole24,
+    'RACMO2.4': rotpole24_kext12,
+    'RACMO2.4_KEXT06': rotpole24_kext06,
+    'RACMO2.4_KEXT12': rotpole24_kext12
 }
+
+# However, rotpole24_kext06 == rotpole24_kext12

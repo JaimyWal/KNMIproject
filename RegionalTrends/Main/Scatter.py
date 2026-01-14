@@ -6,6 +6,7 @@ import xarray as xr
 import dask
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+import matplotlib.dates as mdates
 import cartopy.crs as ccrs
 from pathlib import Path
 import sys
@@ -38,19 +39,19 @@ dask.config.set(scheduler='threads', num_workers=12)
 #%% User inputs
 
 # Main arguments
-n_runs = 3
-var = 'IWP' #
-data_base = ['ERA5_coarse', 'ERA5_coarse', 'RACMO2.3'] # 
-data_compare = ['RACMO2.3', 'RACMO2.4', 'RACMO2.4'] # 
+n_runs = 1
+var = 'Sq' #
+data_base = 'L5' # 
+data_compare = 'RACMO2.4_KEXT12' # 
 
 # Data selection arguments
-freq_sel = 'Monthly' #
+freq_sel = 'Daily' #
 months = None # 
-years = [2015, 2020]
+years = [1973, 1977]
 lats = [50.7, 53.6]
 lons = [3.25, 7.35]
-proj_sel = 'RACMO2.4'
-land_only = True
+proj_sel = 'RACMO2.4' #
+land_only = False
 trim_border = None
 
 # Plotting arguments
@@ -95,10 +96,25 @@ freq_sel_list = ensure_list(freq_sel, n_runs)
 
 #%% Further processing of base and comparison data
 
-def read_data(
-    frequency,
+def make_cache_key(
     data_source,
     var,
+    frequency,
+    months
+):
+    return (
+        data_source,
+        var,
+        frequency,
+        None if months is None else tuple(months)
+    )
+
+data_cache = {}
+
+def read_data(
+    data_source,
+    var,
+    frequency,
     data_sources,
     station_sources,
     var_name_cfg,
@@ -112,14 +128,26 @@ def read_data(
     rotpole_sel=ccrs.PlateCarree(),
     rolling_mean_var=False,
     rolling_mean_years=1,
-    min_periods=1
-):
+    min_periods=1,
+    data_cache=data_cache
+):  
+    
+    key = make_cache_key(
+        data_source,
+        var,
+        frequency,
+        months
+    )
+    
+    if data_cache is not None and key in data_cache:
+        return data_cache[key]
     
     if frequency == 'Daily':
         monthly_or_daily = 'Daily'
     else:
         monthly_or_daily = 'Monthly'
     freq_str, racmo24_sep = freq_tags(monthly_or_daily)
+    file_cfg = build_file_cfg(freq_str, racmo24_sep)
 
     if frequency == 'Daily':
         freq_source = 'raw'
@@ -127,8 +155,6 @@ def read_data(
         freq_source = 'monthly'
     elif frequency == 'Yearly':
         freq_source = 'yearly'
-
-    file_cfg = build_file_cfg(freq_str, racmo24_sep)
 
     if data_source == 'L5':
 
@@ -164,45 +190,46 @@ def read_data(
 
         data_proc = xr.concat(sels, dim='station').mean('station')
 
-        return data_proc
-
-    is_station = data_source in station_sources
-
-    if not is_station:
-        if isinstance(lats, str) or isinstance(lons, str):
-            station_name = lats if isinstance(lats, str) else lons
-            lat_sel = station_coord_cfg[station_name]['latitude']
-            lon_sel = station_coord_cfg[station_name]['longitude']
-        else:
-            lat_sel = lats
-            lon_sel = lons
     else:
-        lat_sel = None
-        lon_sel = None
+        is_station = data_source in station_sources
 
-    data_sel = process_source(
-        data_source,
-        var,
-        data_sources,
-        station_sources,
-        var_name_cfg,
-        file_cfg,
-        proj_cfg,
-        months=months,
-        years=years,
-        lats=lat_sel,
-        lons=lon_sel,
-        land_only=land_only,
-        trim_border=trim_border,
-        rotpole_sel=rotpole_sel,
-        rolling_mean_var=rolling_mean_var,
-        rolling_mean_years=rolling_mean_years,
-        min_periods=min_periods,
-        return_items=(freq_source, 'avg')
-    )
+        if not is_station:
+            if isinstance(lats, str) or isinstance(lons, str):
+                station_name = lats if isinstance(lats, str) else lons
+                lat_sel = station_coord_cfg[station_name]['latitude']
+                lon_sel = station_coord_cfg[station_name]['longitude']
+            else:
+                lat_sel = lats
+                lon_sel = lons
+        else:
+            lat_sel = None
+            lon_sel = None
 
-    weights = area_weights(data_sel['avg'], rotpole_native=proj_cfg.get(data_source, ccrs.PlateCarree()))
-    data_proc = area_weighted_mean(data_sel[freq_source], weights=weights)
+        data_sel = process_source(
+            data_source,
+            var,
+            data_sources,
+            station_sources,
+            var_name_cfg,
+            file_cfg,
+            proj_cfg,
+            months=months,
+            years=years,
+            lats=lat_sel,
+            lons=lon_sel,
+            land_only=land_only,
+            trim_border=trim_border,
+            rotpole_sel=rotpole_sel,
+            rolling_mean_var=rolling_mean_var,
+            rolling_mean_years=rolling_mean_years,
+            min_periods=min_periods,
+            return_items=(freq_source, 'avg')
+        )
+
+        weights = area_weights(data_sel['avg'], rotpole_native=proj_cfg.get(data_source, ccrs.PlateCarree()))
+        data_proc = area_weighted_mean(data_sel[freq_source], weights=weights)
+
+    data_cache[key] = data_proc
 
     return data_proc
 
@@ -213,9 +240,9 @@ results_compare = []
 for ii in range(n_runs):
 
     data_sel_base = read_data(
-        freq_sel_list[ii],
         data_base_list[ii], 
         var_list[ii],
+        freq_sel_list[ii],
         data_sources,
         station_sources,
         var_name_cfg,
@@ -235,9 +262,9 @@ for ii in range(n_runs):
     results_base.append(data_sel_base)
 
     data_sel_comp = read_data(
-        freq_sel_list[ii],
         data_compare_list[ii], 
         var_list[ii],
+        freq_sel_list[ii],
         data_sources,
         station_sources,
         var_name_cfg,
@@ -293,7 +320,8 @@ source_labels = {
     'ERA5_fine': 'ERA5',
     'ERA5_coarse': 'ERA5',
     'RACMO2.3': 'R2.3',
-    'RACMO2.4': 'R2.4',
+    'RACMO2.4_KEXT06': 'R2.4',
+    'RACMO2.4_KEXT12': 'R2.4',
     'L5': 'L5',
 }
 
@@ -433,12 +461,6 @@ if share_y:
 
 plt.show()
 
-
-# Colorbar for time # Options for colorbar coloring (season or over time) 
-# or maybe shape for season
-# horizontal colorbar below plots
-# Colorbar op basis van jaar!
-
 #%% Difference scatter plots
 
 share_x = share_labels and same_base and same_var and n_runs > 1
@@ -554,3 +576,52 @@ if share_y:
     axes[0].set_ylabel(fr'$\Delta${var_labels_cfg.get(var, var)}', fontsize=22)
 
 plt.show()
+
+#%% Scatter in x
+
+colors = ['#000000', '#DB2525', '#0168DE', '#00A236', "#CA721B", '#7B2CBF']
+
+fig, ax = plt.subplots(1, figsize=(12, 8)) #12, 8
+
+for ii, (key, da) in enumerate(data_cache.items()):
+
+    src, var_plot, freq_plot, months_plot = key
+
+    color = colors[ii]
+
+    label = f'{source_labels.get(src, src)}'
+    if label == 'L5':
+        label += ' Stations'
+
+    ax.plot(
+            da['time'].values,
+            da.values,
+            c=color,
+            linewidth=2.5,
+            zorder=10,
+            ms=10,
+            marker='o',
+            linestyle='--',
+            label=label
+    )
+
+ax.grid()
+ax.set_xlabel('Time', fontsize=28)
+ax.set_ylabel(var_labels_cfg.get(var, var), fontsize=28)
+ax.tick_params(axis='both', labelsize=20, length=6)
+
+ax.xaxis.set_major_locator(mdates.YearLocator())
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+
+# if ylim_scatter is not None:
+#     ax.set_ylim(*ylim_scatter)
+
+leg = ax.legend(fontsize=18, handlelength=1.5, handletextpad=0.4, loc='best')
+handles = getattr(leg, 'legendHandles', leg.legend_handles)
+for h in handles:
+    h.set_linestyle('-')
+    h.set_marker('')
+    h.set_markersize(0)
+    h.set_linewidth(4.0)
+leg.set_zorder(20)
+

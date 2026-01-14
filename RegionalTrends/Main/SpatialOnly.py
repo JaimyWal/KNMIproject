@@ -5,11 +5,9 @@ import numpy as np
 import xarray as xr
 import dask
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
 import cmocean
 import cartopy.crs as ccrs
 import xesmf as xe
-import statsmodels.api as sm
 from pathlib import Path
 import sys
 from importlib import reload
@@ -54,10 +52,10 @@ dask.config.set(scheduler='threads', num_workers=12)
 #%% User inputs
 
 # Main arguments
-n_runs = 3
-var = 'IWP'
-data_base = ['ERA5_coarse', 'ERA5_coarse', 'RACMO2.3'] #
-data_compare = ['RACMO2.3', 'RACMO2.4', 'RACMO2.4'] #
+n_runs = 4
+var = 'Tg'
+data_base = ['ERA5_coarse', 'ERA5_coarse', 'Eobs_fine', 'Eobs_fine'] #
+data_compare = ['RACMO2.3', 'RACMO2.4_KEXT06', 'RACMO2.3', 'RACMO2.4_KEXT06'] #
 
 # Data selection arguments
 months = None #
@@ -69,11 +67,11 @@ land_only = False
 trim_border = None
 
 # Spatial plotting arguments
-avg_crange = [-15, 15]
+avg_crange = [-2, 2]
 proj_plot = 'RACMO2.4'
 plot_lats = [38, 63]
 plot_lons = [-13, 22]
-std_mask_ref = 'ERA5_coarse' #
+std_mask_ref = ['ERA5_coarse', 'ERA5_coarse', 'Eobs_fine', 'Eobs_fine'] #
 std_dir = 'Lesser' #
 switch_sign = False #
 cut_boundaries = False
@@ -90,9 +88,9 @@ corr_crange = [0, 1]
 corr_cmap_type = None 
 
 # RMSE plotting arguments
-rmse_calc = True
+rmse_calc = False
 rmse_freq = 'Monthly' #
-rmse_crange = [0, 15]
+rmse_crange = [0, 20]
 
 # Area contour arguments
 lats_area = [50.7, 53.6]
@@ -164,6 +162,10 @@ rmse_freq_list = ensure_list(rmse_freq, n_runs)
 
 #%% Further processing of base and comparison data
 
+def make_cache_key(data_source, months):
+    return (data_source, None if months is None else tuple(months))
+
+data_cache = {}
 results = []
 
 for ii in range(n_runs):
@@ -178,26 +180,31 @@ for ii in range(n_runs):
 
         file_cfg = build_file_cfg(freq_str, racmo24_sep)
 
-        data_base_res = process_source(
-            data_base_list[ii], 
-            var,
-            data_sources,
-            station_sources,
-            var_name_cfg,
-            file_cfg,
-            proj_cfg,
-            months=months_list[ii],
-            years=years,
-            lats=lats,
-            lons=lons,
-            land_only=land_only,
-            trim_border=trim_border, 
-            rotpole_sel=proj_sel,
-            rolling_mean_var=rolling_mean_var,
-            fit_against_gmst=fit_against_gmst,
-            rolling_mean_years=rolling_mean_years,
-            min_periods=min_periods
-        )
+        cache_key_base = make_cache_key(data_base_list[ii], months_list[ii])
+        if cache_key_base in data_cache:
+            data_base_res = data_cache[cache_key_base]
+        else:
+            data_base_res = process_source(
+                data_base_list[ii], 
+                var,
+                data_sources,
+                station_sources,
+                var_name_cfg,
+                file_cfg,
+                proj_cfg,
+                months=months_list[ii],
+                years=years,
+                lats=lats,
+                lons=lons,
+                land_only=land_only,
+                trim_border=trim_border, 
+                rotpole_sel=proj_sel,
+                rolling_mean_var=rolling_mean_var,
+                fit_against_gmst=fit_against_gmst,
+                rolling_mean_years=rolling_mean_years,
+                min_periods=min_periods
+            )
+            data_cache[cache_key_base] = data_base_res
 
         if data_compare_list[ii] is None:
 
@@ -218,26 +225,31 @@ for ii in range(n_runs):
 
         elif data_compare_list[ii] is not None:
 
-            data_comp_res = process_source(
-                data_compare_list[ii], 
-                var,
-                data_sources,
-                station_sources,
-                var_name_cfg,
-                file_cfg,
-                proj_cfg, 
-                months=months_list[ii],
-                years=years,
-                lats=lats,
-                lons=lons,
-                land_only=land_only,
-                trim_border=trim_border,
-                rotpole_sel=proj_sel,
-                rolling_mean_var=rolling_mean_var,
-                fit_against_gmst=fit_against_gmst,
-                rolling_mean_years=rolling_mean_years,
-                min_periods=min_periods
-            )
+            cache_key_comp = make_cache_key(data_compare_list[ii], months_list[ii])
+            if cache_key_comp in data_cache:
+                data_comp_res = data_cache[cache_key_comp]
+            else:
+                data_comp_res = process_source(
+                    data_compare_list[ii], 
+                    var,
+                    data_sources,
+                    station_sources,
+                    var_name_cfg,
+                    file_cfg,
+                    proj_cfg, 
+                    months=months_list[ii],
+                    years=years,
+                    lats=lats,
+                    lons=lons,
+                    land_only=land_only,
+                    trim_border=trim_border,
+                    rotpole_sel=proj_sel,
+                    rolling_mean_var=rolling_mean_var,
+                    fit_against_gmst=fit_against_gmst,
+                    rolling_mean_years=rolling_mean_years,
+                    min_periods=min_periods
+                )
+                data_cache[cache_key_comp] = data_comp_res
 
             if var == 'P':
                 method = 'conservative_normed'
@@ -406,26 +418,31 @@ for ii in range(n_runs):
                     elif std_mask_ref_list[ii] == data_compare_list[ii]:
                         ref_std_reg = data_fit_comp_reg 
                     else:
-                        data_ref_res = process_source(
-                            std_mask_ref_list[ii], 
-                            var,
-                            data_sources,
-                            station_sources,
-                            var_name_cfg,
-                            file_cfg,
-                            proj_cfg, 
-                            months=months_list[ii],
-                            years=years,
-                            lats=lats,
-                            lons=lons,
-                            land_only=land_only,
-                            trim_border=trim_border,
-                            rotpole_sel=proj_sel,
-                            rolling_mean_var=rolling_mean_var,
-                            fit_against_gmst=fit_against_gmst,
-                            rolling_mean_years=rolling_mean_years,
-                            min_periods=min_periods
-                        )
+                        cache_key_ref = make_cache_key(std_mask_ref_list[ii], months_list[ii])
+                        if cache_key_ref in data_cache:
+                            data_ref_res = data_cache[cache_key_ref]
+                        else:
+                            data_ref_res = process_source(
+                                std_mask_ref_list[ii], 
+                                var,
+                                data_sources,
+                                station_sources,
+                                var_name_cfg,
+                                file_cfg,
+                                proj_cfg, 
+                                months=months_list[ii],
+                                years=years,
+                                lats=lats,
+                                lons=lons,
+                                land_only=land_only,
+                                trim_border=trim_border,
+                                rotpole_sel=proj_sel,
+                                rolling_mean_var=rolling_mean_var,
+                                fit_against_gmst=fit_against_gmst,
+                                rolling_mean_years=rolling_mean_years,
+                                min_periods=min_periods
+                            )
+                            data_cache[cache_key_ref] = data_ref_res
 
                         if var == 'P':
                             src_grid_ref = grid_with_bounds(
@@ -887,4 +904,7 @@ if rmse_calc:
 
 #%%
 
-# New labels for RMSE and correlation
+
+# Gedaan:
+# Look at a way to reduce repeating computations!!! So maybe by storing 
+# results in dictionaries (including their settings)
