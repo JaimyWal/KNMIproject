@@ -42,10 +42,6 @@ from RegionalTrends.Helpers.AreaWeights import area_weights, area_weighted_mean
 import RegionalTrends.Helpers.Config.Constants as Constants
 reload(Constants)
 
-import RegionalTrends.Helpers.Config.Paths as Paths
-reload(Paths)
-from RegionalTrends.Helpers.Config.Paths import build_file_cfg, freq_tags
-
 import RegionalTrends.Helpers.Config.Plotting as Plotting
 reload(Plotting)
 from RegionalTrends.Helpers.Config.Plotting import build_corr_cmap, build_plot_cfg,\
@@ -58,13 +54,14 @@ dask.config.set(scheduler='threads', num_workers=12)
 #%% User inputs
 
 # Main arguments
-var = 'Sq'
-data_base = 'RACMO2.4_KEXT12'
+var = 'Tg'
+file_freq = 'Monthly'
+data_base = None
 data_compare = None
 
 # Data selection arguments
-months = None
-years = [1973, 1977]
+months = [12, 1, 2]
+years = [1980, 2020]
 lats = [37.7, 63.3]
 lons = [-13.3, 22.3]
 proj_sel = 'RACMO2.4'
@@ -72,19 +69,19 @@ land_only = False
 trim_border = None
 
 # Area selection arguments
-data_area = None
-stations = None
+data_area = ['Eobs_fine', 'ERA5_coarse', 'RACMO2.4_KEXT12', 'RACMO2.3']
+stations = ['Bilt', 'Eelde', 'Maastricht', 'Vlissingen', 'Kooy']
 lats_area = [50.7, 53.6]
 lons_area = [3.25, 7.35]
 land_only_area = True
 proj_area = 'RACMO2.4'
 
 # Spatial plotting arguments
-avg_crange = [0, 10]
+avg_crange = [-1, 1]
 proj_plot = 'RACMO2.4'
 plot_lats = [38, 63]
 plot_lons = [-13, 22]
-std_mask_ref = 'Eobs_fine'
+std_mask_ref = None
 std_dir = 'Lesser'
 true_contour = True
 grid_contour = False
@@ -93,8 +90,7 @@ cut_boundaries = False
 
 # Trend plotting arguments
 trend_calc = False
-trend_crange = [-2, 2]
-fit_against_gmst = False
+trend_crange = [-0.2, 0.2]
 
 # Correlation plotting arguments
 corr_calc = False
@@ -109,24 +105,24 @@ rmse_crange = [0, 1]
 
 # Area plotting arguments
 fit_range = None
-plots_area = False
-crange_area = trend_crange
+plots_area = True
+crange_area = [-4, 4]
 lats_area_plot = [50.2, 54.1]
 lons_area_plot = [2.5, 8.1]
 uncertainty_band = False
 
 # Other arguments
-relative_precip = False
-rolling_mean_var = False
 fit_against_gmst = False
-rolling_mean_years = 7
+rolling_mean_var = False
+rolling_mean_years = 3
 min_periods = 1
+relative_precip = False
 
 # plot_lats = [38, 63]
 # plot_lons = [-13, 22]
 # lats = [37.7, 63.3]
 # lons = [-13.3, 22.3]
-# data_area = ['Observed', 'ERA5_coarse', 'RACMO2.3', 'RACMO2.4']
+# data_area = ['ERA5_coarse', 'RACMO2.3', 'RACMO2.4']
 # stations = ['Bilt', 'Eelde', 'Maastricht', 'Vlissingen', 'Kooy']
 # lats_area = [50.7, 53.6]
 # lons_area = [3.25, 7.35]
@@ -142,14 +138,6 @@ units_cfg = Constants.VAR_UNIT_CFG
 names_cfg = Constants.VAR_PHYS_CFG
 
 fit_unit, fit_scaling, fit_x_label = fit_settings(fit_against_gmst)
-
-if corr_calc == True and corr_freq == 'Daily' and data_compare is not None:
-    monthly_or_daily = 'Daily'
-else:
-    monthly_or_daily = 'Monthly'
-freq_str, racmo24_sep = freq_tags(monthly_or_daily)
-
-file_cfg = build_file_cfg(freq_str, racmo24_sep)
 
 plot_cfg = build_plot_cfg(
     avg_crange, 
@@ -174,8 +162,8 @@ if data_base is not None:
         var,
         data_sources,
         station_sources,
+        file_freq,
         var_name_cfg,
-        file_cfg,
         proj_cfg,
         months=months,
         years=years,
@@ -211,8 +199,8 @@ if data_base is not None:
             var,
             data_sources,
             station_sources,
+            file_freq,
             var_name_cfg,
-            file_cfg,
             proj_cfg, 
             months=months,
             years=years,
@@ -387,8 +375,8 @@ if data_base is not None:
                         var,
                         data_sources,
                         station_sources,
+                        file_freq,
                         var_name_cfg,
-                        file_cfg,
                         proj_cfg, 
                         months=months,
                         years=years,
@@ -690,8 +678,8 @@ if data_area_all is not None:
             var,
             data_sources,
             station_sources,
+            file_freq,
             var_name_cfg,
-            file_cfg,
             proj_cfg,
             months=months,
             years=years,
@@ -787,7 +775,7 @@ if data_area_sources is not None:
 
     colors = ['#000000', '#DB2525', '#0168DE', '#00A236', "#CA721B", '#7B2CBF']
 
-    fig, ax = plt.subplots(1, figsize=(16, 6)) #12, 8
+    fig, ax = plt.subplots(1, figsize=(12, 8)) #12, 8
 
     for ii, src in enumerate(data_area_sources):
 
@@ -867,6 +855,8 @@ if data_area_sources is not None:
 
     if cfg_plot['ylim_fit'] is not None:
         ax.set_ylim(*cfg_plot['ylim_fit'])
+
+    # ax.set_ylim(130, 260)
     
     leg = ax.legend(fontsize=18, handlelength=1.5, handletextpad=0.4, loc='best')
     for line in leg.get_lines():
@@ -935,7 +925,7 @@ if isinstance(lats_area, (list, tuple)) and len(lats_area) == 2 and \
             trend_plot_area,
             trend_plot_area['longitude'],
             trend_plot_area['latitude'],
-            crange=plot_cfg[var]['crange_trend'], 
+            crange=crange_area, 
             cmap=plot_cfg[var]['cmap_trend'],
             extreme_colors=plot_cfg[var]['extreme_trend'],
             show_plot=False,
@@ -962,7 +952,7 @@ if isinstance(lats_area, (list, tuple)) and len(lats_area) == 2 and \
         axes=axes,
         mesh=meshes[0],
         datasets=trend_fields,
-        crange=plot_cfg[var]['crange_trend'],
+        crange=crange_area,
         label=plot_cfg[var]['label_trend'],
         orientation='horizontal',
         c_ticks=10,
@@ -976,4 +966,6 @@ if isinstance(lats_area, (list, tuple)) and len(lats_area) == 2 and \
     plt.show()
 
 #%%
+
+
 

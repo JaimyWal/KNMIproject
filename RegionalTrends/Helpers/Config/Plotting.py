@@ -85,26 +85,29 @@ def build_plot_cfg(
 
     cmap_sun = build_cmap_sun()
     cmap_trend_default = ListedColormap(cmaps.cmp_b2r(np.linspace(0, 1, 20)))
+    extreme_trend_default = ('#1B1C70', '#7e060c')
 
     cmap_sw_mean = cmocean.cm.solar
     extreme_sw_mean = (None, '#fff3b2')
-    extreme_sw_trend = ('#1B1C70', '#7e060c')
 
     cmap_lw_mean = cmocean.cm.balance
     extreme_lw_mean = ('#0a0a86', '#700c0c')
-    extreme_lw_trend = ('#000020', '#350000')
 
     cmap_turb_mean = cmocean.cm.balance
     extreme_turb_mean = ('#0a0a86', '#700c0c')
-    extreme_turb_trend = ('#000020', '#350000')
 
     cmap_cloud_mean = cmocean.cm.gray
     extreme_cloud_mean = ('#000000', '#ffffff')
-    extreme_cloud_trend = ('#1B1C70', '#7e060c')
 
     cmap_wp_mean = cmocean.cm.matter
-    extreme_wp_mean = ('#0a0a86', '#fff3b2')
-    extreme_wp_trend = ('#1B1C70', '#7e060c')
+    extreme_wp_mean = ('#fff3b2', '#0a0a86')
+
+    cmap_rh_mean = cmocean.cm.haline
+    extreme_rh_mean = ('#0a0a86', "#fef7cd")
+
+    cmap_default_mean = 'turbo'
+    extreme_default_mean = ("#400074", "#4b0000")
+
 
     plot_cfg = {
         'Tg': {
@@ -148,6 +151,18 @@ def build_plot_cfg(
         },
     }
 
+    temp_base = plot_cfg['Tg'].copy()
+
+    for k, lab in {
+        'Tmax': 'Maximum temperature (°C)',
+        'Tmin': 'Minimum temperature (°C)',
+        'Tmaxmax': 'Maximum of Tmax (°C)',
+        'Tminmin': 'Minimum of Tmin (°C)',
+    }.items():
+        plot_cfg[k] = temp_base.copy()
+        plot_cfg[k]['label_mean'] = lab
+        plot_cfg[k]['label_plot'] = lab
+
     def add_plot_cfg(
         label_mean,
         label_trend,
@@ -188,7 +203,7 @@ def build_plot_cfg(
             cmap_mean=cmap_sw_mean,
             cmap_trend=cmap_trend_default,
             extreme_mean=extreme_sw_mean,
-            extreme_trend=extreme_sw_trend,
+            extreme_trend=extreme_trend_default,
             label_plot=lab,
             trend_unit=r'W/m$^2$ / ' + fit_unit,
             ylim_fit=fit_range,
@@ -207,7 +222,7 @@ def build_plot_cfg(
             cmap_mean=cmap_lw_mean,
             cmap_trend=cmap_trend_default,
             extreme_mean=extreme_lw_mean,
-            extreme_trend=extreme_lw_trend,
+            extreme_trend=extreme_trend_default,
             label_plot=lab,
             trend_unit=r'W/m$^2$ / ' + fit_unit,
             ylim_fit=fit_range,
@@ -224,7 +239,7 @@ def build_plot_cfg(
             cmap_mean=cmap_turb_mean,
             cmap_trend=cmap_trend_default,
             extreme_mean=extreme_turb_mean,
-            extreme_trend=extreme_turb_trend,
+            extreme_trend=extreme_trend_default,
             label_plot=lab,
             trend_unit=r'W/m$^2$ / ' + fit_unit,
             ylim_fit=fit_range,
@@ -243,7 +258,7 @@ def build_plot_cfg(
             cmap_mean=cmap_cloud_mean,
             cmap_trend=cmap_trend_default,
             extreme_mean=extreme_cloud_mean,
-            extreme_trend=extreme_cloud_trend,
+            extreme_trend=extreme_trend_default,
             label_plot=lab,
             trend_unit='% / ' + fit_unit,
             ylim_fit=fit_range,
@@ -260,9 +275,42 @@ def build_plot_cfg(
             cmap_mean=cmap_wp_mean,
             cmap_trend=cmap_trend_default,
             extreme_mean=extreme_wp_mean,
-            extreme_trend=extreme_wp_trend,
+            extreme_trend=extreme_trend_default,
             label_plot=lab,
             trend_unit=r'g/m$^2$ / ' + fit_unit,
+            ylim_fit=fit_range,
+        )
+
+    rh_vars = {
+        'RH': 'Relative Humidity (%)',
+        'RH_proxy': 'Relative Humidity (%)',
+    }
+    for v, lab in rh_vars.items():
+        plot_cfg[v] = add_plot_cfg(
+            label_mean=lab,
+            label_trend='Trend (% / ' + fit_unit + ')',
+            cmap_mean=cmap_rh_mean,
+            cmap_trend=cmap_trend_default,
+            extreme_mean=extreme_rh_mean,
+            extreme_trend=extreme_trend_default,
+            label_plot=lab,
+            trend_unit='% / ' + fit_unit,
+            ylim_fit=fit_range,
+        )
+
+    rh_vars = {
+        'Bowen': 'Bowen Ratio',
+    }
+    for v, lab in rh_vars.items():
+        plot_cfg[v] = add_plot_cfg(
+            label_mean=lab,
+            label_trend='Trend ( / ' + fit_unit + ')',
+            cmap_mean=cmap_default_mean,
+            cmap_trend=cmap_trend_default,
+            extreme_mean=extreme_default_mean,
+            extreme_trend=extreme_trend_default,
+            label_plot=lab,
+            trend_unit=' / ' + fit_unit,
             ylim_fit=fit_range,
         )
 

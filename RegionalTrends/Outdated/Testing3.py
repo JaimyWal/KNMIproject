@@ -93,11 +93,18 @@ era5_lw_lhf = xr.open_dataset('/nobackup/users/walj/era5/era5_coarse_lw_lhf.nc')
 era5_clouds = xr.open_dataset('/nobackup/users/walj/era5/era5_coarse_clouds.nc')
 # era5_sw = xr.open_dataset('/nobackup/users/walj/era5/era5_rsds.nc')
 
+#%% era5 daily
+
+era5_tmax = xr.open_dataset('/nobackup/users/walj/era5/era5_tmax_daily_eu.nc')
+era5_tmin = xr.open_dataset('/nobackup/users/walj/era5/era5_tmin_daily_eu.nc')
+
 #%% eobs daily
 
 eobs_temp = xr.open_dataset('/nobackup/users/walj/eobs/tg_ens_mean_0.1deg_reg_v31.0e.nc')
 eobs_precip = xr.open_dataset('/nobackup/users/walj/eobs/rr_ens_mean_0.1deg_reg_v31.0e.nc')
 eobs_swin = xr.open_dataset('/nobackup/users/walj/eobs/qq_ens_mean_0.1deg_reg_v31.0e.nc')
+eobs_tmax = xr.open_dataset('/nobackup/users/walj/eobs/tx_ens_mean_0.1deg_reg_v31.0e.nc')
+eobs_tmin = xr.open_dataset('/nobackup/users/walj/eobs/tn_ens_mean_0.1deg_reg_v31.0e.nc')
 
 #%% racmo24 daily kext12
 
@@ -152,5 +159,50 @@ racmo24_lwp_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/M
 racmo24_iwp_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/clivi_monthlyA_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
 
 
-# Kijken naar alle variabelen (incl neerslag en temperatuur en sund)
-# 
+#%% testing
+
+racmo24_tdew_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/tdew2m_monthlyA_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
+racmo24_rh_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/hurs_monthlyA_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
+
+import numpy as np
+
+def teten_formula(temp_c):
+    return 6.112*np.exp((17.67*temp_c) / (temp_c + 243.5))
+
+racmo24_rh_diag_monthly = 100*(teten_formula(racmo24_tdew_monthly['tdew2m'] - 273.15) / teten_formula(racmo24_temp_monthly['tas'] - 273.15))
+
+racmo24_tdew = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/tdew2m.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
+racmo24_rh = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/hurs.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
+
+racmo24_rh_diag = 100*(teten_formula(racmo24_tdew['tdew2m'] - 273.15) / teten_formula(racmo24_temp['tas'] - 273.15))
+
+
+#%%
+
+diff_daily = racmo24_rh['hurs']*100 - racmo24_rh_diag
+
+print("Mean absolute difference:", float(np.abs(diff_daily).mean()))
+print("Max absolute difference:", float(np.abs(diff_daily).max()))
+
+# Spatial pattern of mean difference
+diff_daily.mean(dim='time').plot()
+
+# If hurs and T are consistent, this should give you back tdew2m:
+def inverse_teten(es):
+    """Given saturation vapor pressure, return temperature in °C"""
+    ln_ratio = np.log(es / 6.112)
+    return 243.5 * ln_ratio / (17.67 - ln_ratio)
+
+# Vapor pressure implied by hurs
+es_T = teten_formula(racmo24_temp['tas'] - 273.15)
+e_from_hurs = (racmo24_rh['hurs']*100 / 100.0) * es_T
+
+# Dewpoint implied by hurs
+tdew_from_hurs = inverse_teten(e_from_hurs) + 273.15  # back to Kelvin
+
+# Compare to actual tdew2m
+tdew_diff = racmo24_tdew['tdew2m'] - tdew_from_hurs
+print("Mean tdew difference:", float(tdew_diff.mean()))
+print("Max abs tdew difference:", float(np.abs(tdew_diff).max()))
+
+

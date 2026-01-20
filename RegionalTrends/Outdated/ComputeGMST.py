@@ -2,18 +2,23 @@ import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
 from importlib import reload
+from pathlib import Path
+import sys
 
-import ProcessNetCDF
+PROJECT_ROOT = Path.home() / 'KNMIproject'
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from RegionalTrends.Helpers import ProcessNetCDF
 reload(ProcessNetCDF)          
-from ProcessNetCDF import preprocess_netcdf
+from RegionalTrends.Helpers.ProcessNetCDF import preprocess_netcdf
 
-import AreaWeights
-reload(AreaWeights)          
-from AreaWeights import area_weighted_mean
+from RegionalTrends.Helpers import AreaWeights
+reload(AreaWeights)
+from RegionalTrends.Helpers.AreaWeights import area_weighted_mean
 
 t2m = preprocess_netcdf(
     'ERA5',
-    '/nobackup/users/walj/era5/era5_coarse_full_t2m.nc',
+    '/nobackup/users/walj/era5/era5_coarse_t2m_ps.nc',
     't2m'
 )
 
@@ -165,10 +170,10 @@ for line in leg.get_lines():
 
 #%%
 
-# save_path = '/nobackup/users/walj/era5/era5_gmst_anom.nc'
+save_path = '/nobackup/users/walj/era5/era5_gmst_anom.nc'
 
-# if save_path is not None:
-#         gmst_anom.to_netcdf(save_path)
+if save_path is not None:
+        gmst_anom.to_netcdf(save_path)
 
 
 

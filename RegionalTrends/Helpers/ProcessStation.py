@@ -32,7 +32,7 @@ def preprocess_station(
         low_memory=False,
     )
 
-    if var_name == 'Q':
+    if var_name == 'Q' or var_name == 'UG':
         sf = 1.0
     else:
         sf = 0.1

@@ -7,9 +7,9 @@ DATA_SOURCES = ['Eobs', 'ERA5', 'RACMO2.3', 'RACMO2.4']
 STATION_SOURCES = ['Bilt', 'Cabauw', 'Eelde', 'Maastricht', 'Vlissingen', 'Kooy']
 
 VAR_NAME_CFG = {
-    'Eobs': {'Tg': 'tg', 'P': 'rr', 'SWin': 'qq'},
+    'Eobs': {'Tg': 'tg', 'P': 'rr', 'SWin': 'qq', 'Tmax': 'tx', 'Tmin': 'tn', 'RH': 'hu'},
     'ERA5': {
-        'Tg': 't2m', 'P': 'tp', 
+        'Tg': 't2m', 'P': 'tp', 'Tmax': 'tmax', 'Tmin': 'tmin', 'Tdew': 'd2m',
         'SWin': 'avg_sdswrf', 'SWnet': 'avg_snswrf', 'SWincs': 'avg_sdswrfcs', 'SWnetcs': 'avg_snswrfcs',
         'LWin': 'avg_sdlwrf', 'LWnet': 'avg_snlwrf', 'LWincs': 'avg_sdlwrfcs', 'LWnetcs': 'avg_snlwrfcs',
         'SHF': 'avg_ishf', 'LHF': 'avg_slhtf',
@@ -25,14 +25,14 @@ VAR_NAME_CFG = {
         'LWP': 'qli', 'IWP': 'qii',
     },
     'RACMO2.4': {
-        'Tg': 'tas', 'P': 'pr', 'Sq': 'sund',
+        'Tg': 'tas', 'P': 'pr', 'Sq': 'sund', 'Tmax': 'tasmax', 'Tmin': 'tasmin', 'RH': 'hurs', 'Tdew': 'tdew2m',
         'SWin': 'rsds', 'SWnet': 'ssr', 'SWincs': 'rsdscs', 'SWnetcs': 'ssrc',
         'LWin': 'rlds', 'LWnet': 'str', 'LWincs': 'rldscs', 'LWnetcs': 'strc',
         'SHF': 'hfss', 'LHF': 'hfls',
         'CloudLow': 'cll', 'CloudMid': 'clm', 'CloudHigh': 'clh', 'CloudTotal': 'clt',
         'LWP': 'clwvi', 'IWP': 'clivi',
     },
-    'Station': {'Tg': 'TG', 'P': 'RH', 'Sq': 'SQ', 'SWin': 'Q'},
+    'Station': {'Tg': 'TG', 'P': 'RH', 'Sq': 'SQ', 'SWin': 'Q', 'Tmax': 'TX', 'Tmin': 'TN', 'RH': 'UG'},
 }
 
 STATION_COORD_CFG = {
@@ -46,6 +46,10 @@ STATION_COORD_CFG = {
 
 LABEL_PLOT_CFG = {
     'Tg': 'Temperature (°C)',
+    'Tmax': 'Max Temperature (°C)',
+    'Tmin': 'Min Temperature (°C)',
+    'RH': 'Relative Humidity (%)',
+    'Tdew': 'Dew Point Temperature (°C)',
     'P': 'Precipitation (mm)',
     'Sq': 'Sund. (hours/day)',
     'SWin': r'SW$_{\text{in}}$ (W/m$^2$)',
@@ -64,10 +68,17 @@ LABEL_PLOT_CFG = {
     'CloudTotal': 'Total cloud (%)',
     'LWP': r'LWP (g/m$^2$)',
     'IWP': r'IWP (g/m$^2$)',
+
+    'RH_proxy': 'Relative Humidity (%)',
+    'Bowen': 'Bowen Ratio',
 }
 
 VAR_PHYS_CFG = {
     'Tg': 'Temperature',
+    'Tmax': 'Max Temperature',
+    'Tmin': 'Min Temperature',
+    'RH': 'Relative Humidity',
+    'Tdew': 'Dew Point',
     'P': 'Precipitation',
     'Sq': 'Sund.',
     'SWin': r'SW$_{\text{in}}$',
@@ -86,10 +97,17 @@ VAR_PHYS_CFG = {
     'CloudTotal': 'Total cloud',
     'LWP': 'LWP',
     'IWP': 'IWP',
+
+    'RH_proxy': 'Relative Humidity',
+    'Bowen': 'Bowen Ratio',
 }
 
 VAR_UNIT_CFG = {
     'Tg': '°C',
+    'Tmax': '°C',
+    'Tmin': '°C',
+    'RH': '%',
+    'Tdew': '°C',
     'P': 'mm',
     'Sq': 'hours/day',
     'SWin': r'W/m$^2$',
@@ -108,6 +126,9 @@ VAR_UNIT_CFG = {
     'CloudTotal': '%',
     'LWP': r'g/m$^2$',
     'IWP': r'g/m$^2$',
+
+    'RH_proxy': '%',
+    'Bowen': '',
 }
 
 

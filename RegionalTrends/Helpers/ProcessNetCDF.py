@@ -310,7 +310,7 @@ def preprocess_netcdf(
             da = da.where(landmask)
 
     if 'RACMO' in src:
-        if var_name == 't2m' or var_name == 'tas':
+        if var_name in ['t2m', 'tas', 'tasmax', 'tasmin', 'td2m', 'tdew2m']:
             da = da - 273.15
             da.attrs['units'] = 'degC'
         elif var_name == 'precip' or (var_name == 'pr' and not is_monthly_time(da['time'])):
@@ -338,11 +338,11 @@ def preprocess_netcdf(
             da.attrs['units'] = 'g/m2'
         elif var_name == 'senf' or var_name == 'latf':
             da = -1*da
-        elif var_name in ['aclcov', 'aclcovH', 'aclcovM', 'aclcovL', 'clt', 'clh', 'clm', 'cll']:
+        elif var_name in ['aclcov', 'aclcovH', 'aclcovM', 'aclcovL', 'clt', 'clh', 'clm', 'cll', 'hurs']:
             da = da*100
 
     if 'ERA5' in src:
-        if var_name == 't2m':
+        if var_name in ['t2m', 'tmax', 'tmin', 'd2m']:
             da = da - 273.15
             da.attrs['units'] = 'degC'
         elif var_name in ['tp', 'precip']:
@@ -413,99 +413,3 @@ def preprocess_netcdf(
     out = out.chunk(chunk_dict)
 
     return out
-
-# landmask_kext06 = make_landmask(
-#                 land_file='/nobackup/users/walj/landmasks/lsm_racmo2.4_kext06.nc',
-#                 land_var='var81',
-#                 lake_file='/nobackup/users/walj/landmasks/lakefrac_racmo2.4_kext06.nc',
-#                 lake_var='var26',
-#                 land_thresh=0.5,
-#                 lake_thresh=1.1
-#             ).squeeze()
-
-# landmask_kext12 = make_landmask(
-#                 land_file='/nobackup/users/walj/landmasks/lake_lsm_racmo2.4_kext12.nc',
-#                 land_var='var81',
-#                 lake_file='/nobackup/users/walj/landmasks/lake_lsm_racmo2.4_kext12.nc',
-#                 lake_var='var92',
-#                 land_thresh=0.5,
-#                 lake_thresh=1.1
-#             ).squeeze()
-
-# import matplotlib.pyplot as plt
-# import cartopy.crs as ccrs
-
-# def plot_landmask(mask, title):
-
-#     fig, ax = plt.subplots(
-#         figsize=(6, 5),
-#         subplot_kw=dict(projection=ccrs.PlateCarree())
-#     )
-
-#     mask.plot(
-#         ax=ax,
-#         transform=ccrs.PlateCarree(),
-#         cmap='Greys',
-#         add_colorbar=False
-#     )
-
-#     ax.set_title(title)
-#     plt.show()
-
-# plot_landmask(landmask_kext06, 'RACMO2.4 KEXT06 land mask')
-# plot_landmask(landmask_kext12, 'RACMO2.4 KEXT12 land mask')
-
-# test1 = xr.open_dataset('/nobackup/users/walj/landmasks/lake_lsm_racmo2.4_kext12.nc')
-# test2 = xr.open_dataset('/nobackup/users/walj/landmasks/lsm_racmo2.4_kext06.nc')
-# test3 = xr.open_dataset('/nobackup/users/walj/landmasks/lakefrac_racmo2.4_kext06.nc')
-
-# racmo24_temp_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/tas.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
-
-# ds = open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/tas_*')
-
-# rename = {}
-# if 'valid_time' in ds.coords:
-#     rename['valid_time'] = 'time'
-# if 'lat' in ds.coords:
-#     rename['lat'] = 'latitude'
-# if 'lon' in ds.coords:
-#     rename['lon'] = 'longitude'
-# if rename:
-#     ds = ds.rename(rename)
-
-# ds1 = ds.assign_coords(time=align_month_to_start(ds['time']))
-
-# da1 = ds1['tas'].astype('float32')
-
-# print(da1.dims, da1.shape)
-# print(landmask_kext12.dims, landmask_kext12.shape)
-
-# print(da1['rlat'].dtype, landmask_kext12['rlat'].dtype)
-# print(da1['rlon'].dtype, landmask_kext12['rlon'].dtype)
-
-# print(np.array_equal(da1['rlat'].values, landmask_kext12['rlat'].values))
-# print(np.array_equal(da1['rlon'].values, landmask_kext12['rlon'].values))
-
-
-# da1 = da1.where(landmask_kext12)
-
-# racmo24_temp = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/tas.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
-
-# ds = open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/tas_*')
-
-# rename = {}
-# if 'valid_time' in ds.coords:
-#     rename['valid_time'] = 'time'
-# if 'lat' in ds.coords:
-#     rename['lat'] = 'latitude'
-# if 'lon' in ds.coords:
-#     rename['lon'] = 'longitude'
-# if rename:
-#     ds = ds.rename(rename)
-
-# ds2 = ds.assign_coords(time=align_month_to_start(ds['time']))
-
-# da2 = ds2['tas'].astype('float32')
-
-# da2 = da2.where(landmask_kext12)
-

@@ -39,19 +39,19 @@ dask.config.set(scheduler='threads', num_workers=12)
 #%% User inputs
 
 # Main arguments
-n_runs = 1
-var = 'Sq' #
-data_base = 'L5' # 
-data_compare = 'RACMO2.4_KEXT12' # 
+n_runs = 5
+var = 'Tg' #
+data_base = ['Eobs_fine', 'Eobs_fine', 'ERA5_coarse', 'ERA5_coarse', 'Eobs_fine'] # 
+data_compare = ['RACMO2.3', 'RACMO2.4_KEXT12', 'RACMO2.3', 'RACMO2.4_KEXT12', 'ERA5_coarse'] # 
 
 # Data selection arguments
-freq_sel = 'Daily' #
+freq_sel = 'Monthly' #
 months = None # 
-years = [1973, 1977]
+years = [1979, 2015] #
 lats = [50.7, 53.6]
 lons = [3.25, 7.35]
 proj_sel = 'RACMO2.4' #
-land_only = False
+land_only = True
 trim_border = None
 
 # Plotting arguments
@@ -610,7 +610,7 @@ ax.set_xlabel('Time', fontsize=28)
 ax.set_ylabel(var_labels_cfg.get(var, var), fontsize=28)
 ax.tick_params(axis='both', labelsize=20, length=6)
 
-ax.xaxis.set_major_locator(mdates.YearLocator())
+ax.xaxis.set_major_locator(mdates.AutoDateLocator(minticks=1, maxticks=10))
 ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
 
 # if ylim_scatter is not None:

@@ -36,6 +36,10 @@ from RegionalTrends.Helpers.GridBounds import grid_with_bounds
 import RegionalTrends.Helpers.Config.Constants as Constants
 reload(Constants)
 
+import RegionalTrends.Helpers.Config.Paths as Paths
+reload(Paths)
+from RegionalTrends.Helpers.Config.Paths import build_file_cfg, freq_tags
+
 import RegionalTrends.Helpers.Config.Plotting as Plotting
 reload(Plotting)
 from RegionalTrends.Helpers.Config.Plotting import build_corr_cmap, build_plot_cfg,\
@@ -50,19 +54,12 @@ dask.config.set(scheduler='threads', num_workers=12)
 # Main arguments
 n_runs = 4
 var = 'Tg'
-file_freq = 'Monthly' #
 data_base = ['ERA5_coarse', 'ERA5_coarse', 'Eobs_fine', 'Eobs_fine'] #
-data_compare = ['RACMO2.3', 'RACMO2.4_KEXT12', 'RACMO2.3', 'RACMO2.4_KEXT12'] #
-
-# data_base = ['ERA5_coarse', 'RACMO2.3', 'RACMO2.4_KEXT12', 'Eobs_fine'] #
-# data_compare = None #
-
-# data_base = ['ERA5_coarse', 'ERA5_coarse', 'Eobs_fine', 'Eobs_fine'] #
-# data_compare = ['RACMO2.3', 'RACMO2.4_KEXT12', 'RACMO2.3', 'RACMO2.4_KEXT12'] #
+data_compare = ['RACMO2.3', 'RACMO2.4_KEXT06', 'RACMO2.3', 'RACMO2.4_KEXT06'] #
 
 # Data selection arguments
-months = [12,1,2] #
-years = [1980, 2020] 
+months = None #
+years = [2015, 2020] 
 lats = [37.7, 63.3]
 lons = [-13.3, 22.3]
 proj_sel = 'RACMO2.4'
@@ -79,11 +76,9 @@ std_dir = 'Lesser' #
 switch_sign = False #
 cut_boundaries = False
 
-# std_mask_ref = ['ERA5_coarse', 'ERA5_coarse', 'Eobs_fine', 'Eobs_fine'] #
-
 # Trend plotting arguments
 trend_calc = False
-trend_crange = [-1, 1]
+trend_crange = [-2, 2]
 fit_against_gmst = False
 
 # Correlation plotting arguments
@@ -105,10 +100,10 @@ true_contour = True
 grid_contour = False
 
 # Other arguments
-rolling_mean_var = False
-rolling_mean_years = 3
-min_periods = 1
 relative_precip = False
+rolling_mean_var = False
+rolling_mean_years = 7
+min_periods = 1
 
 # lats = [38, 63]
 # lons = [-13, 22]
@@ -157,7 +152,6 @@ def ensure_list(param, n, nested=False):
     return [param]*n
 
 data_base_list = ensure_list(data_base, n_runs)
-freq_file_list = ensure_list(file_freq, n_runs)
 data_compare_list = ensure_list(data_compare, n_runs)
 months_list = ensure_list(months, n_runs, nested=True)
 std_mask_ref_list = ensure_list(std_mask_ref, n_runs)
@@ -178,6 +172,14 @@ for ii in range(n_runs):
 
     if data_base_list[ii] is not None:
 
+        if ((corr_calc == True and corr_freq_list[ii] == 'Daily') or (rmse_calc == True and rmse_freq_list[ii] == 'Daily')) and data_compare_list[ii] is not None:
+            monthly_or_daily = 'Daily'
+        else:
+            monthly_or_daily = 'Monthly'
+        freq_str, racmo24_sep = freq_tags(monthly_or_daily)
+
+        file_cfg = build_file_cfg(freq_str, racmo24_sep)
+
         cache_key_base = make_cache_key(data_base_list[ii], months_list[ii])
         if cache_key_base in data_cache:
             data_base_res = data_cache[cache_key_base]
@@ -187,8 +189,8 @@ for ii in range(n_runs):
                 var,
                 data_sources,
                 station_sources,
-                freq_file_list[ii],
                 var_name_cfg,
+                file_cfg,
                 proj_cfg,
                 months=months_list[ii],
                 years=years,
@@ -232,8 +234,8 @@ for ii in range(n_runs):
                     var,
                     data_sources,
                     station_sources,
-                    freq_file_list[ii],
                     var_name_cfg,
+                    file_cfg,
                     proj_cfg, 
                     months=months_list[ii],
                     years=years,
@@ -425,8 +427,8 @@ for ii in range(n_runs):
                                 var,
                                 data_sources,
                                 station_sources,
-                                freq_file_list[ii],
                                 var_name_cfg,
+                                file_cfg,
                                 proj_cfg, 
                                 months=months_list[ii],
                                 years=years,
@@ -626,15 +628,14 @@ for ii, (ax, res) in enumerate(zip(axes, results)):
 
         meshes.append(mesh)
 
-        if std_mask_ref_list[ii] is not None:
-            ax.contourf(
-                res['longitude'], res['latitude'], res['mask_std'],
-                levels=[0.5, 1.5],
-                colors='none',
-                hatches=['///'],
-                transform=ccrs.PlateCarree(),
-                zorder=50
-            )
+        ax.contourf(
+            res['longitude'], res['latitude'], res['mask_std'],
+            levels=[0.5, 1.5],
+            colors='none',
+            hatches=['///'],
+            transform=ccrs.PlateCarree(),
+            zorder=50
+        )
 
 cbar = shared_colorbar(
         fig=fig,

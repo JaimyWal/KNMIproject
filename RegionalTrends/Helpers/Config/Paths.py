@@ -15,7 +15,7 @@ def build_base_dirs(freq_str):
         'RACMO2.3': f'/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/{freq_str}_data',
         'RACMO2.3_ERIK': '/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data',
         'RACMO2.4_KEXT06': '/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning',
-        'RACMO2.4_KEXT12': '/nobackup/users/walj/TestRacmo24',
+        'RACMO2.4_KEXT12': '/nobackup/users/walj/racmo24',
         'Station': '/nobackup/users/walj/knmi',
     }
 
@@ -29,6 +29,9 @@ def build_file_cfg(freq_str, racmo24_sep):
             'Tg': os.path.join(base_dir_cfg['Eobs'], 'tg_ens_mean_0.1deg_reg_v31.0e.nc'),
             'P': os.path.join(base_dir_cfg['Eobs'], 'rr_ens_mean_0.1deg_reg_v31.0e.nc'),
             'SWin': os.path.join(base_dir_cfg['Eobs'], 'qq_ens_mean_0.1deg_reg_v31.0e.nc'),
+            'Tmax': os.path.join(base_dir_cfg['Eobs'], 'tx_ens_mean_0.1deg_reg_v31.0e.nc'),
+            'Tmin': os.path.join(base_dir_cfg['Eobs'], 'tn_ens_mean_0.1deg_reg_v31.0e.nc'),
+            'RH': os.path.join(base_dir_cfg['Eobs'], 'hu_ens_mean_0.1deg_reg_v31.0e.nc'),
         },
         'Eobs_coarse': {
             'Tg': os.path.join(base_dir_cfg['Eobs'], 'tg_ens_mean_0.25deg_reg_v31.0e.nc'),
@@ -38,6 +41,9 @@ def build_file_cfg(freq_str, racmo24_sep):
                      'P': os.path.join(base_dir_cfg['ERA5'], 'era5_land.nc')},
         'ERA5_coarse': {
             'Tg': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_t2m_ps.nc'),
+            'Tmax': os.path.join(base_dir_cfg['ERA5'], 'era5_tmax_daily_eu.nc'),
+            'Tmin': os.path.join(base_dir_cfg['ERA5'], 'era5_tmin_daily_eu.nc'),
+            'Tdew': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_dew_wind.nc'),
             'P': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_tp.nc'),
             'SWin': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_sw_shf.nc'),
             'SWnet': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_sw_shf.nc'),
@@ -79,6 +85,7 @@ def build_file_cfg(freq_str, racmo24_sep):
         },
         'RACMO2.4_KEXT06': {
             'Tg': os.path.join(base_dir_cfg['RACMO2.4_KEXT06'], f'{freq_str}/tas{racmo24_sep}*.nc'),
+            'Tdew': os.path.join(base_dir_cfg['RACMO2.4_KEXT06'], f'{freq_str}/tdew2m{racmo24_sep}*.nc'),
             'P': os.path.join(base_dir_cfg['RACMO2.4_KEXT06'], f'{freq_str}/pr{racmo24_sep}*.nc'),
             'Sq': os.path.join(base_dir_cfg['RACMO2.4_KEXT06'], f'{freq_str}/sund{racmo24_sep}*.nc'),
             'SWin': os.path.join(base_dir_cfg['RACMO2.4_KEXT06'], f'{freq_str}/rsds{racmo24_sep}*.nc'),
@@ -100,7 +107,10 @@ def build_file_cfg(freq_str, racmo24_sep):
         },
         'RACMO2.4_KEXT12': {
             'Tg': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/tas{racmo24_sep}*.nc'),
+            'Tmax': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/tasmax{racmo24_sep}*.nc'),
             'P': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/pr{racmo24_sep}*.nc'),
+            'RH': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/hurs{racmo24_sep}*.nc'),
+            'Tdew': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/tdew2m{racmo24_sep}*.nc'),
             'Sq': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/sund{racmo24_sep}*.nc'),
             'SWin': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/rsds{racmo24_sep}*.nc'),
             'SWnet': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/ssr{racmo24_sep}*.nc'),

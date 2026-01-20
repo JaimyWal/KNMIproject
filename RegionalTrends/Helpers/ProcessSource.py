@@ -4,13 +4,9 @@ import xarray as xr
 import cartopy.crs as ccrs
 from importlib import reload
 
-from RegionalTrends.Helpers import ProcessNetCDF
-reload(ProcessNetCDF)          
-from RegionalTrends.Helpers.ProcessNetCDF import preprocess_netcdf
-
-from RegionalTrends.Helpers import ProcessStation
-reload(ProcessStation)          
-from RegionalTrends.Helpers.ProcessStation import preprocess_station
+from RegionalTrends.Helpers import ProcessVar
+reload(ProcessVar)
+from RegionalTrends.Helpers.ProcessVar import load_var
 
 
 def process_source(
@@ -18,8 +14,8 @@ def process_source(
     var,
     data_sources,
     station_sources,
+    file_freq,
     var_name_cfg,
-    file_cfg,
     proj_cfg,
     months=None,
     years=None,
@@ -59,37 +55,25 @@ def process_source(
     elif (data_source == 'RACMO2.4_KEXT12') and (trim_border is None):
         trim_local = 4
 
-    # Load raw
-    if data_source in station_sources:
-        var_name = var_name_cfg['Station'][var]
-        file_path = file_cfg['Station'][data_source]
+    load_args = dict(
+        data_source=data_source,
+        data_sources=data_sources,
+        station_sources=station_sources,
+        file_freq=file_freq,
+        var_name_cfg=var_name_cfg,
+        proj_cfg=proj_cfg,
+        months_local=months_local,
+        years_load=years_load,
+        lats=lats,
+        lons=lons,
+        land_only=land_only,
+        trim_local=trim_local,
+        rotpole_sel=rotpole_sel,
+    )
 
-        data = preprocess_station(
-            file_path=file_path,
-            var_name=var_name,
-            months=months_local,
-            years=years_load,
-        ).squeeze()
+    data = load_var(var=var, **load_args)
 
-    else:
-        file_key = next(src for src in data_sources if src in data_source)
-        var_name = var_name_cfg[file_key][var]
-        file_path = file_cfg[data_source][var]
-        proj_native = proj_cfg.get(file_key, ccrs.PlateCarree())
-
-        data = preprocess_netcdf(
-            source=data_source,
-            file_path=file_path,
-            var_name=var_name,
-            months=months_local,
-            years=years_load,
-            lats=lats,
-            lons=lons,
-            land_only=land_only,
-            trim_border=trim_local,
-            rotpole_sel=rotpole_sel,
-            rotpole_native=proj_native,
-        ).squeeze()
+    use_max = (var == 'Tmaxmax')
 
     # If only raw requested, return early
     want_raw = 'raw' in return_items
@@ -100,7 +84,11 @@ def process_source(
 
     month_start = int(months_local[0])
     month_end = int(months_local[-1])
-    y0, y1 = years_req[0], years_req[-1] if years_req is not None else (None, None)
+
+    if years_req is None:
+        y0, y1 = None, None
+    else:
+        y0, y1 = years_req[0], years_req[-1]
 
     # Assign clim_year to raw if it is requested or needed for later filtering
     if want_raw or want_monthly:
@@ -110,6 +98,7 @@ def process_source(
             clim_year_r = year_r
         else:
             clim_year_r = xr.where(month_r >= month_start, year_r + 1, year_r)
+
         data = data.assign_coords(clim_year=clim_year_r)
         if years_req is not None:
             data = data.where((data['clim_year'] >= y0) & (data['clim_year'] <= y1), drop=True)
@@ -117,7 +106,11 @@ def process_source(
     # Monthly
     data_monthly = None
     if want_monthly:
-        data_monthly = data.resample(time='MS').mean('time')
+        if use_max:
+            data_monthly = data.resample(time='MS').max('time')
+        else:
+            data_monthly = data.resample(time='MS').mean('time')
+
         data_monthly = data_monthly.where(data_monthly['time'].dt.month.isin(months_local), drop=True)
 
         month_m = data_monthly['time'].dt.month
@@ -136,8 +129,11 @@ def process_source(
     data_year = None
     data_year_time = None
     if want_yearly:
-        data_year = data_monthly.groupby('clim_year').mean('time')
-        
+        if use_max:
+            data_year = data_monthly.groupby('clim_year').max('time')
+        else:
+            data_year = data_monthly.groupby('clim_year').mean('time')
+
         if years_req is not None:
             data_year = data_year.sel(clim_year=slice(y0, y1))
 
@@ -162,7 +158,7 @@ def process_source(
 
         if fit_against_gmst:
             file_GMST = '/nobackup/users/walj/era5/era5_gmst_anom.nc'
-            gmst = xr.open_dataset(file_GMST)['GMST']
+            gmst = xr.open_dataset(file_GMST)['__xarray_dataarray_variable__']
 
             gmst_roll = gmst.rolling(
                 time=rolling_mean_years,
