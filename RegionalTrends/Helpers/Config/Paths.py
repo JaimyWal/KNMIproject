@@ -32,6 +32,7 @@ def build_file_cfg(freq_str, racmo24_sep):
             'Tmax': os.path.join(base_dir_cfg['Eobs'], 'tx_ens_mean_0.1deg_reg_v31.0e.nc'),
             'Tmin': os.path.join(base_dir_cfg['Eobs'], 'tn_ens_mean_0.1deg_reg_v31.0e.nc'),
             'RH': os.path.join(base_dir_cfg['Eobs'], 'hu_ens_mean_0.1deg_reg_v31.0e.nc'),
+            'Psl': os.path.join(base_dir_cfg['Eobs'], 'pp_ens_mean_0.1deg_reg_v32.0e.nc'),
         },
         'Eobs_coarse': {
             'Tg': os.path.join(base_dir_cfg['Eobs'], 'tg_ens_mean_0.25deg_reg_v31.0e.nc'),
@@ -45,6 +46,8 @@ def build_file_cfg(freq_str, racmo24_sep):
             'Tmin': os.path.join(base_dir_cfg['ERA5'], 'era5_tmin_daily_eu.nc'),
             'Tdew': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_dew_wind.nc'),
             'P': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_tp.nc'),
+            'Ps': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_t2m_ps.nc'),
+            'Psl': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_t2m_ps.nc'),
             'SWin': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_sw_shf.nc'),
             'SWnet': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_sw_shf.nc'),
             'SWincs': os.path.join(base_dir_cfg['ERA5'], 'era5_coarse_sw_shf.nc'),
@@ -109,6 +112,8 @@ def build_file_cfg(freq_str, racmo24_sep):
             'Tg': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/tas{racmo24_sep}*.nc'),
             'Tmax': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/tasmax{racmo24_sep}*.nc'),
             'P': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/pr{racmo24_sep}*.nc'),
+            'Ps': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/ps{racmo24_sep}*.nc'),
+            'Psl': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/psl{racmo24_sep}*.nc'),
             'RH': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/hurs{racmo24_sep}*.nc'),
             'Tdew': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/tdew2m{racmo24_sep}*.nc'),
             'Sq': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/sund{racmo24_sep}*.nc'),
@@ -127,7 +132,8 @@ def build_file_cfg(freq_str, racmo24_sep):
             'CloudHigh': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/clh{racmo24_sep}*.nc'),
             'CloudTotal': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/clt{racmo24_sep}*.nc'),
             'LWP': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/clwvi{racmo24_sep}*.nc'),
-            'IWP': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/clivi{racmo24_sep}*.nc')
+            'IWP': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/clivi{racmo24_sep}*.nc'),
+            'Q': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/huss{racmo24_sep}*.nc'),
         },
         'Station': {
             'Bilt': os.path.join(base_dir_cfg['Station'], 'KNMI_Bilt.txt'),

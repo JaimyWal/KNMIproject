@@ -28,10 +28,6 @@ from RegionalTrends.Helpers.AreaWeights import area_weights, area_weighted_mean
 import RegionalTrends.Helpers.Config.Constants as Constants
 reload(Constants)
 
-import RegionalTrends.Helpers.Config.Paths as Paths
-reload(Paths)
-from RegionalTrends.Helpers.Config.Paths import build_file_cfg, freq_tags
-
 
 plt.rcParams['axes.unicode_minus'] = False
 dask.config.set(scheduler='threads', num_workers=12)
@@ -39,15 +35,17 @@ dask.config.set(scheduler='threads', num_workers=12)
 #%% User inputs
 
 # Main arguments
-n_runs = 5
-var = 'Tg' #
-data_base = ['Eobs_fine', 'Eobs_fine', 'ERA5_coarse', 'ERA5_coarse', 'Eobs_fine'] # 
-data_compare = ['RACMO2.3', 'RACMO2.4_KEXT12', 'RACMO2.3', 'RACMO2.4_KEXT12', 'ERA5_coarse'] # 
+n_runs = 3
+var = 'Bowen' #
+# data_base = ['ERA5_coarse', 'ERA5_coarse', 'Eobs_fine', 'Eobs_fine'] # 
+# data_compare = ['RACMO2.4_KEXT12', 'RACMO2.3', 'RACMO2.4_KEXT12', 'RACMO2.3'] # 
+data_base = ['ERA5_coarse', 'ERA5_coarse', 'RACMO2.3'] #
+data_compare = ['RACMO2.4_KEXT12', 'RACMO2.3', 'RACMO2.4_KEXT12'] #
 
 # Data selection arguments
 freq_sel = 'Monthly' #
 months = None # 
-years = [1979, 2015] #
+years = [2005, 2010] #
 lats = [50.7, 53.6]
 lons = [3.25, 7.35]
 proj_sel = 'RACMO2.4' #
@@ -56,6 +54,7 @@ trim_border = None
 
 # Plotting arguments
 share_labels = True
+plot_time = True
 
 # Other arguments
 rolling_mean_var = False
@@ -141,13 +140,6 @@ def read_data(
     
     if data_cache is not None and key in data_cache:
         return data_cache[key]
-    
-    if frequency == 'Daily':
-        monthly_or_daily = 'Daily'
-    else:
-        monthly_or_daily = 'Monthly'
-    freq_str, racmo24_sep = freq_tags(monthly_or_daily)
-    file_cfg = build_file_cfg(freq_str, racmo24_sep)
 
     if frequency == 'Daily':
         freq_source = 'raw'
@@ -168,8 +160,8 @@ def read_data(
                 var,
                 data_sources,
                 station_sources,
+                frequency,
                 var_name_cfg,
-                file_cfg,
                 proj_cfg,
                 months=months,
                 years=years,
@@ -210,8 +202,8 @@ def read_data(
             var,
             data_sources,
             station_sources,
+            frequency,
             var_name_cfg,
-            file_cfg,
             proj_cfg,
             months=months,
             years=years,
@@ -579,49 +571,51 @@ plt.show()
 
 #%% Scatter in x
 
-colors = ['#000000', '#DB2525', '#0168DE', '#00A236', "#CA721B", '#7B2CBF']
+if plot_time:
 
-fig, ax = plt.subplots(1, figsize=(12, 8)) #12, 8
+    colors = ['#000000', '#DB2525', '#0168DE', '#00A236', "#CA721B", '#7B2CBF']
 
-for ii, (key, da) in enumerate(data_cache.items()):
+    fig, ax = plt.subplots(1, figsize=(12, 8)) #12, 8
 
-    src, var_plot, freq_plot, months_plot = key
+    for ii, (key, da) in enumerate(data_cache.items()):
 
-    color = colors[ii]
+        src, var_plot, freq_plot, months_plot = key
 
-    label = f'{source_labels.get(src, src)}'
-    if label == 'L5':
-        label += ' Stations'
+        color = colors[ii]
 
-    ax.plot(
-            da['time'].values,
-            da.values,
-            c=color,
-            linewidth=2.5,
-            zorder=10,
-            ms=10,
-            marker='o',
-            linestyle='--',
-            label=label
-    )
+        label = f'{source_labels.get(src, src)}'
+        if label == 'L5':
+            label += ' Stations'
 
-ax.grid()
-ax.set_xlabel('Time', fontsize=28)
-ax.set_ylabel(var_labels_cfg.get(var, var), fontsize=28)
-ax.tick_params(axis='both', labelsize=20, length=6)
+        ax.plot(
+                da['time'].values,
+                da.values,
+                c=color,
+                linewidth=2.5,
+                zorder=10,
+                ms=10,
+                marker='o',
+                linestyle='--',
+                label=label
+        )
 
-ax.xaxis.set_major_locator(mdates.AutoDateLocator(minticks=1, maxticks=10))
-ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+    ax.grid()
+    ax.set_xlabel('Time', fontsize=28)
+    ax.set_ylabel(var_labels_cfg.get(var, var), fontsize=28)
+    ax.tick_params(axis='both', labelsize=20, length=6)
 
-# if ylim_scatter is not None:
-#     ax.set_ylim(*ylim_scatter)
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator(minticks=1, maxticks=10))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
 
-leg = ax.legend(fontsize=18, handlelength=1.5, handletextpad=0.4, loc='best')
-handles = getattr(leg, 'legendHandles', leg.legend_handles)
-for h in handles:
-    h.set_linestyle('-')
-    h.set_marker('')
-    h.set_markersize(0)
-    h.set_linewidth(4.0)
-leg.set_zorder(20)
+    # if ylim_scatter is not None:
+    #     ax.set_ylim(*ylim_scatter)
+
+    leg = ax.legend(fontsize=18, handlelength=1.5, handletextpad=0.4, loc='best')
+    handles = getattr(leg, 'legendHandles', leg.legend_handles)
+    for h in handles:
+        h.set_linestyle('-')
+        h.set_marker('')
+        h.set_markersize(0)
+        h.set_linewidth(4.0)
+    leg.set_zorder(20)
 

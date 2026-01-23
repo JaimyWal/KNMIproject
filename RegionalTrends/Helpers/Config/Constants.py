@@ -7,7 +7,8 @@ DATA_SOURCES = ['Eobs', 'ERA5', 'RACMO2.3', 'RACMO2.4']
 STATION_SOURCES = ['Bilt', 'Cabauw', 'Eelde', 'Maastricht', 'Vlissingen', 'Kooy']
 
 VAR_NAME_CFG = {
-    'Eobs': {'Tg': 'tg', 'P': 'rr', 'SWin': 'qq', 'Tmax': 'tx', 'Tmin': 'tn', 'RH': 'hu'},
+    'Eobs': {'Tg': 'tg', 'P': 'rr', 'SWin': 'qq', 'Tmax': 'tx', 'Tmin': 'tn', 
+             'RH': 'hu', 'Psl': 'pp'},
     'ERA5': {
         'Tg': 't2m', 'P': 'tp', 'Tmax': 'tmax', 'Tmin': 'tmin', 'Tdew': 'd2m',
         'SWin': 'avg_sdswrf', 'SWnet': 'avg_snswrf', 'SWincs': 'avg_sdswrfcs', 'SWnetcs': 'avg_snswrfcs',
@@ -15,6 +16,7 @@ VAR_NAME_CFG = {
         'SHF': 'avg_ishf', 'LHF': 'avg_slhtf',
         'CloudLow': 'lcc', 'CloudMid': 'mcc', 'CloudHigh': 'hcc', 'CloudTotal': 'tcc',
         'LWP': 'tclw', 'IWP': 'tciw',
+        'Ps': 'sp', 'Psl': 'msl',
     },
     'RACMO2.3': {
         'Tg': 't2m', 'P': 'precip', 'Sq': 'sund',
@@ -31,8 +33,10 @@ VAR_NAME_CFG = {
         'SHF': 'hfss', 'LHF': 'hfls',
         'CloudLow': 'cll', 'CloudMid': 'clm', 'CloudHigh': 'clh', 'CloudTotal': 'clt',
         'LWP': 'clwvi', 'IWP': 'clivi',
+        'Ps': 'ps', 'Psl': 'psl', 'Q': 'huss',
     },
-    'Station': {'Tg': 'TG', 'P': 'RH', 'Sq': 'SQ', 'SWin': 'Q', 'Tmax': 'TX', 'Tmin': 'TN', 'RH': 'UG'},
+    'Station': {'Tg': 'TG', 'P': 'RH', 'Sq': 'SQ', 'SWin': 'Q', 'Tmax': 'TX', 'Tmin': 'TN', 
+                'RH': 'UG', 'Psl': 'PG'},
 }
 
 STATION_COORD_CFG = {
@@ -68,9 +72,15 @@ LABEL_PLOT_CFG = {
     'CloudTotal': 'Total cloud (%)',
     'LWP': r'LWP (g/m$^2$)',
     'IWP': r'IWP (g/m$^2$)',
+    'Ps': 'Surface Pressure (hPa)',
+    'Psl': 'Sea Level Pressure (hPa)',
+    'Q': 'Specific Humidity (g/kg)',
 
     'RH_proxy': 'Relative Humidity (%)',
     'Bowen': 'Bowen Ratio',
+    'Albedo': 'Albedo',
+    'Q_era': 'Specific Humidity (g/kg)',
+    'Q_obs': 'Specific Humidity (g/kg)',
 }
 
 VAR_PHYS_CFG = {
@@ -97,9 +107,15 @@ VAR_PHYS_CFG = {
     'CloudTotal': 'Total cloud',
     'LWP': 'LWP',
     'IWP': 'IWP',
+    'Ps': 'Surface Pressure',
+    'Psl': 'Sea Level Pressure',
+    'Q': 'Specific Humidity',
 
     'RH_proxy': 'Relative Humidity',
     'Bowen': 'Bowen Ratio',
+    'Albedo': 'Albedo',
+    'Q_era': 'Specific Humidity',
+    'Q_obs': 'Specific Humidity',
 }
 
 VAR_UNIT_CFG = {
@@ -126,9 +142,15 @@ VAR_UNIT_CFG = {
     'CloudTotal': '%',
     'LWP': r'g/m$^2$',
     'IWP': r'g/m$^2$',
+    'Ps': 'hPa',
+    'Psl': 'hPa',
+    'Q': 'g/kg',
 
     'RH_proxy': '%',
     'Bowen': '',
+    'Albedo': '',
+    'Q_era': 'g/kg',
+    'Q_obs': 'g/kg',
 }
 
 

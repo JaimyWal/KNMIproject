@@ -1,5 +1,6 @@
 import numpy as np
 import cartopy.crs as ccrs
+import xarray as xr
 from importlib import reload
 
 from RegionalTrends.Helpers import ProcessNetCDF
@@ -70,11 +71,15 @@ def load_single_var(
     return data
 
 
+def teten_es(temp_c):
+    return 6.112*np.exp((17.67 * temp_c) / (temp_c + 243.5))
+
+
+def specifc_humidity(vapor_pressure, total_pressure):
+    return 0.622*vapor_pressure / (total_pressure - 0.378*vapor_pressure)
+
+
 def RH_proxy(**kwargs):
-
-    def teten_es(temp_c):
-        return 6.112 * np.exp((17.67 * temp_c) / (temp_c + 243.5))
-
     T2m = load_single_var(var_to_load='Tg', **kwargs)
     Tdew2m = load_single_var(var_to_load='Tdew', **kwargs)
     es_tdew = teten_es(Tdew2m)
@@ -89,6 +94,34 @@ def Bowen(**kwargs):
     return SHF / LHF_safe
 
 
+def Albedo(**kwargs):
+    SWin = load_single_var(var_to_load='SWin', **kwargs)
+    SWnet = load_single_var(var_to_load='SWnet', **kwargs)
+    SWout = SWin - SWnet
+    SWin_safe = SWin.where(np.abs(SWin) > 5)
+    return SWout / SWin_safe
+
+
+def Q_from_era(**kwargs):
+    Tdew= load_single_var(var_to_load='Tdew', **kwargs)
+    Ps = load_single_var(var_to_load='Ps', **kwargs)
+
+    vapor_pressure = teten_es(Tdew)
+    q = specifc_humidity(vapor_pressure, Ps)*1000
+    return q
+
+
+def Q_from_obs(**kwargs):
+    T2m = load_single_var(var_to_load='Tg', **kwargs)
+    Psl = load_single_var(var_to_load='Psl', **kwargs)
+    RH = load_single_var(var_to_load='RH', **kwargs)
+
+    T2m, Psl, RH = xr.align(T2m, Psl, RH, join='override')
+
+    es = teten_es(T2m)
+    vapor_pressure = (RH / 100.0)*es
+    q = specifc_humidity(vapor_pressure, Psl)*1000
+    return q
 
 # Also add advection here for example as well. However, this requires differentiation in space
 # and therefore also need to convert from rotated grid to normal grid...
@@ -96,6 +129,9 @@ def Bowen(**kwargs):
 DERIVED_VARS = {
     'RH_proxy': RH_proxy,
     'Bowen': Bowen,
+    'Albedo': Albedo,
+    'Q_era': Q_from_era,
+    'Q_obs': Q_from_obs,
 }
 
 

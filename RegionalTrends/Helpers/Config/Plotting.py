@@ -298,10 +298,11 @@ def build_plot_cfg(
             ylim_fit=fit_range,
         )
 
-    rh_vars = {
+    dimless_vars = {
         'Bowen': 'Bowen Ratio',
+        'Albedo': 'Albedo',
     }
-    for v, lab in rh_vars.items():
+    for v, lab in dimless_vars.items():
         plot_cfg[v] = add_plot_cfg(
             label_mean=lab,
             label_trend='Trend ( / ' + fit_unit + ')',
@@ -311,6 +312,41 @@ def build_plot_cfg(
             extreme_trend=extreme_trend_default,
             label_plot=lab,
             trend_unit=' / ' + fit_unit,
+            ylim_fit=fit_range,
+        )
+
+    p_vars = {
+        'Ps': 'Surface Pressure (hPa)',
+        'Psl': 'Sea Level Pressure (hPa)',
+    }
+    for v, lab in p_vars.items():
+        plot_cfg[v] = add_plot_cfg(
+            label_mean=lab,
+            label_trend='Trend (hPa / ' + fit_unit + ')',
+            cmap_mean=cmap_default_mean,
+            cmap_trend=cmap_trend_default,
+            extreme_mean=extreme_default_mean,
+            extreme_trend=extreme_trend_default,
+            label_plot=lab,
+            trend_unit='hPa / ' + fit_unit,
+            ylim_fit=fit_range,
+        )
+
+    q_vars = {
+        'Q': 'Specific Humidity (g/kg)',
+        'Q_era': 'Specific Humidity (g/kg)',
+        'Q_obs': 'Specific Humidity (g/kg)',
+    }
+    for v, lab in q_vars.items():
+        plot_cfg[v] = add_plot_cfg(
+            label_mean=lab,
+            label_trend='Trend (g/kg / ' + fit_unit + ')',
+            cmap_mean=cmap_default_mean,
+            cmap_trend=cmap_trend_default,
+            extreme_mean=extreme_default_mean,
+            extreme_trend=extreme_trend_default,
+            label_plot=lab,
+            trend_unit='g/kg / ' + fit_unit,
             ylim_fit=fit_range,
         )
 

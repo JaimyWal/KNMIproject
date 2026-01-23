@@ -340,6 +340,12 @@ def preprocess_netcdf(
             da = -1*da
         elif var_name in ['aclcov', 'aclcovH', 'aclcovM', 'aclcovL', 'clt', 'clh', 'clm', 'cll', 'hurs']:
             da = da*100
+        elif var_name == 'huss':
+            da = da*1e3
+            da.attrs['units'] = 'g/kg'
+        elif var_name == 'ps' or var_name == 'psl':
+            da = da / 100.0
+            da.attrs['units'] = 'hPa'
 
     if 'ERA5' in src:
         if var_name in ['t2m', 'tmax', 'tmin', 'd2m']:
@@ -357,6 +363,9 @@ def preprocess_netcdf(
         elif var_name in ['tclw', 'tciw']:
             da = da*1e3
             da.attrs['units'] = 'g/m2'
+        elif var_name == 'sp' or var_name == 'msl':
+            da = da / 100.0
+            da.attrs['units'] = 'hPa'
 
     # 5. determine spatial dims on the raw grid
     if 'rlat' in da.dims and 'rlon' in da.dims:

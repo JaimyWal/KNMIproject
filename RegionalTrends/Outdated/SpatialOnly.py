@@ -48,11 +48,11 @@ dask.config.set(scheduler='threads', num_workers=12)
 #%% User inputs
 
 # Main arguments
-n_runs = 3
-var = 'LWnetcs'
+n_runs = 4
+var = 'Tg'
 file_freq = 'Monthly' #
-data_base = ['ERA5_coarse', 'RACMO2.3', 'RACMO2.4_KEXT12'] #
-data_compare = None #
+data_base = ['ERA5_coarse', 'ERA5_coarse', 'Eobs_fine', 'Eobs_fine'] #
+data_compare = ['RACMO2.3', 'RACMO2.4_KEXT12', 'RACMO2.3', 'RACMO2.4_KEXT12'] #
 
 # data_base = ['ERA5_coarse', 'RACMO2.3', 'RACMO2.4_KEXT12', 'Eobs_fine'] #
 # data_compare = None #
@@ -61,7 +61,7 @@ data_compare = None #
 # data_compare = ['RACMO2.3', 'RACMO2.4_KEXT12', 'RACMO2.3', 'RACMO2.4_KEXT12'] #
 
 # Data selection arguments
-months = None #
+months = [6,7,8] #
 years = [1980, 2020] 
 lats = [37.7, 63.3]
 lons = [-13.3, 22.3]
@@ -70,12 +70,11 @@ land_only = False
 trim_border = None
 
 # Spatial plotting arguments
-avg_crange = [-1, 1]
-plot_climatology = False
+avg_crange = [-4, 4]
 proj_plot = 'RACMO2.4'
 plot_lats = [38, 63]
 plot_lons = [-13, 22]
-std_mask_ref = None #
+std_mask_ref = ['ERA5_coarse', 'ERA5_coarse', 'Eobs_fine', 'Eobs_fine'] #
 std_dir = 'Lesser' #
 switch_sign = False #
 cut_boundaries = False
@@ -83,7 +82,7 @@ cut_boundaries = False
 # std_mask_ref = ['ERA5_coarse', 'ERA5_coarse', 'Eobs_fine', 'Eobs_fine'] #
 
 # Trend plotting arguments
-trend_calc = True
+trend_calc = False
 trend_crange = [-1, 1]
 fit_against_gmst = False
 
@@ -96,7 +95,7 @@ corr_cmap_type = None
 # RMSE plotting arguments
 rmse_calc = False
 rmse_freq = 'Monthly' #
-rmse_crange = [0, 2]
+rmse_crange = [0, 20]
 
 # Area contour arguments
 lats_area = [50.7, 53.6]
@@ -404,18 +403,10 @@ for ii in range(n_runs):
 
                     n = valid.sum('fit_against')
 
-                    fits_xb = xb.polyfit(dim='fit_against', deg=1, skipna=True)
-                    trend_xb = xr.polyval(xb['fit_against'], fits_xb.polyfit_coefficients)
-                    resid_xb = xb - trend_xb
+                    sx = xb.std('fit_against')
+                    sy = yc.std('fit_against')
 
-                    fits_yc = yc.polyfit(dim='fit_against', deg=1, skipna=True)
-                    trend_yc = xr.polyval(yc['fit_against'], fits_yc.polyfit_coefficients)
-                    resid_yc = yc - trend_yc
-
-                    sx = resid_xb.std('fit_against')
-                    sy = resid_yc.std('fit_against')
-
-                    std_ref = np.sqrt(0.5*(sx**2 + sy**2))
+                    std_ref = np.sqrt(0.5 * (sx**2 + sy**2))
                     std_ref = std_ref.where(n >= 2)
 
                 elif std_mask_ref_list[ii] != 'Pool' and std_mask_ref_list[ii] is not None:
@@ -476,11 +467,7 @@ for ii in range(n_runs):
                     ref_std_reg = ref_std_reg.chunk({'fit_against': -1}).compute()
                     n_ref = np.isfinite(ref_std_reg).sum('fit_against')
 
-                    fits_ref = ref_std_reg.polyfit(dim='fit_against', deg=1, skipna=True)
-                    trend_ref = xr.polyval(ref_std_reg['fit_against'], fits_ref.polyfit_coefficients)
-                    resid_ref = ref_std_reg - trend_ref
-
-                    std_ref = resid_ref.std('fit_against')
+                    std_ref = ref_std_reg.std('fit_against')
                     std_ref = std_ref.where(n_ref >= 2)
 
                 if std_dir_list[ii] == 'Greater':
@@ -579,95 +566,93 @@ for ii in range(n_runs):
 
 #%% Plot climatology
 
-if plot_climatology:
+meshes = []
+data_avg_field = []
+x_tick_bool = [True]*n_runs    
+y_tick_bool = [False]*n_runs
+y_tick_bool[0] = True
 
-    meshes = []
-    data_avg_field = []
-    x_tick_bool = [True]*n_runs    
-    y_tick_bool = [False]*n_runs
-    y_tick_bool[0] = True
+fig, axes = plt.subplots(
+    1, n_runs,
+    figsize=(18, 5),
+    constrained_layout=True,
+    subplot_kw={'projection': proj_plot},
+    sharex=True,
+    sharey=True
+)
 
-    fig, axes = plt.subplots(
-        1, n_runs,
-        figsize=(18, 5),
-        constrained_layout=True,
-        subplot_kw={'projection': proj_plot},
-        sharex=True,
-        sharey=True
-    )
+axes = np.atleast_1d(axes).ravel()
 
-    axes = np.atleast_1d(axes).ravel()
+for ii, (ax, res) in enumerate(zip(axes, results)):
 
-    for ii, (ax, res) in enumerate(zip(axes, results)):
+    if data_base_list[ii] is not None:
 
-        if data_base_list[ii] is not None:
+        data_avg_field.append(res['data_avg_plot'])
 
-            data_avg_field.append(res['data_avg_plot'])
+        title = res['title']
 
-            title = res['title']
-
-            mesh, _ = plot_map(
-                fig, ax,
-                res['data_avg_plot'], 
-                res['longitude'], 
-                res['latitude'], 
-                crange=cfg_plot['crange_mean'], 
-                label=cfg_plot['label_mean'], 
-                cmap=cfg_plot['cmap_mean'], 
-                extreme_colors=cfg_plot['extreme_mean'],
-                c_ticks=10,
-                show_x_ticks=True,
-                show_y_ticks=True,
-                y_ticks_num=False,
-                y_ticks=5,
-                show_y_labels=y_tick_bool[ii],
-                x_ticks_num=False,
-                x_ticks=10,
-                show_x_labels=x_tick_bool[ii],
-                tick_size=20,
-                extent=[*plot_lons, *plot_lats],
-                proj=proj_plot,
-                rotated_grid=cut_boundaries,
-                title=title,
-                lats_area=area_contours[ii]['lats_area_cont'],
-                lons_area=area_contours[ii]['lons_area_cont'],
-                proj_area=area_contours[ii]['proj_area_cont'],
-                mask_area=area_contours[ii]['mask_area'],
-                lat_b_area=area_contours[ii]['lat_b_area'],
-                lon_b_area=area_contours[ii]['lon_b_area'],
-                show_plot=False,
-                add_colorbar=False
-            )
-
-            meshes.append(mesh)
-
-            if std_mask_ref_list[ii] is not None:
-                ax.contourf(
-                    res['longitude'], res['latitude'], res['mask_std'],
-                    levels=[0.5, 1.5],
-                    colors='none',
-                    hatches=['///'],
-                    transform=ccrs.PlateCarree(),
-                    zorder=50
-                )
-
-    cbar = shared_colorbar(
-            fig=fig,
-            axes=axes,
-            mesh=meshes[0],
-            datasets=data_avg_field,
-            crange=cfg_plot['crange_mean'],
-            label=cfg_plot['label_mean'],
-            orientation='horizontal',
+        mesh, _ = plot_map(
+            fig, ax,
+            res['data_avg_plot'], 
+            res['longitude'], 
+            res['latitude'], 
+            crange=cfg_plot['crange_mean'], 
+            label=cfg_plot['label_mean'], 
+            cmap=cfg_plot['cmap_mean'], 
+            extreme_colors=cfg_plot['extreme_mean'],
             c_ticks=10,
-            c_ticks_num=True,
-            tick_labelsize=26,
-            labelsize=32,
-            pad=0.1,
-            thickness=0.06
+            show_x_ticks=True,
+            show_y_ticks=True,
+            y_ticks_num=False,
+            y_ticks=5,
+            show_y_labels=y_tick_bool[ii],
+            x_ticks_num=False,
+            x_ticks=10,
+            show_x_labels=x_tick_bool[ii],
+            tick_size=20,
+            extent=[*plot_lons, *plot_lats],
+            proj=proj_plot,
+            rotated_grid=cut_boundaries,
+            title=title,
+            lats_area=area_contours[ii]['lats_area_cont'],
+            lons_area=area_contours[ii]['lons_area_cont'],
+            proj_area=area_contours[ii]['proj_area_cont'],
+            mask_area=area_contours[ii]['mask_area'],
+            lat_b_area=area_contours[ii]['lat_b_area'],
+            lon_b_area=area_contours[ii]['lon_b_area'],
+            show_plot=False,
+            add_colorbar=False
         )
 
-    plt.show()
+        meshes.append(mesh)
+
+        if std_mask_ref_list[ii] is not None:
+            ax.contourf(
+                res['longitude'], res['latitude'], res['mask_std'],
+                levels=[0.5, 1.5],
+                colors='none',
+                hatches=['///'],
+                transform=ccrs.PlateCarree(),
+                zorder=50
+            )
+
+cbar = shared_colorbar(
+        fig=fig,
+        axes=axes,
+        mesh=meshes[0],
+        datasets=data_avg_field,
+        crange=cfg_plot['crange_mean'],
+        label=cfg_plot['label_mean'],
+        orientation='horizontal',
+        c_ticks=10,
+        c_ticks_num=True,
+        tick_labelsize=26,
+        labelsize=32,
+        pad=0.1,
+        thickness=0.06
+    )
+
+plt.show()
 
 #%% Plot linear trends
 

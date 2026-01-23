@@ -6,6 +6,7 @@ request = {
     "variable": [
         "2m_temperature",
         "mean_sea_level_pressure",
+        "surface_pressure",
         "total_precipitation"
     ],
     "year": [
@@ -47,7 +48,7 @@ request = {
     ],
     "time": ["00:00"],
     "data_format": "netcdf",
-    "download_format": "unarchived",
+    "download_format": "zip",
     "area": [90, -180, -90, 180]
 }
 

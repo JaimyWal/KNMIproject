@@ -54,13 +54,13 @@ dask.config.set(scheduler='threads', num_workers=12)
 #%% User inputs
 
 # Main arguments
-var = 'Tg'
+var = 'Q_obs'
 file_freq = 'Monthly'
-data_base = None
-data_compare = None
+data_base = 'Eobs_fine'
+data_compare = 'RACMO2.4_KEXT12'
 
 # Data selection arguments
-months = [12, 1, 2]
+months = None
 years = [1980, 2020]
 lats = [37.7, 63.3]
 lons = [-13.3, 22.3]
@@ -69,19 +69,20 @@ land_only = False
 trim_border = None
 
 # Area selection arguments
-data_area = ['Eobs_fine', 'ERA5_coarse', 'RACMO2.4_KEXT12', 'RACMO2.3']
+data_area = ['Eobs_fine', 'RACMO2.4_KEXT12']
 stations = ['Bilt', 'Eelde', 'Maastricht', 'Vlissingen', 'Kooy']
+# select_grid = True
 lats_area = [50.7, 53.6]
 lons_area = [3.25, 7.35]
 land_only_area = True
 proj_area = 'RACMO2.4'
 
 # Spatial plotting arguments
-avg_crange = [-1, 1]
+avg_crange = [-2, 2]
 proj_plot = 'RACMO2.4'
 plot_lats = [38, 63]
 plot_lons = [-13, 22]
-std_mask_ref = None
+std_mask_ref = 'Eobs_fine'
 std_dir = 'Lesser'
 true_contour = True
 grid_contour = False
@@ -90,7 +91,7 @@ cut_boundaries = False
 
 # Trend plotting arguments
 trend_calc = False
-trend_crange = [-0.2, 0.2]
+trend_crange = [-1, 1]
 
 # Correlation plotting arguments
 corr_calc = False
@@ -105,7 +106,7 @@ rmse_crange = [0, 1]
 
 # Area plotting arguments
 fit_range = None
-plots_area = True
+plots_area = False
 crange_area = [-4, 4]
 lats_area_plot = [50.2, 54.1]
 lons_area_plot = [2.5, 8.1]
@@ -126,6 +127,9 @@ relative_precip = False
 # stations = ['Bilt', 'Eelde', 'Maastricht', 'Vlissingen', 'Kooy']
 # lats_area = [50.7, 53.6]
 # lons_area = [3.25, 7.35]
+
+# lats_area = [39, 43]
+# lons_area = [-8, 1]
 
 #%% Dataset configurations
 
@@ -316,7 +320,7 @@ if data_base is not None:
             elif rmse_freq == 'Monthly':
                 data_rmse_base = data_base_res['monthly']
                 data_rmse_comp = data_comp_res['monthly']
-            elif rmse_freq == 'Yearly':
+            elif rmse_freq == 'Yearly':  # Misschien hoort dit eigenlijk fit te zijn?
                 data_rmse_base = data_base_res['yearly']
                 data_rmse_comp = data_comp_res['yearly']
 
@@ -357,10 +361,18 @@ if data_base is not None:
 
                 n = valid.sum('fit_against')
 
-                sx = xb.std('fit_against')
-                sy = yc.std('fit_against')
+                fits_xb = xb.polyfit(dim='fit_against', deg=1, skipna=True)
+                trend_xb = xr.polyval(xb['fit_against'], fits_xb.polyfit_coefficients)
+                resid_xb = xb - trend_xb
 
-                std_ref = np.sqrt(0.5 * (sx**2 + sy**2))
+                fits_yc = yc.polyfit(dim='fit_against', deg=1, skipna=True)
+                trend_yc = xr.polyval(yc['fit_against'], fits_yc.polyfit_coefficients)
+                resid_yc = yc - trend_yc
+
+                sx = resid_xb.std('fit_against')
+                sy = resid_yc.std('fit_against')
+
+                std_ref = np.sqrt(0.5*(sx**2 + sy**2))
                 std_ref = std_ref.where(n >= 2)
 
             elif std_mask_ref != 'Pool' and std_mask_ref is not None:
@@ -416,7 +428,11 @@ if data_base is not None:
                 ref_std_reg = ref_std_reg.chunk({'fit_against': -1}).compute()
                 n_ref = np.isfinite(ref_std_reg).sum('fit_against')
 
-                std_ref = ref_std_reg.std('fit_against')
+                fits_ref = ref_std_reg.polyfit(dim='fit_against', deg=1, skipna=True)
+                trend_ref = xr.polyval(ref_std_reg['fit_against'], fits_ref.polyfit_coefficients)
+                resid_ref = ref_std_reg - trend_ref
+
+                std_ref = resid_ref.std('fit_against')
                 std_ref = std_ref.where(n_ref >= 2)
 
             if std_dir == 'Greater':
@@ -702,6 +718,23 @@ if data_area_all is not None:
         monthly_raw = area_weighted_mean(data_res['monthly'], weights=weights)
         yearly_raw = area_weighted_mean(data_res['fit'], weights=weights)
 
+        # # Determine spatial dims
+        # if 'rlat' in data_res['avg'].dims and 'rlon' in data_res['avg'].dims:
+        #     spatial_dims = ['rlat', 'rlon']
+        # elif 'latitude' in data_res['avg'].dims and 'longitude' in data_res['avg'].dims:
+        #     spatial_dims = ['latitude', 'longitude']
+        # else:
+        #     spatial_dims = None  # No spatial dims (single grid cell or station)
+
+        # if spatial_dims is not None:
+        #     data_area_avg[src] = data_res['avg'].mean(dim=spatial_dims)
+        #     monthly_raw = data_res['monthly'].mean(dim=spatial_dims)
+        #     yearly_raw = data_res['fit'].mean(dim=spatial_dims)
+        # else:
+        #     data_area_avg[src] = data_res['avg']
+        #     monthly_raw = data_res['monthly']
+        #     yearly_raw = data_res['fit']
+
         if var == 'P' and relative_precip:
             data_area_monthly[src] = 100*monthly_raw / data_area_avg[src]
             data_area_fit[src] = 100*yearly_raw / data_area_avg[src]
@@ -750,6 +783,8 @@ if data_area_sources is not None:
 
         X = sm.add_constant(x_clean)
 
+        # lags = np.ceil(len(x_clean)**(1/4)).astype(int)
+        # model = sm.OLS(y_clean, X).fit(cov_type='HAC', cov_kwds={'maxlags':3})
         model = sm.OLS(y_clean, X).fit()
 
         slope = model.params[1]
