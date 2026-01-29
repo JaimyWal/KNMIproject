@@ -74,6 +74,7 @@ def process_source(
     data = load_var(var=var, **load_args)
 
     use_max = (var == 'Tmaxmax')
+    use_min = (var == 'Tminmin')
 
     # If only raw requested, return early
     want_raw = 'raw' in return_items
@@ -108,6 +109,8 @@ def process_source(
     if want_monthly:
         if use_max:
             data_monthly = data.resample(time='MS').max('time')
+        elif use_min:
+            data_monthly = data.resample(time='MS').min('time')
         else:
             data_monthly = data.resample(time='MS').mean('time')
 
@@ -131,6 +134,8 @@ def process_source(
     if want_yearly:
         if use_max:
             data_year = data_monthly.groupby('clim_year').max('time')
+        elif use_min:
+            data_year = data_monthly.groupby('clim_year').min('time')
         else:
             data_year = data_monthly.groupby('clim_year').mean('time')
 

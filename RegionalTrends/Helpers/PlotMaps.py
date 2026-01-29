@@ -49,6 +49,7 @@ def plot_map(fig, ax, data, lon, lat,
              x_ticks_num=True,
              show_y_ticks=True,
              show_y_labels=True,
+             y_labels_side='left',
              y_ticks=5,
              y_ticks_num=True,
              extreme_colors=False,
@@ -254,24 +255,45 @@ def plot_map(fig, ax, data, lon, lat,
 
         if show_y_labels and show_y_ticks and yticks is not None:
             for y in yticks:
-                lons = np.array([lon_min, lon_min + dlon])
-                lats = np.array([y, y])
-                pts = proj.transform_points(ccrs.PlateCarree(), lons, lats)
-                dx = pts[1, 0] - pts[0, 0]
-                dy = pts[1, 1] - pts[0, 1]
-                angle = np.degrees(np.arctan2(dy, dx))
+                # Determine which side to place labels
+                if y_labels_side == 'right':
+                    lons = np.array([lon_max - dlon, lon_max])
+                    lats = np.array([y, y])
+                    pts = proj.transform_points(ccrs.PlateCarree(), lons, lats)
+                    dx = pts[1, 0] - pts[0, 0]
+                    dy = pts[1, 1] - pts[0, 1]
+                    angle = np.degrees(np.arctan2(dy, dx))
+                    
+                    ax.text(
+                        lon_max + x_pad, y,
+                        _fmt_lat(y),
+                        transform=ccrs.PlateCarree(),
+                        fontsize=tick_size,
+                        ha='left',
+                        va='center',
+                        rotation=angle,
+                        rotation_mode='anchor',
+                        clip_on=False
+                    )
+                else:  # left side (default)
+                    lons = np.array([lon_min, lon_min + dlon])
+                    lats = np.array([y, y])
+                    pts = proj.transform_points(ccrs.PlateCarree(), lons, lats)
+                    dx = pts[1, 0] - pts[0, 0]
+                    dy = pts[1, 1] - pts[0, 1]
+                    angle = np.degrees(np.arctan2(dy, dx))
 
-                ax.text(
-                    lon_min - x_pad, y,
-                    _fmt_lat(y),
-                    transform=ccrs.PlateCarree(),
-                    fontsize=tick_size,
-                    ha='right',
-                    va='center',
-                    rotation=angle,
-                    rotation_mode='anchor',
-                    clip_on=False
-                )
+                    ax.text(
+                        lon_min - x_pad, y,
+                        _fmt_lat(y),
+                        transform=ccrs.PlateCarree(),
+                        fontsize=tick_size,
+                        ha='right',
+                        va='center',
+                        rotation=angle,
+                        rotation_mode='anchor',
+                        clip_on=False
+                    )
 
         ax.xaxis.set_visible(False)
         ax.yaxis.set_visible(False)
@@ -288,7 +310,7 @@ def plot_map(fig, ax, data, lon, lat,
                 ax.set_yticks(yticks, crs=ccrs.PlateCarree())
             else:
                 ax.set_yticks(yticks, crs=ccrs.PlateCarree())
-                ax.tick_params(labelleft=False)
+                ax.tick_params(labelleft=False, labelright=False)
 
             if show_x_labels:
                 ax.xaxis.set_major_formatter(
@@ -301,8 +323,13 @@ def plot_map(fig, ax, data, lon, lat,
                 ax.yaxis.set_major_formatter(
                     LatitudeFormatter(number_format='.0f', degree_symbol='°')
                 )
+                if y_labels_side == 'right':
+                    ax.tick_params(labelleft=False, labelright=True)
+                    ax.yaxis.set_label_position('right')
+                else:
+                    ax.tick_params(labelleft=True, labelright=False)
             else:
-                ax.tick_params(labelleft=False)
+                ax.tick_params(labelleft=False, labelright=False)
 
             ax.tick_params(labelsize=tick_size, length=10)
 
@@ -314,8 +341,12 @@ def plot_map(fig, ax, data, lon, lat,
 
             gl.bottom_labels = show_x_labels
             gl.top_labels = False
-            gl.left_labels = show_y_labels
-            gl.right_labels = False
+            if y_labels_side == 'right':
+                gl.left_labels = False
+                gl.right_labels = show_y_labels
+            else:
+                gl.left_labels = show_y_labels
+                gl.right_labels = False
 
             ax.xaxis.set_visible(False)
             ax.yaxis.set_visible(False)
@@ -462,15 +493,36 @@ def shared_colorbar(
     crange,
     label,
     orientation='horizontal',
+    position='auto',
     c_ticks=10,
     c_ticks_num=True,
     tick_labelsize=24,
     labelsize=30,
     pad=0.02,
-    thickness=0.03
+    thickness=0.03,
+    label_pad=10,
+    extendfrac=0.04,
+    length_scale=1.0
 ):
 
     extension = cbar_extension(datasets, crange)
+
+    # Calculate length adjustment to keep color range portion consistent
+    # When extensions are present, we need to make the total colorbar longer
+    # so that the actual color range part stays the same length
+    if extendfrac != 'auto' and extendfrac is not None:
+        ext_frac = float(extendfrac)
+        if extension == 'both':
+            # Two extensions: total length = color_range / (1 - 2*ext_frac)
+            length_adjustment = 1.0 / (1.0 - 2.0 * ext_frac)
+        elif extension in ('min', 'max'):
+            # One extension: total length = color_range / (1 - ext_frac)
+            length_adjustment = 1.0 / (1.0 - ext_frac)
+        else:
+            length_adjustment = 1.0
+    else:
+        ext_frac = 0.0
+        length_adjustment = 1.0
 
     fig.canvas.draw()
     axes = np.atleast_1d(axes)
@@ -478,10 +530,31 @@ def shared_colorbar(
 
     if orientation == 'vertical':
         bottom = min(p.y0 for p in positions)
-        top    = max(p.y1 for p in positions)
-        height = top - bottom
+        top = max(p.y1 for p in positions)
+        base_height = (top - bottom) * length_scale
+        height = base_height * length_adjustment
+        # Center the MAIN BODY (not including extensions)
+        center = (top + bottom) / 2
+        bottom = center - base_height / 2
+        
+        # Adjust position so main body is centered, extensions stick out
+        if extension == 'min':
+            # Extension at bottom, shift down so main body stays centered
+            ext_size = height * ext_frac
+            bottom = bottom - ext_size
+        elif extension == 'max':
+            # Extension at top, no shift needed (main body already at correct position)
+            pass
+        elif extension == 'both':
+            # Extensions on both sides, shift down by one extension size
+            ext_size = height * ext_frac
+            bottom = bottom - ext_size
 
-        left = max(p.x1 for p in positions) + pad
+        # Determine left/right position
+        if position == 'left':
+            left = min(p.x0 for p in positions) - pad - thickness
+        else:  # 'right' or 'auto'
+            left = max(p.x1 for p in positions) + pad
         width = thickness
 
         ax_cb = fig.add_axes([left, bottom, width, height])
@@ -491,7 +564,8 @@ def shared_colorbar(
             mesh,
             cax=ax_cb,
             orientation='vertical',
-            extend=extension
+            extend=extension,
+            extendfrac=extendfrac
         )
 
         cbar.ax.tick_params(
@@ -501,16 +575,46 @@ def shared_colorbar(
             left=True,
             right=True
         )
+        
+        # Disable minor ticks
+        cbar.ax.minorticks_off()
 
-        if c_ticks_num:
+        # Handle tick placement
+        if c_ticks == 3:
+            # Show only min, center, max
+            cbar.set_ticks([crange[0], (crange[0] + crange[1]) / 2, crange[1]])
+        elif c_ticks_num:
             cbar.ax.yaxis.set_major_locator(ticker.MaxNLocator(nbins=c_ticks))
         else:
             cbar.ax.yaxis.set_major_locator(MultipleLocator(c_ticks))
+        
+        # Position ticks and label on correct side for left placement
+        if position == 'left':
+            cbar.ax.yaxis.set_ticks_position('left')
+            cbar.ax.yaxis.set_label_position('left')
 
     else:
         left  = min(p.x0 for p in positions)
         right = max(p.x1 for p in positions)
-        width = right - left
+        full_width = right - left
+        base_width = full_width * length_scale
+        width = base_width * length_adjustment
+        # Center the MAIN BODY (not including extensions)
+        center = (left + right) / 2
+        left = center - base_width / 2
+        
+        # Adjust position so main body is centered, extensions stick out
+        if extension == 'min':
+            # Extension on left, shift left so main body stays centered
+            ext_size = width * ext_frac
+            left = left - ext_size
+        elif extension == 'max':
+            # Extension on right, no shift needed (main body already at correct position)
+            pass
+        elif extension == 'both':
+            # Extensions on both sides, shift left by one extension size
+            ext_size = width * ext_frac
+            left = left - ext_size
 
         bottom = min(p.y0 for p in positions) - (pad + thickness)
         height = thickness
@@ -523,7 +627,8 @@ def shared_colorbar(
             cax=ax_cb,
             orientation='horizontal',
             extend=extension,
-            location='bottom'
+            location='bottom',
+            extendfrac=extendfrac
         )
 
         cbar.ax.tick_params(
@@ -533,11 +638,97 @@ def shared_colorbar(
             top=True,
             bottom=True
         )
+        
+        # Disable minor ticks
+        cbar.ax.minorticks_off()
 
-        if c_ticks_num:
+        # Handle tick placement
+        if c_ticks == 3:
+            # Show only min, center, max
+            cbar.set_ticks([crange[0], (crange[0] + crange[1]) / 2, crange[1]])
+        elif c_ticks_num:
             cbar.ax.xaxis.set_major_locator(ticker.MaxNLocator(nbins=c_ticks))
         else:
             cbar.ax.xaxis.set_major_locator(MultipleLocator(c_ticks))
 
-    cbar.set_label(label, fontsize=labelsize, labelpad=10)
+    cbar.set_label(label, fontsize=labelsize, labelpad=label_pad)
     return cbar
+
+
+def add_shared_cbar_label(
+    fig,
+    cbar_axes,
+    label,
+    orientation='horizontal',
+    fontsize=30,
+    pad=0.02
+):
+    
+    fig.canvas.draw()
+    
+    cbar_axes = np.atleast_1d(cbar_axes)
+    
+    # Get the renderer for measuring text extents
+    renderer = fig.canvas.get_renderer()
+    
+    if orientation == 'horizontal':
+        # Label goes below all colorbars
+        # Need to find the bottom-most extent including tick labels
+        min_bottom = 1.0  # Start at top of figure
+        left_extent = 1.0
+        right_extent = 0.0
+        
+        for ax in cbar_axes:
+            # Get colorbar position
+            pos = ax.get_position()
+            left_extent = min(left_extent, pos.x0)
+            right_extent = max(right_extent, pos.x1)
+            
+            # Get tick label extents
+            for tick_label in ax.get_xticklabels():
+                bbox = tick_label.get_window_extent(renderer=renderer)
+                # Convert to figure coordinates
+                bbox_fig = bbox.transformed(fig.transFigure.inverted())
+                min_bottom = min(min_bottom, bbox_fig.y0)
+        
+        center_x = (left_extent + right_extent) / 2
+        label_y = min_bottom - pad
+        
+        fig.text(
+            center_x, label_y, label,
+            ha='center', va='top',
+            fontsize=fontsize,
+            transform=fig.transFigure
+        )
+    else:
+        # Vertical colorbars - label goes to the RIGHT of all colorbars, rotated 90 degrees
+        # Find the rightmost extent including tick labels
+        max_right = 0.0
+        bottom_extent = 1.0
+        top_extent = 0.0
+        
+        for ax in cbar_axes:
+            pos = ax.get_position()
+            bottom_extent = min(bottom_extent, pos.y0)
+            top_extent = max(top_extent, pos.y1)
+            
+            # Get tick label extents (for vertical colorbars, these are on y-axis)
+            for tick_label in ax.get_yticklabels():
+                bbox = tick_label.get_window_extent(renderer=renderer)
+                bbox_fig = bbox.transformed(fig.transFigure.inverted())
+                max_right = max(max_right, bbox_fig.x1)
+            
+            # Also check the colorbar right edge
+            max_right = max(max_right, pos.x1)
+        
+        # Place label to the right of the rightmost colorbar tick labels, centered vertically
+        center_y = (bottom_extent + top_extent) / 2
+        label_x = max_right + pad
+        
+        fig.text(
+            label_x, center_y, label,
+            ha='left', va='center',
+            rotation=90,
+            fontsize=fontsize,
+            transform=fig.transFigure
+        )

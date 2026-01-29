@@ -38,8 +38,7 @@ reload(Constants)
 
 import RegionalTrends.Helpers.Config.Plotting as Plotting
 reload(Plotting)
-from RegionalTrends.Helpers.Config.Plotting import build_corr_cmap, build_plot_cfg,\
-      plot_args, fit_settings
+from RegionalTrends.Helpers.Config.Plotting import build_corr_cmap, convert_cmap
 
 
 plt.rcParams['axes.unicode_minus'] = False
@@ -49,9 +48,9 @@ dask.config.set(scheduler='threads', num_workers=12)
 
 # Main arguments
 n_runs = 3
-var = 'LWnetcs'
+var = 'Tg' #
 file_freq = 'Monthly' #
-data_base = ['ERA5_coarse', 'RACMO2.3', 'RACMO2.4_KEXT12'] #
+data_base = ['ERA5_coarse', 'Eobs_fine', 'RACMO2.4_KEXT12'] #
 data_compare = None #
 
 # data_base = ['ERA5_coarse', 'RACMO2.3', 'RACMO2.4_KEXT12', 'Eobs_fine'] #
@@ -62,7 +61,7 @@ data_compare = None #
 
 # Data selection arguments
 months = None #
-years = [1980, 2020] 
+years = [1974, 2024] 
 lats = [37.7, 63.3]
 lons = [-13.3, 22.3]
 proj_sel = 'RACMO2.4'
@@ -70,15 +69,18 @@ land_only = False
 trim_border = None
 
 # Spatial plotting arguments
-avg_crange = [-1, 1]
-plot_climatology = False
+avg_crange = [0, 20]
+plot_climatology = True
 proj_plot = 'RACMO2.4'
 plot_lats = [38, 63]
 plot_lons = [-13, 22]
-std_mask_ref = None #
+std_mask_ref = data_base #
 std_dir = 'Lesser' #
 switch_sign = False #
 cut_boundaries = False
+cmap_type = None
+n_disc_colors = 20 
+fixed_aspect = True
 
 # std_mask_ref = ['ERA5_coarse', 'ERA5_coarse', 'Eobs_fine', 'Eobs_fine'] #
 
@@ -120,23 +122,57 @@ relative_precip = False
 
 data_sources = Constants.DATA_SOURCES
 station_sources = Constants.STATION_SOURCES
-var_name_cfg = Constants.VAR_NAME_CFG
 station_coord_cfg = Constants.STATION_COORD_CFG
+var_file_cfg = Constants.VAR_FILE_CFG
+var_name_cfg = Constants.VAR_NAME_CFG
+var_units_cfg = Constants.VAR_UNIT_CFG
+var_symbol_cfg = Constants.VAR_SYMBOL_CFG
 proj_cfg = Constants.PROJ_CFG
-units_cfg = Constants.VAR_UNIT_CFG
-names_cfg = Constants.VAR_PHYS_CFG
+var_colors_cfg = Plotting.VAR_COLORS_CFG
 
-fit_unit, fit_scaling, fit_x_label = fit_settings(fit_against_gmst)
+if fit_against_gmst:
+    fit_unit = '°C GMST'
+    fit_scaling = 1
+    fit_x_label = r'$\Delta$GMST (°C)'
+else:
+    fit_unit = 'decade'
+    fit_scaling = 10
+    fit_x_label = 'Year'
 
-plot_cfg = build_plot_cfg(
-    avg_crange, 
-    trend_crange,
-    fit_unit,
-    None,
-    relative_precip=relative_precip
+if var == 'P' and relative_precip:
+    label_unit = '% / ' + fit_unit
+elif var_units_cfg[var] == '':
+    label_unit = 'per' + fit_unit
+else:
+    label_unit = var_units_cfg[var] + ' / ' + fit_unit
+
+avg_label = var_symbol_cfg[var] + ' (' + var_units_cfg[var] + ')'
+avg_cmap_key = 'cmap_mean'
+avg_ext_key = 'extreme_mean'
+if data_compare is not None:
+    avg_label = r'$\Delta$' + avg_label
+    avg_cmap_key = 'cmap_trend'
+    avg_ext_key = 'extreme_trend'
+
+if not var_colors_cfg.get(var):
+    var_colors_cfg[var] = var_colors_cfg['Default']
+elif not var_colors_cfg[var].get('cmap_trend'):
+    var_colors_cfg[var]['cmap_trend'] = var_colors_cfg['Default']['cmap_trend']
+    var_colors_cfg[var]['extreme_trend'] = var_colors_cfg['Default']['extreme_trend']
+
+var_colors_cfg[var]['cmap_mean'] = convert_cmap(
+    var_colors_cfg[var]['cmap_mean'], cmap_type, n_disc_colors
 )
-
-cfg_plot = plot_args(plot_cfg, var, data_compare)
+var_colors_cfg[var]['cmap_trend'] = convert_cmap(
+    var_colors_cfg[var]['cmap_trend'], cmap_type, n_disc_colors
+)
+rmse_cmap = convert_cmap(
+    cmocean.cm.amp, cmap_type, n_disc_colors
+)
+corr_meta = build_corr_cmap(corr_cmap_type)
+corr_cmap = convert_cmap(
+    corr_meta['corr_cmap'], cmap_type, n_disc_colors
+)
 
 proj_sel = proj_cfg.get(proj_sel, ccrs.PlateCarree())
 proj_plot = proj_cfg.get(proj_plot, ccrs.PlateCarree())
@@ -189,7 +225,7 @@ for ii in range(n_runs):
                 data_sources,
                 station_sources,
                 freq_file_list[ii],
-                var_name_cfg,
+                var_file_cfg,
                 proj_cfg,
                 months=months_list[ii],
                 years=years,
@@ -209,7 +245,7 @@ for ii in range(n_runs):
 
             title = next(key for key in data_sources if key in data_base_list[ii])
 
-            data_avg_plot = data_base_res['avg']
+            data_avg_plot = data_base_res['avg'].compute()
 
             if trend_calc:
                 fits_base = data_base_res['fit'].polyfit(dim='fit_against', deg=1, skipna=True)
@@ -217,10 +253,13 @@ for ii in range(n_runs):
                 trend_base = (slope_base*fit_scaling).astype('float32').compute()
 
                 if relative_precip and var == 'P':
-                    trend_plot_base = (trend_base / data_base_res['avg'])*100.0
+                    trend_plot_base = (trend_base / data_avg_plot)*100.0
                 else:
                     trend_plot_base = trend_base
-                trend_plot = trend_plot_base
+                trend_plot = trend_plot_base.assign_coords(
+                    latitude=data_avg_plot['latitude'],
+                    longitude=data_avg_plot['longitude']
+                )
 
         elif data_compare_list[ii] is not None:
 
@@ -234,7 +273,7 @@ for ii in range(n_runs):
                     data_sources,
                     station_sources,
                     freq_file_list[ii],
-                    var_name_cfg,
+                    var_file_cfg,
                     proj_cfg, 
                     months=months_list[ii],
                     years=years,
@@ -297,7 +336,7 @@ for ii in range(n_runs):
                 data_fit_comp_reg = regridder(
                     data_comp_res['fit'],
                     output_chunks=target_chunks
-                ).astype('float32')
+                ).astype('float32').compute()
 
             if trend_calc:
                 fits_base = data_base_res['fit'].polyfit(dim='fit_against', deg=1, skipna=True)
@@ -315,7 +354,12 @@ for ii in range(n_runs):
                     trend_plot_base = trend_base
                     trend_plot_comp = trend_comp
 
+                
                 trend_plot = minus_scaling*(trend_plot_comp - trend_plot_base).compute()
+                trend_plot = trend_plot.assign_coords(
+                        latitude=data_base_res['avg']['latitude'],
+                        longitude=data_base_res['avg']['longitude']
+                    ).astype('float32')
 
             if corr_calc:
 
@@ -435,7 +479,7 @@ for ii in range(n_runs):
                                 data_sources,
                                 station_sources,
                                 freq_file_list[ii],
-                                var_name_cfg,
+                                var_file_cfg,
                                 proj_cfg, 
                                 months=months_list[ii],
                                 years=years,
@@ -488,15 +532,6 @@ for ii in range(n_runs):
                 elif std_dir_list[ii] == 'Lesser':
                     mask_std = (np.abs(data_avg_plot) < std_ref).fillna(False).astype('int8')
 
-        if trend_calc:
-            trend_plot = trend_plot.assign_coords(
-                            latitude=data_base_res['avg']['latitude'],
-                            longitude=data_base_res['avg']['longitude']
-                        ).astype('float32')
-
-        lat_plot = data_avg_plot['latitude'].values
-        lon_plot = data_avg_plot['longitude'].values
-
         title = title.replace('Eobs', 'E-OBS')
 
         results.append({
@@ -504,9 +539,7 @@ for ii in range(n_runs):
             'trend_plot': trend_plot if trend_calc else None,
             'corr_plot': corr_plot if (data_compare_list[ii] is not None and corr_calc) else None,
             'rmse_plot': rmse_plot if (data_compare_list[ii] is not None and rmse_calc) else None,
-            'mask_std': mask_std if std_mask_ref_list[ii] is not None else None,
-            'latitude': lat_plot,
-            'longitude': lon_plot,
+            'mask_std': mask_std if (std_mask_ref_list[ii] is not None and data_compare_list[ii] is not None) else None,
             'title': title
         })
 
@@ -609,12 +642,12 @@ if plot_climatology:
             mesh, _ = plot_map(
                 fig, ax,
                 res['data_avg_plot'], 
-                res['longitude'], 
-                res['latitude'], 
-                crange=cfg_plot['crange_mean'], 
-                label=cfg_plot['label_mean'], 
-                cmap=cfg_plot['cmap_mean'], 
-                extreme_colors=cfg_plot['extreme_mean'],
+                res['data_avg_plot'].longitude.values, 
+                res['data_avg_plot'].latitude.values, 
+                crange=avg_crange, 
+                label=avg_label, 
+                cmap=var_colors_cfg[var][avg_cmap_key], 
+                extreme_colors=var_colors_cfg[var][avg_ext_key],
                 c_ticks=10,
                 show_x_ticks=True,
                 show_y_ticks=True,
@@ -641,9 +674,10 @@ if plot_climatology:
 
             meshes.append(mesh)
 
-            if std_mask_ref_list[ii] is not None:
+            if std_mask_ref_list[ii] is not None and data_compare_list[ii] is not None:
                 ax.contourf(
-                    res['longitude'], res['latitude'], res['mask_std'],
+                    res['data_avg_plot'].longitude.values, res['data_avg_plot'].latitude.values, 
+                    res['mask_std'],
                     levels=[0.5, 1.5],
                     colors='none',
                     hatches=['///'],
@@ -656,8 +690,8 @@ if plot_climatology:
             axes=axes,
             mesh=meshes[0],
             datasets=data_avg_field,
-            crange=cfg_plot['crange_mean'],
-            label=cfg_plot['label_mean'],
+            crange=avg_crange,
+            label=avg_label,
             orientation='horizontal',
             c_ticks=10,
             c_ticks_num=True,
@@ -700,12 +734,12 @@ if trend_calc:
             mesh, _ = plot_map(
                 fig, ax,
                 res['trend_plot'], 
-                res['longitude'], 
-                res['latitude'], 
-                crange=cfg_plot['crange_trend'], 
-                label=cfg_plot['label_trend'], 
-                cmap=cfg_plot['cmap_trend'], 
-                extreme_colors=cfg_plot['extreme_trend'],
+                res['trend_plot'].longitude.values, 
+                res['trend_plot'].latitude.values,
+                crange=trend_crange, 
+                label=var_symbol_cfg[var] + ' trend (' + label_unit + ')', 
+                cmap=var_colors_cfg[var]['cmap_trend'], 
+                extreme_colors=var_colors_cfg[var]['extreme_trend'],
                 c_ticks=10,
                 show_x_ticks=True,
                 show_y_ticks=True,
@@ -737,8 +771,8 @@ if trend_calc:
         axes=axes,
         mesh=meshes[0],
         datasets=data_trend_field,
-        crange=cfg_plot['crange_trend'],
-        label=cfg_plot['label_trend'],
+        crange=trend_crange,
+        label=var_symbol_cfg[var] + ' trend (' + label_unit + ')',
         orientation='horizontal',
         c_ticks=10,
         c_ticks_num=True,
@@ -753,10 +787,6 @@ if trend_calc:
 #%% Plot correlation map
 
 if corr_calc:
-
-    corr_meta = build_corr_cmap(corr_cmap_type)
-    corr_cmap = corr_meta['corr_cmap']
-    corr_extreme = corr_meta['corr_extreme']
 
     meshes = []
     data_corr_field = []
@@ -785,12 +815,12 @@ if corr_calc:
             mesh, _ = plot_map(
                 fig, ax,
                 res['corr_plot'], 
-                res['longitude'], 
-                res['latitude'], 
+                res['corr_plot'].longitude.values, 
+                res['corr_plot'].latitude.values,
                 crange=corr_crange, 
-                label=names_cfg[var] + ' Correlation', 
+                label=var_symbol_cfg[var] + ' correlation', 
                 cmap=corr_cmap, 
-                extreme_colors=corr_extreme,
+                extreme_colors=corr_meta['extreme_colors'],
                 c_ticks=10,
                 show_x_ticks=True,
                 show_y_ticks=True,
@@ -823,7 +853,7 @@ if corr_calc:
         mesh=meshes[0],
         datasets=data_corr_field,
         crange=corr_crange,
-        label=names_cfg[var] + ' Correlation',
+        label=var_symbol_cfg[var] + ' correlation',
         orientation='horizontal',
         c_ticks=10,
         c_ticks_num=True,
@@ -866,10 +896,10 @@ if rmse_calc:
             mesh, _ = plot_map(
                 fig, ax,
                 res['rmse_plot'], 
-                res['longitude'], 
-                res['latitude'], 
+                res['rmse_plot'].longitude.values, 
+                res['rmse_plot'].latitude.values,
                 crange=rmse_crange, 
-                label=names_cfg[var] + ' RMSE (' + units_cfg[var] + ')', 
+                label=var_symbol_cfg[var] + ' RMSE (' + var_units_cfg[var] + ')', 
                 cmap=cmocean.cm.amp, 
                 extreme_colors=[None, "#24050a"],
                 c_ticks=10,
@@ -904,7 +934,7 @@ if rmse_calc:
         mesh=meshes[0],
         datasets=data_rmse_field,
         crange=rmse_crange,
-        label=names_cfg[var] + ' RMSE (' + units_cfg[var] + ')',
+        label=var_symbol_cfg[var] + ' RMSE (' + var_units_cfg[var] + ')',
         orientation='horizontal',
         c_ticks=10,
         c_ticks_num=True,
@@ -917,8 +947,3 @@ if rmse_calc:
     plt.show()
 
 #%%
-
-
-# Gedaan:
-# Look at a way to reduce repeating computations!!! So maybe by storing 
-# results in dictionaries (including their settings)

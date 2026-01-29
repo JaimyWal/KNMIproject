@@ -40,10 +40,10 @@ var = 'UG'
 stations = ['Bilt', 'Eelde', 'Maastricht', 'Vlissingen', 'Kooy']
 
 # Applied to NaN counts + trend calculation. Use `None` for full year.
-months = [12, 1, 2]
+months = None
 
 # Either [start_year, end_year] or a list of explicit years.
-years = [1980, 2024]
+years = [1974, 2024]
 
 #%%
 

@@ -6,9 +6,9 @@ import os
 DATA_SOURCES = ['Eobs', 'ERA5', 'RACMO2.3', 'RACMO2.4']
 STATION_SOURCES = ['Bilt', 'Cabauw', 'Eelde', 'Maastricht', 'Vlissingen', 'Kooy']
 
-VAR_NAME_CFG = {
+VAR_FILE_CFG = {
     'Eobs': {'Tg': 'tg', 'P': 'rr', 'SWin': 'qq', 'Tmax': 'tx', 'Tmin': 'tn', 
-             'RH': 'hu', 'Psl': 'pp'},
+             'RH': 'hu', 'Psl': 'pp', 'Tmaxmax': 'tx', 'Tminmin': 'tn'},
     'ERA5': {
         'Tg': 't2m', 'P': 'tp', 'Tmax': 'tmax', 'Tmin': 'tmin', 'Tdew': 'd2m',
         'SWin': 'avg_sdswrf', 'SWnet': 'avg_snswrf', 'SWincs': 'avg_sdswrfcs', 'SWnetcs': 'avg_snswrfcs',
@@ -16,7 +16,7 @@ VAR_NAME_CFG = {
         'SHF': 'avg_ishf', 'LHF': 'avg_slhtf',
         'CloudLow': 'lcc', 'CloudMid': 'mcc', 'CloudHigh': 'hcc', 'CloudTotal': 'tcc',
         'LWP': 'tclw', 'IWP': 'tciw',
-        'Ps': 'sp', 'Psl': 'msl',
+        'Ps': 'sp', 'Psl': 'msl', 'Tmaxmax': 'tmax', 'Tminmin': 'tmin',
     },
     'RACMO2.3': {
         'Tg': 't2m', 'P': 'precip', 'Sq': 'sund',
@@ -33,10 +33,10 @@ VAR_NAME_CFG = {
         'SHF': 'hfss', 'LHF': 'hfls',
         'CloudLow': 'cll', 'CloudMid': 'clm', 'CloudHigh': 'clh', 'CloudTotal': 'clt',
         'LWP': 'clwvi', 'IWP': 'clivi',
-        'Ps': 'ps', 'Psl': 'psl', 'Q': 'huss',
+        'Ps': 'ps', 'Psl': 'psl', 'Q': 'huss', 'Tmaxmax': 'tasmax', 'Tminmin': 'tasmin',
     },
     'Station': {'Tg': 'TG', 'P': 'RH', 'Sq': 'SQ', 'SWin': 'Q', 'Tmax': 'TX', 'Tmin': 'TN', 
-                'RH': 'UG', 'Psl': 'PG'},
+                'RH': 'UG', 'Psl': 'PG', 'Tmaxmax': 'TX', 'Tminmin': 'TN'},
 }
 
 STATION_COORD_CFG = {
@@ -48,48 +48,50 @@ STATION_COORD_CFG = {
     'Kooy': {'latitude': 52.924172463538795, 'longitude': 4.779336630180403},
 }
 
-LABEL_PLOT_CFG = {
-    'Tg': 'Temperature (°C)',
-    'Tmax': 'Max Temperature (°C)',
-    'Tmin': 'Min Temperature (°C)',
-    'RH': 'Relative Humidity (%)',
-    'Tdew': 'Dew Point Temperature (°C)',
-    'P': 'Precipitation (mm)',
-    'Sq': 'Sund. (hours/day)',
-    'SWin': r'SW$_{\text{in}}$ (W/m$^2$)',
-    'SWnet': r'SW$_{\text{net}}$ (W/m$^2$)',
-    'SWincs': r'SW$_{\text{in,cs}}$ (W/m$^2$)',
-    'SWnetcs': r'SW$_{\text{net,cs}}$ (W/m$^2$)',
-    'LWin': r'LW$_{\text{in}}$ (W/m$^2$)',
-    'LWincs': r'LW$_{\text{in,cs}}$ (W/m$^2$)',
-    'LWnet': r'LW$_{\text{net}}$ (W/m$^2$)',
-    'LWnetcs': r'LW$_{\text{net,cs}}$ (W/m$^2$)',
-    'SHF': r'SHF (W/m$^2$)',
-    'LHF': r'LHF (W/m$^2$)',
-    'CloudLow': 'Low cloud (%)',
-    'CloudMid': 'Mid cloud (%)',
-    'CloudHigh': 'High cloud (%)',
-    'CloudTotal': 'Total cloud (%)',
-    'LWP': r'LWP (g/m$^2$)',
-    'IWP': r'IWP (g/m$^2$)',
-    'Ps': 'Surface Pressure (hPa)',
-    'Psl': 'Sea Level Pressure (hPa)',
-    'Q': 'Specific Humidity (g/kg)',
-
-    'RH_proxy': 'Relative Humidity (%)',
-    'Bowen': 'Bowen Ratio',
-    'Albedo': 'Albedo',
-    'Q_era': 'Specific Humidity (g/kg)',
-    'Q_obs': 'Specific Humidity (g/kg)',
-}
-
-VAR_PHYS_CFG = {
+VAR_NAME_CFG = {
     'Tg': 'Temperature',
     'Tmax': 'Max Temperature',
     'Tmin': 'Min Temperature',
     'RH': 'Relative Humidity',
     'Tdew': 'Dew Point',
     'P': 'Precipitation',
+    'Sq': 'Sunshine',
+    'SWin': r'SW$_{\text{in}}$',
+    'SWnet': r'SW$_{\text{net}}$',
+    'SWincs': r'SW$_{\text{in,cs}}$',
+    'SWnetcs': r'SW$_{\text{net,cs}}$',
+    'LWin': r'LW$_{\text{in}}$',
+    'LWincs': r'LW$_{\text{in,cs}}$',
+    'LWnet': r'LW$_{\text{net}}$',
+    'LWnetcs': r'LW$_{\text{net,cs}}$',
+    'SHF': 'SHF',
+    'LHF': 'LHF',
+    'CloudLow': 'Low Cloud',
+    'CloudMid': 'Mid Cloud',
+    'CloudHigh': 'High Cloud',
+    'CloudTotal': 'Total Cloud',
+    'LWP': 'LWP',
+    'IWP': 'IWP',
+    'Ps': 'Surface Pressure',
+    'Psl': 'Sea Level Pressure',
+    'Q': 'Specific Humidity',
+
+    'Tmaxmax': 'Annual maximum Temperature',
+    'Tminmin': 'Annual minimum Temperature',
+    'RH_proxy': 'Relative Humidity',
+    'Bowen': 'Bowen Ratio',
+    'Albedo': 'Albedo',
+    'Q_era': 'Specific Humidity',
+    'Q_obs': 'Specific Humidity',
+}
+
+VAR_SYMBOL_CFG = {
+    'Tg': 'T',
+    'Tmax': r'T$_{\text{max}}$',
+    'Tmin': r'T$_{\text{min}}$',
+    'RH': 'RH',
+    'Tdew': r'T$_{\text{dew}}$',
+    'P': 'P',
     'Sq': 'Sund.',
     'SWin': r'SW$_{\text{in}}$',
     'SWnet': r'SW$_{\text{net}}$',
@@ -101,21 +103,23 @@ VAR_PHYS_CFG = {
     'LWnetcs': r'LW$_{\text{net,cs}}$',
     'SHF': 'SHF',
     'LHF': 'LHF',
-    'CloudLow': 'Low cloud',
-    'CloudMid': 'Mid cloud',
-    'CloudHigh': 'High cloud',
-    'CloudTotal': 'Total cloud',
+    'CloudLow': r'C$_{\text{low}}$',
+    'CloudMid': r'C$_{\text{mid}}$',
+    'CloudHigh': r'C$_{\text{high}}$',
+    'CloudTotal': r'C$_{\text{total}}$',
     'LWP': 'LWP',
     'IWP': 'IWP',
-    'Ps': 'Surface Pressure',
-    'Psl': 'Sea Level Pressure',
-    'Q': 'Specific Humidity',
+    'Ps': r'p$_{s}$',
+    'Psl': r'p$_{msl}$',
+    'Q': 'q',
 
-    'RH_proxy': 'Relative Humidity',
-    'Bowen': 'Bowen Ratio',
-    'Albedo': 'Albedo',
-    'Q_era': 'Specific Humidity',
-    'Q_obs': 'Specific Humidity',
+    'Tmaxmax': r'T$_{\text{xx}}$',
+    'Tminmin': r'T$_{\text{nn}}$',
+    'RH_proxy': 'RH',
+    'Bowen': 'Bowen',
+    'Albedo': r'$\alpha$',
+    'Q_era': 'q',
+    'Q_obs': 'q',
 }
 
 VAR_UNIT_CFG = {
@@ -146,6 +150,8 @@ VAR_UNIT_CFG = {
     'Psl': 'hPa',
     'Q': 'g/kg',
 
+    'Tmaxmax': '°C',
+    'Tminmin': '°C',
     'RH_proxy': '%',
     'Bowen': '',
     'Albedo': '',

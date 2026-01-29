@@ -403,3 +403,12 @@ racmo24_sund_daily = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.
 # era5_rsds = xr.open_dataset('/nobackup/users/walj/era5/era5_rsds.nc')
 
 # eobs_rsds = xr.open_dataset('/nobackup/users/walj/eobs/qq_ens_mean_0.1deg_reg_v31.0e.nc')
+
+
+
+#%%
+
+test = {'1': 1, '2': 2, '3': 3}
+
+for key, val in test.items():
+    print('Key: {key}, Value: {val}')

@@ -33,6 +33,9 @@ def build_file_cfg(freq_str, racmo24_sep):
             'Tmin': os.path.join(base_dir_cfg['Eobs'], 'tn_ens_mean_0.1deg_reg_v31.0e.nc'),
             'RH': os.path.join(base_dir_cfg['Eobs'], 'hu_ens_mean_0.1deg_reg_v31.0e.nc'),
             'Psl': os.path.join(base_dir_cfg['Eobs'], 'pp_ens_mean_0.1deg_reg_v32.0e.nc'),
+
+            'Tmaxmax': os.path.join(base_dir_cfg['Eobs'], 'tx_ens_mean_0.1deg_reg_v31.0e.nc'),
+            'Tminmin': os.path.join(base_dir_cfg['Eobs'], 'tn_ens_mean_0.1deg_reg_v31.0e.nc'),
         },
         'Eobs_coarse': {
             'Tg': os.path.join(base_dir_cfg['Eobs'], 'tg_ens_mean_0.25deg_reg_v31.0e.nc'),
@@ -111,6 +114,9 @@ def build_file_cfg(freq_str, racmo24_sep):
         'RACMO2.4_KEXT12': {
             'Tg': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/tas{racmo24_sep}*.nc'),
             'Tmax': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/tasmax{racmo24_sep}*.nc'),
+            'Tmin': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/tasmin{racmo24_sep}*.nc'),
+            'Tmaxmax': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], 'Daily/tasmax.*.nc'),
+            'Tminmin': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], 'Daily/tasmin.*.nc'),
             'P': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/pr{racmo24_sep}*.nc'),
             'Ps': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/ps{racmo24_sep}*.nc'),
             'Psl': os.path.join(base_dir_cfg['RACMO2.4_KEXT12'], f'{freq_str}/psl{racmo24_sep}*.nc'),
