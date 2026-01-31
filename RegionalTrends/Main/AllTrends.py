@@ -53,23 +53,23 @@ dask.config.set(scheduler='threads', num_workers=12)
 #%% User inputs
 
 # Main arguments
-var = 'SWin'
+var = 'SWincs'
 file_freq = 'Monthly'
 data_base = None
 data_compare = None
 
 # Data selection arguments
-months = [3,4,5]
-years = [1980, 2020]
+months = None
+years = [1966, 2015]
 lats = [37.7, 63.3]
 lons = [-13.3, 22.3]
 proj_sel = 'RACMO2.4'
-land_only = True
+land_only = False
 trim_border = None
 
 # Area selection arguments
-data_area = ['Eobs_fine','ERA5_coarse', 'RACMO2.4_KEXT12', 'RACMO2.3']
-stations = ['Bilt', 'Eelde', 'Maastricht', 'Vlissingen', 'Kooy']
+data_area = ['ERA5_coarse']
+stations = None
 # select_grid = True
 lats_area = [50.7, 53.6]
 lons_area = [3.25, 7.35]

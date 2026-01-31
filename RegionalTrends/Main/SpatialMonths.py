@@ -47,12 +47,14 @@ dask.config.set(scheduler='threads', num_workers=12)
 #%% User inputs
 
 # Main arguments
-var = 'Tg'
-file_freq = 'Monthly' #
+var = 'Psl'
+file_freq = 'Daily' #
 # data_base = ['ERA5_coarse', 'ERA5_coarse', 'Eobs_fine', 'Eobs_fine'] #
 # data_compare = ['RACMO2.3', 'RACMO2.4_KEXT12', 'RACMO2.3', 'RACMO2.4_KEXT12'] #
-data_base = ['ERA5_coarse', 'RACMO2.3', 'RACMO2.4_KEXT12', 'Eobs_fine'] #
-data_compare = None #
+# data_base = ['ERA5_coarse', 'RACMO2.3', 'RACMO2.4_KEXT12', 'Eobs_fine'] #
+# data_compare = None #
+data_base = ['ERA5_coarse', 'Eobs_fine', 'ERA5_coarse'] #
+data_compare = ['RACMO2.4_KEXT12', 'RACMO2.4_KEXT12', 'Eobs_fine'] #
 
 # Data selection arguments
 months_dict = {'DJF': [12, 1, 2], 'MAM': [3, 4, 5], 'JJA': [6, 7, 8], 'SON': [9, 10, 11]} #
@@ -65,20 +67,20 @@ land_only = False
 trim_border = None
 
 # Spatial plotting arguments
-plot_climatology = False
-avg_crange = {'DJF': [-1, 1], 'MAM': [-2, 2], 'JJA': [-2, 2], 'SON': [-2, 2]} #
+plot_climatology = True
+avg_crange = [-2, 2] #
 std_mask_ref = data_base #
 std_dir = 'Lesser' #
-shared_cbar_avg = False 
-shared_cbar_label_avg = False
-short_cbar_label_avg = True
-cbar_ticks_avg_shared = 11
+shared_cbar_avg = True 
+shared_cbar_label_avg = True
+short_cbar_label_avg = False
+cbar_ticks_avg_shared = 0.5
 cbar_ticks_avg_sep = [0.5, 1, 1, 1]
 cbar_ticks_num_avg = False
-save_name_avg = 'AllClimatologySeasons'
+save_name_avg = None
 
 # Trend plotting arguments
-trend_calc = True
+trend_calc = False
 trend_crange = {'DJF': [-1, 1], 'MAM': [-2, 2], 'JJA': [-2, 2], 'SON': [-2, 2]} #
 # trend_crange = {'May': [-0.8, 0.8]}
 fit_against_gmst = False
@@ -91,26 +93,26 @@ cbar_ticks_num_trend = False
 save_name_trend = None
 
 # Correlation plotting arguments
-corr_calc = False
-corr_freq = 'Monthly' #
-corr_crange = [0.8, 1]
+corr_calc = True
+corr_freq = 'Daily' #
+corr_crange = [0.9, 1]
 corr_cmap_type = None
 shared_cbar_corr = True
 shared_cbar_label_corr = True
 short_cbar_label_corr = False
-cbar_ticks_corr_shared = 0.05
+cbar_ticks_corr_shared = 0.02
 cbar_ticks_corr_sep = 6
 cbar_ticks_num_corr = False
 save_name_corr = None
 
 # RMSE plotting arguments
-rmse_calc = False
-rmse_freq = 'Monthly' #
-rmse_crange = [0, 2]
+rmse_calc = True
+rmse_freq = 'Daily' #
+rmse_crange = [0, 5]
 shared_cbar_rmse = True
 shared_cbar_label_rmse = True
 short_cbar_label_rmse = False
-cbar_ticks_rmse_shared = 0.2
+cbar_ticks_rmse_shared = 0.5
 cbar_ticks_rmse_sep = 0.2
 cbar_ticks_num_rmse = False
 save_name_rmse = None
@@ -122,7 +124,7 @@ plot_lons = [-13, 22]
 switch_sign = False #
 cut_boundaries = False
 cbar_orientation = 'horizontal'
-swap_rows_cols = False
+swap_rows_cols = True
 show_col_titles = True
 show_row_titles = True
 cmap_type = None
@@ -721,6 +723,8 @@ def get_cbar_sizing(use_shared_cbar, cbar_orientation, panel_width, panel_height
 
 #%% Plot climatology
 
+# avg_crange = [-1, 1]
+
 if plot_climatology:
 
     month_keys = list(months_dict.keys())
@@ -1259,6 +1263,9 @@ if trend_calc:
 
 #%% Plot correlation map
 
+# corr_crange = [0.96, 1]
+# cbar_ticks_corr_shared = 0.008
+
 if corr_calc:
 
     month_keys = list(months_dict.keys())
@@ -1517,6 +1524,9 @@ if corr_calc:
     plt.show()
 
 #%% Plot RMSE map
+
+# rmse_crange = [0, 2]
+# cbar_ticks_rmse_shared = 0.2
 
 if rmse_calc:
 

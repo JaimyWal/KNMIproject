@@ -40,7 +40,6 @@ def open_dataset(path):
 
 
 def is_monthly_time(time):
-
     year = time.dt.year.values
     month = time.dt.month.values
     unique_pairs = np.unique(np.stack([year, month], axis=1), axis=0)
@@ -48,11 +47,16 @@ def is_monthly_time(time):
     return len(unique_pairs) == len(time)
 
 
+def is_daily_time(time):
+    year = time.dt.year.values
+    month = time.dt.month.values
+    day = time.dt.day.values
+    unique_triples = np.unique(np.stack([year, month, day], axis=1), axis=0)
+
+    return len(unique_triples) == len(time)
+
+
 def align_month_to_start(time):
-
-    if not is_monthly_time(time):
-        return time
-
     # day offset: 0 for day 1, 1 for day 2, ..., 30 for day 31
     day_offset = time.dt.day - 1
 
@@ -60,6 +64,20 @@ def align_month_to_start(time):
     offset = day_offset*np.timedelta64(1, 'D')
 
     return time - offset
+
+
+def align_day_to_start(time):
+    return time.dt.floor('D')
+
+
+def align_time(time):
+
+    if is_monthly_time(time):
+        return align_month_to_start(time)
+    elif is_daily_time(time):
+        return align_day_to_start(time)
+    else:
+        return time
 
 
 def rect_sel(lats, lons, rotpole, n_edge=1e6):
@@ -254,8 +272,8 @@ def preprocess_netcdf(
     if rename:
         ds = ds.rename(rename)
 
-    # 3. align monthly timestamps (RACMO2.4 mid month, etc.) to day 1
-    ds = ds.assign_coords(time=align_month_to_start(ds['time']))
+    # 3. align timestamps: monthly to day 1, daily/sub-daily to midnight
+    ds = ds.assign_coords(time=align_time(ds['time']))
 
     # 4. select variable and convert units where needed
     da = ds[var_name].astype('float32')
@@ -422,3 +440,10 @@ def preprocess_netcdf(
     out = out.chunk(chunk_dict)
 
     return out
+
+
+
+# test = preprocess_netcdf(
+#     'ERA5_coarse',
+#     '/nobackup/users/walj/era5/Daily/era5_msl_daily_eu.nc',
+#     'msl')

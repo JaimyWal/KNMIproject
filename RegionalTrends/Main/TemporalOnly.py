@@ -35,10 +35,10 @@ dask.config.set(scheduler='threads', num_workers=12)
 #%% User inputs
 
 # Main arguments
-var = 'Tg'
+var = 'Psl'
 file_freq = 'Monthly'
-data_area = ['ERA5_coarse', 'RACMO2.4_KEXT12', 'RACMO2.3']
-stations = None
+data_area = ['Eobs_fine','ERA5_coarse', 'RACMO2.4_KEXT12']
+stations = ['Bilt', 'Eelde', 'Vlissingen', 'Maastricht', 'Kooy']
 
 # Data selection arguments
 months_dict = {'DJF': [12, 1, 2], 'MAM': [3, 4, 5], 'JJA': [6, 7, 8], 'SON': [9, 10, 11]}
@@ -56,7 +56,7 @@ panel_height = 4
 fit_range = None
 uncertainty_band = False
 shared_labels = True
-save_name = 'NL'+ var
+save_name = None
 
 # Other arguments
 fit_against_gmst = False # Werkt niet denk ik

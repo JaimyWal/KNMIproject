@@ -167,6 +167,12 @@ racmo24_psl_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/racmo24/Month
 racmo24_q_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/racmo24/Monthly/huss_monthlyA_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_202509.nc')
 
 
+#%%
+
+era5_psl = xr.open_dataset('/nobackup/users/walj/era5/Daily/era5_msl_daily_eu.nc')
+
+
+
 # #%% testing
 
 # racmo24_tdew_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/tdew2m_monthlyA_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
