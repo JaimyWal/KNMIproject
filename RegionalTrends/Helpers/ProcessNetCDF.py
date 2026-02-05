@@ -57,13 +57,16 @@ def is_daily_time(time):
 
 
 def align_month_to_start(time):
+    # Floor to midnight first (handles cases like 06:00:00 -> 00:00:00)
+    floored = time.dt.floor('D')
+    
     # day offset: 0 for day 1, 1 for day 2, ..., 30 for day 31
-    day_offset = time.dt.day - 1
+    day_offset = floored.dt.day - 1
 
     # convert offset in days to a timedelta and subtract it
     offset = day_offset*np.timedelta64(1, 'D')
 
-    return time - offset
+    return floored - offset
 
 
 def align_day_to_start(time):
@@ -126,10 +129,67 @@ def subset_space(da,
                  dim_lat, 
                  dim_lon, 
                  rotpole_sel=ccrs.PlateCarree(),
-                 rotpole_native=ccrs.PlateCarree()):
+                 rotpole_native=ccrs.PlateCarree(),
+                 station_coords=None):
 
     if lats is None or lons is None:
         return da
+
+    # Check if lats is a list of station names (strings)
+    if (isinstance(lats, (list, tuple)) and len(lats) > 0 and isinstance(lats[0], str)) and \
+        (isinstance(lons, (list, tuple)) and len(lons) > 0 and isinstance(lons[0], str)):
+
+        if station_coords is None:
+            raise ValueError('station_coords must be provided when lats contains station names')
+        
+        # Select nearest grid cell for each station and stack along 'station' dimension
+        selected = []
+        station_lats = []
+        station_lons = []
+        
+        for station_name in lats:
+            if station_name not in station_coords:
+                raise ValueError(f"Station '{station_name}' not found in station_coords")
+            
+            coords = station_coords[station_name]
+            target_lat = coords['latitude']
+            target_lon = coords['longitude']
+            
+            # Haversine distance calculation
+            lat_rad = np.deg2rad(lat2d)
+            lon_rad = np.deg2rad(lon2d)
+            tlat = np.deg2rad(target_lat)
+            tlon = np.deg2rad(target_lon)
+            
+            dlat = lat_rad - tlat
+            dlon = lon_rad - tlon
+            
+            a = (
+                np.sin(dlat / 2.0)**2
+                + np.cos(tlat)*np.cos(lat_rad)*np.sin(dlon / 2.0)**2
+            )
+            R = 6371.0
+            dist = 2.0*R*np.arcsin(np.sqrt(a))
+            
+            # Find indices of minimum distance
+            ii, jj = np.unravel_index(np.nanargmin(dist.values), dist.shape)
+            
+            # Extract just this grid cell (removes spatial dims)
+            grid_cell = da.isel({dim_lat: ii, dim_lon: jj})
+            selected.append(grid_cell)
+            
+            # Store the actual lat/lon of the selected grid cell
+            station_lats.append(float(lat2d.values[ii, jj]))
+            station_lons.append(float(lon2d.values[ii, jj]))
+        
+        # Stack along station dimension
+        result = xr.concat(selected, dim='station')
+        result = result.assign_coords(
+            station=('station', list(lats)),
+            station_lat=('station', station_lats),
+            station_lon=('station', station_lons),
+        )
+        return result
 
     if isinstance(lats, (list, tuple)) and len(lats) == 2 and \
        isinstance(lons, (list, tuple)) and len(lons) == 2:
@@ -251,9 +311,10 @@ def preprocess_netcdf(
     trim_border=None,
     rotpole_sel=ccrs.PlateCarree(),
     rotpole_native=ccrs.PlateCarree(),
-    chunks_time=180,
-    chunks_lat=200,
-    chunks_lon=200
+    chunks_time=365,
+    chunks_lat=100,
+    chunks_lon=100,
+    station_coords=None
 ):
     
     src = source.upper()
@@ -280,7 +341,7 @@ def preprocess_netcdf(
 
     if land_only:
 
-        if 'ERA5' in src:
+        if src == 'ERA5':
             landmask = make_landmask(
                 land_file='/nobackup/users/walj/landmasks/era5_landmask.nc',
                 land_var='lsm',
@@ -312,7 +373,7 @@ def preprocess_netcdf(
             ).squeeze()
             da = da.where(landmask)
 
-        elif 'RACMO2.4_KEXT12' in src:
+        elif 'RACMO2.4' in src:
             landmask = make_landmask(
                 land_file='/nobackup/users/walj/landmasks/lake_lsm_racmo2.4_kext12.nc',
                 land_var='var81',
@@ -328,7 +389,7 @@ def preprocess_netcdf(
             da = da.where(landmask)
 
     if 'RACMO' in src:
-        if var_name in ['t2m', 'tas', 'tasmax', 'tasmin', 'td2m', 'tdew2m']:
+        if var_name in ['t2m', 'tas', 'tasmax', 'tasmin', 'td2m', 'tdew2m', 'ts']:
             da = da - 273.15
             da.attrs['units'] = 'degC'
         elif var_name == 'precip' or (var_name == 'pr' and not is_monthly_time(da['time'])):
@@ -346,12 +407,13 @@ def preprocess_netcdf(
             else:
                 da = da / 3600.0
                 da.attrs['units'] = 'hours/day'
-        elif var_name in ['ssr', 'ssrc', 'rsds', 'rsdscs', 'str', 'strc', 'rlds', 'rldscs', 'hfss', 'hfls']:
+        elif var_name in ['ssr', 'ssrc', 'rsds', 'rsdscs', 'str', 'strc', 'rlds', 'rldscs', 'hfss', 'hfls',
+                          'rsdt', 'tsr', 'toptr', 'tsrc', 'ttrc']:
             if ('2.4' in src) and is_monthly_time(da['time']):
                 days_in_month = da['time'].dt.days_in_month
                 da = da / (days_in_month*86400.0)
                 da.attrs['units'] = 'W/m2'
-        elif var_name in ['clwvi', 'clivi', 'qli', 'qii']:
+        elif var_name in ['clwvi', 'clivi', 'qli', 'qii']: # , 'tcw', 'prw'
             da = da*1e3
             da.attrs['units'] = 'g/m2'
         elif var_name == 'senf' or var_name == 'latf':
@@ -364,26 +426,39 @@ def preprocess_netcdf(
         elif var_name == 'ps' or var_name == 'psl':
             da = da / 100.0
             da.attrs['units'] = 'hPa'
+        elif var_name in ['swvl1', 'swvl2', 'swvl3', 'swvl4']:
+            da = da*100.0
+            da.attrs['units'] = '%'
+        elif var_name == 'wskin':
+            da = da*1e3
+            da.attrs['units'] = 'g/m2'
+        
 
     if 'ERA5' in src:
-        if var_name in ['t2m', 'tmax', 'tmin', 'd2m']:
+        if var_name in ['t2m', 'tmax', 'tmin', 'd2m', 'skt']:
             da = da - 273.15
             da.attrs['units'] = 'degC'
         elif var_name in ['tp', 'precip']:
             da = da*1000.0
             da.attrs['units'] = 'mm/day'
-        elif var_name == 'ssrd':
+        elif var_name in ['ssrd', 'slhf', 'ssr', 'str', 'sshf', 'ssrd', 'strd']:
             da = da / 86400.0
             da.attrs['units'] = 'W/m2'
         elif var_name in ['tcc', 'hcc', 'mcc', 'lcc']:
             da = da*100.0
             da.attrs['units'] = '%'
-        elif var_name in ['tclw', 'tciw']:
+        elif var_name in ['tclw', 'tciw']: # , 'tcw', 'tcwv'
             da = da*1e3
             da.attrs['units'] = 'g/m2'
         elif var_name == 'sp' or var_name == 'msl':
             da = da / 100.0
             da.attrs['units'] = 'hPa'
+        elif var_name in ['swvl1', 'swvl2', 'swvl3', 'swvl4']:
+            da = da*100.0
+            da.attrs['units'] = '%'
+        elif var_name == 'src':
+            da = da*1e6
+            da.attrs['units'] = 'g/m2'
 
     # 5. determine spatial dims on the raw grid
     if 'rlat' in da.dims and 'rlon' in da.dims:
@@ -422,7 +497,8 @@ def preprocess_netcdf(
         dim_lat, 
         dim_lon, 
         rotpole_sel=rotpole_sel, 
-        rotpole_native=rotpole_native
+        rotpole_native=rotpole_native,
+        station_coords=station_coords
     )
 
     # 8. select months and years on the monthly time axis

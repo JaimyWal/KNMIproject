@@ -16,53 +16,65 @@ reload(Paths)
 from RegionalTrends.Helpers.Config.Paths import build_file_cfg, freq_tags
 
 
+DEFAULT_TRIM_BORDERS = {
+    'RACMO2.4_KEXT06': 8,
+    'RACMO2.4_KEXT12': 4,
+    'RACMO2.4': 4,
+}
+
+
 def load_single_var(
     var_to_load,
     data_source,
     data_sources,
     station_sources,
     file_freq,
-    var_name_cfg,
+    var_file_cfg,
     proj_cfg,
-    months_local,
-    years_load,
-    lats,
-    lons,
-    land_only,
-    trim_local,
-    rotpole_sel,
+    months=None,
+    years=None,
+    lats=None,
+    lons=None,
+    land_only=False,
+    trim_border=None,
+    rotpole_sel=ccrs.PlateCarree(),
+    station_coords=None,
 ):
+
+    freq_str, racmo24_sep, racmo23_base = freq_tags(file_freq)
+    file_cfg = build_file_cfg(freq_str, racmo24_sep, racmo23_base)
     
-    freq_str, racmo24_sep = freq_tags(file_freq)
-    file_cfg = build_file_cfg(freq_str, racmo24_sep)
+    if trim_border is None:
+        trim_border = DEFAULT_TRIM_BORDERS.get(data_source, None)
     
     if data_source in station_sources:
-        var_name = var_name_cfg['Station'][var_to_load]
+        var_name = var_file_cfg['Station'][var_to_load]
         file_path = file_cfg['Station'][data_source]
         data = preprocess_station(
             file_path=file_path,
             var_name=var_name,
-            months=months_local,
-            years=years_load,
+            months=months,
+            years=years,
         ).squeeze()
 
     else:
         file_key = next(src for src in data_sources if src in data_source)
-        var_name = var_name_cfg[file_key][var_to_load]
+        var_name = var_file_cfg[file_key][var_to_load]
         file_path = file_cfg[data_source][var_to_load]
         proj_native = proj_cfg.get(file_key, ccrs.PlateCarree())
         data = preprocess_netcdf(
             source=data_source,
             file_path=file_path,
             var_name=var_name,
-            months=months_local,
-            years=years_load,
+            months=months,
+            years=years,
             lats=lats,
             lons=lons,
             land_only=land_only,
-            trim_border=trim_local,
+            trim_border=trim_border,
             rotpole_sel=rotpole_sel,
             rotpole_native=proj_native,
+            station_coords=station_coords,
         ).squeeze()
 
     if file_freq == 'Monthly' and not is_monthly_time(data['time']):
@@ -124,6 +136,19 @@ def Q_from_obs(**kwargs):
     return q
 
 
+def P_rel(**kwargs):
+    precip = load_single_var(var_to_load='P', **kwargs)
+    precip_clim = precip.groupby('time.month').mean('time')
+    p_rel = (precip.groupby('time.month') / precip_clim) * 100
+    return p_rel
+
+
+def Rnet(**kwargs):
+    SWnet = load_single_var(var_to_load='SWnet', **kwargs)
+    LWnet = load_single_var(var_to_load='LWnet', **kwargs)
+    return SWnet + LWnet
+
+
 # Also add advection here for example as well. However, this requires differentiation in space
 # and therefore also need to convert from rotated grid to normal grid...
 
@@ -133,10 +158,73 @@ DERIVED_VARS = {
     'Albedo': Albedo,
     'Q_era': Q_from_era,
     'Q_obs': Q_from_obs,
+    'P_rel': P_rel,
+    'Rnet': Rnet,
 }
 
 
-def load_var(var, **load_args):
+FALLBACK_VARS = {
+    'Q_all': ['Q', 'Q_era', 'Q_obs'],
+    'RH_all': ['RH', 'RH_proxy'],
+}
+
+
+def load_var(
+    var,
+    data_source,
+    data_sources,
+    station_sources,
+    file_freq,
+    var_file_cfg,
+    proj_cfg,
+    months=None,
+    years=None,
+    lats=None,
+    lons=None,
+    land_only=False,
+    trim_border=None,
+    rotpole_sel=ccrs.PlateCarree(),
+    station_coords=None,
+):
+
+    load_args = dict(
+        data_source=data_source,
+        data_sources=data_sources,
+        station_sources=station_sources,
+        file_freq=file_freq,
+        var_file_cfg=var_file_cfg,
+        proj_cfg=proj_cfg,
+        months=months,
+        years=years,
+        lats=lats,
+        lons=lons,
+        land_only=land_only,
+        trim_border=trim_border,
+        rotpole_sel=rotpole_sel,
+        station_coords=station_coords,
+    )
+
+    # Handle fallback variables (try each in order until one works)
+    if var in FALLBACK_VARS:
+        fallback_list = FALLBACK_VARS[var]
+        errors = []
+        
+        for fallback_var in fallback_list:
+            try:
+                result = load_var(fallback_var, **load_args)
+
+                if result is not None and result.size > 0:
+                    return result
+            except Exception as e:
+                errors.append(f'{fallback_var}: {e}')
+                continue  # Try next fallback
+        
+        raise ValueError(
+            f"All fallback variables for '{var}' failed for data source '{data_source}':\n" +
+            "\n".join(errors)
+        )
+            
     if var in DERIVED_VARS:
         return DERIVED_VARS[var](**load_args)
+    
     return load_single_var(var_to_load=var, **load_args)

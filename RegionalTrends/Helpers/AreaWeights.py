@@ -2,6 +2,7 @@ import numpy as np
 import xarray as xr
 from pyproj import Geod
 from importlib import reload
+import cartopy.crs as ccrs
 
 from RegionalTrends.Helpers import GridBounds
 reload(GridBounds)          
@@ -31,6 +32,28 @@ def cell_areas_from_bounds(lat_b, lon_b, ellps='WGS84'):
 
 
 def area_weights(ds, rotpole_native=None):
+
+    # Handle station dimension (from station-based grid selection)
+    if 'station' in ds.dims and 'station_lat' in ds.coords and 'station_lon' in ds.coords:
+        station_lats = ds['station_lat'].values
+        station_lons = ds['station_lon'].values
+        
+        if rotpole_native is not None and not isinstance(rotpole_native, ccrs.PlateCarree):
+            # Transform geographic coords to rotated coords, then use cos(rlat)
+            plate = ccrs.PlateCarree()
+            rotated_pts = rotpole_native.transform_points(plate, station_lons, station_lats)
+            rlats = rotated_pts[:, 1]
+            cos_weights = np.cos(np.deg2rad(rlats))
+        else:
+            # Regular lat/lon grid: use cos of geographic latitude
+            cos_weights = np.cos(np.deg2rad(station_lats))
+        
+        return xr.DataArray(
+            cos_weights,
+            dims=('station',),
+            coords={'station': ds['station']},
+            name='area_weight'
+        )
 
     spatial_dims = [
         d for d in ds.dims
@@ -64,6 +87,24 @@ def area_weights(ds, rotpole_native=None):
 
 
 def area_weighted_mean(ds, rotpole_native=None, weights=None):
+    
+    # Handle station dimension first
+    if 'station' in ds.dims:
+        if weights is None:
+            weights = area_weights(ds, rotpole_native=rotpole_native)
+        
+        if weights is None:
+            return ds.mean(dim='station')
+        
+        mask = ds.notnull()
+        w_masked = weights.where(mask)
+        
+        weighted_sum = (ds * w_masked).sum(dim='station')
+        sum_of_weights = w_masked.sum(dim='station')
+        
+        area_mean = weighted_sum / sum_of_weights
+        area_mean.attrs.update(ds.attrs)
+        return area_mean
      
     spatial_dims = [
         d for d in ds.dims

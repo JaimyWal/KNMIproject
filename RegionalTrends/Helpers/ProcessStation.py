@@ -7,20 +7,18 @@ def preprocess_station(
     var_name,
     months=None,
     years=None):
-    
-    # Find header line and its line number
+
     with open(file_path, 'r') as f:
         header = None
         header_line_no = None
         for ii, line in enumerate(f):
             if line.startswith('# STN'):
-                header = line[2:].strip()  # drop '# '
+                header = line[2:].strip()
                 header_line_no = ii
                 break
 
     col_names = [c.strip() for c in header.split(',')]
 
-    # Read only the data lines after the header
     df = pd.read_csv(
         file_path,
         header=None,
@@ -32,7 +30,7 @@ def preprocess_station(
         low_memory=False,
     )
 
-    if var_name == 'Q' or var_name == 'UG':
+    if var_name in ['Q', 'UG', 'NG']:
         sf = 1.0
     else:
         sf = 0.1
@@ -42,22 +40,21 @@ def preprocess_station(
     if var_name in ['RH', 'SQ']:
         df.loc[df[var_name] == -1, var_name] = 0
 
-    # Parse time index
     df['time'] = pd.to_datetime(df['YYYYMMDD'].astype(str), format='%Y%m%d')
     df = df.set_index('time')
 
-    # Apply scale factor (eg 0.1 for TG, RH)
-    series = df[var_name].astype('float32')*sf
+    series = df[var_name].astype('float32') * sf
 
-    # Convert SWin to W/m2
     if var_name == 'Q':
-        series = series*1e4 / 86400.0
+        series = series * 1e4 / 86400.0
 
-    # Select months
+    if var_name == 'NG':
+        series = series.where(series != 9)
+        series = series * 100.0 / 8.0
+
     if months is not None:
         series = series[series.index.month.isin(months)]
 
-    # Select years
     if years is not None and isinstance(years, (list, tuple)):
         if len(years) == 2:
             start, end = years

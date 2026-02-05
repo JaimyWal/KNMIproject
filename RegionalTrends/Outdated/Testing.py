@@ -1,414 +1,274 @@
-import glob
-import numpy as np
 import xarray as xr
-import pandas as pd
-import cartopy.crs as ccrs
 
-xr.set_options(use_new_combine_kwarg_defaults=True)
+#%% racmo24 daily
 
-def open_dataset(path):
+racmo24_temp = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/tas.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
+racmo24_precip = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/pr.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
+racmo24_sund = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/sund.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
 
-    files = sorted(glob.glob(path))
+racmo24_lowcloud = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/cll.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
+racmo24_midcloud = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/clm.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
+racmo24_highcloud = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/clh.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
 
-    try:
-        ds = xr.open_mfdataset(
-            files,
-            combine='by_coords',
-            chunks='auto',
-            decode_times=True,
-        )
+racmo24_swallnet = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/ssr.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
+racmo24_swclearnet = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/ssrc.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
+racmo24_swalldown = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/rsds.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
+racmo24_swcleardown = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/rsdscs.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
 
-        return ds
+racmo24_lwallnet = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/str.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc') 
+racmo24_lwclearnet = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/strc.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
+racmo24_lwalldown = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/rlds.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
+racmo24_lwcleardown = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/rldscs.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
 
-    except Exception:
+racmo24_shf = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/hfss.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
+racmo24_lhf = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/hfls.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
 
-        ds = xr.open_mfdataset(
-            files,
-            combine='by_coords',
-            chunks='auto',
-            decode_times=False,
-        )
+racmo24_lwp = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/clwvi.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
+racmo24_iwp = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/clivi.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
 
-        n_time = ds.sizes['time']
-        new_time = pd.date_range(start='1979-01-01', periods=n_time, freq='MS')
+#%% racmo24 monthly
 
-        ds = ds.assign_coords(time=new_time)
+racmo24_temp_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/tas_monthlyA_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
+racmo24_precip_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/pr_monthlyS_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
+racmo24_sund_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/sund_monthlyS_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
 
-        ds['time'].attrs = {}
+racmo24_lowcloud_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/cll_monthlyA_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
+racmo24_midcloud_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/clm_monthlyA_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
+racmo24_highcloud_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/clh_monthlyA_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
 
-        return ds
+racmo24_swallnet_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/ssr_monthlyS_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
+racmo24_swclearnet_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/ssrc_monthlyS_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
+racmo24_swalldown_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/rsds_monthlyS_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
+racmo24_swcleardown_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/rsdscs_monthlyS_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
 
+racmo24_lwallnet_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/str_monthlyS_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc') 
+racmo24_lwclearnet_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/strc_monthlyS_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
+racmo24_lwalldown_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/rlds_monthlyS_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
+racmo24_lwcleardown_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/rldscs_monthlyS_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
 
-def is_monthly_time(time):
+racmo24_shf_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/hfss_monthlyS_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
+racmo24_lhf_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/hfls_monthlyS_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
 
-    year  = time.dt.year.values
-    month = time.dt.month.values
-    unique_pairs = np.unique(np.stack([year, month], axis=1), axis=0)
+racmo24_lwp_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/clwvi_monthlyA_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
+racmo24_iwp_monthly = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/clivi_monthlyA_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
 
-    return len(unique_pairs) == len(time)
+#%% racmo23 daily
 
+racmo23_temp = xr.open_dataset('/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/t2m/t2m.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+racmo23_precip = xr.open_dataset('/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/precip/precip.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+racmo23_sund = xr.open_dataset('/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/sund/sund.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
 
-def align_month_to_start(time):
+racmo23_lowcloud = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/aclcovL/aclcovL.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+racmo23_midcloud = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/aclcovM/aclcovM.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+racmo23_highcloud = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/aclcovH/aclcovH.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
 
-    if not is_monthly_time(time):
-        return time
+racmo23_swallnet = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/swsn/swsn.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+racmo23_swclearnet = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/swsncs/swsncs.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+racmo23_swalldown = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/swsd/swsd.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+racmo23_swcleardown = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/swsdcs/swsdcs.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
 
-    # day offset: 0 for day 1, 1 for day 2, ..., 30 for day 31
-    day_offset = time.dt.day - 1
+racmo23_lwallnet = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/lwsn/lwsn.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc') 
+racmo23_lwclearnet = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/lwsncs/lwsncs.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+racmo23_lwalldown = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/lwsd/lwsd.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+racmo23_lwcleardown = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/lwsdcs/lwsdcs.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
 
-    # convert offset in days to a timedelta and subtract it
-    offset = day_offset*np.timedelta64(1, 'D')
+racmo23_shf = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/senf/senf.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+racmo23_lhf = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/latf/latf.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
 
-    return time - offset
+racmo23_lwp = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/qli/qli.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+racmo23_iwp = xr.open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/qii/qii.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
 
+#%% racmo23 monthly
 
-def rect_sel(lats, lons, rotpole, n_edge=1e6):
+racmo23_temp_monthly = xr.open_dataset('/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Monthly_data/t2m/t2m.KNMI-2011-2020.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc', decode_times=False)
+racmo23_precip_monthly = xr.open_dataset('/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Monthly_data/precip/precip.KNMI-2011-2020.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc', decode_times=False)
+racmo23_sund_monthly = xr.open_dataset('/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Monthly_data/sund/sund.KNMI-2011-2020.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc', decode_times=False)
 
-    lat_min, lat_max = sorted(lats)
-    lon_min, lon_max = sorted(lons)
+racmo23_lowcloud_monthly = xr.open_dataset('/nobackup/users/walj/racmo23/Monthly_data/aclcovL/aclcovL.KNMI-2015.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc', decode_times=False)
+racmo23_midcloud_monthly = xr.open_dataset('/nobackup/users/walj/racmo23/Monthly_data/aclcovM/aclcovM.KNMI-2015.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc', decode_times=False)
+racmo23_highcloud_monthly = xr.open_dataset('/nobackup/users/walj/racmo23/Monthly_data/aclcovH/aclcovH.KNMI-2015.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc', decode_times=False)
 
-    if rotpole == ccrs.PlateCarree():
-        return lat_min, lat_max, lon_min, lon_max
-    
-    n_edge = int(n_edge)
+racmo23_swallnet_monthly = xr.open_dataset('/nobackup/users/walj/racmo23/Monthly_data/swsn/swsn.KNMI-2015.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc', decode_times=False)
+racmo23_swclearnet_monthly = xr.open_dataset('/nobackup/users/walj/racmo23/Monthly_data/swsncs/swsncs.KNMI-2015.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc', decode_times=False)
+racmo23_swalldown_monthly = xr.open_dataset('/nobackup/users/walj/racmo23/Monthly_data/swsd/swsd.KNMI-2015.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc', decode_times=False)
+racmo23_swcleardown_monthly = xr.open_dataset('/nobackup/users/walj/racmo23/Monthly_data/swsdcs/swsdcs.KNMI-2015.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc', decode_times=False)  
 
-    lon_bottom = np.linspace(lon_min, lon_max, n_edge)
-    lat_bottom = np.full_like(lon_bottom, lat_min)
+racmo23_lwallnet_monthly = xr.open_dataset('/nobackup/users/walj/racmo23/Monthly_data/lwsn/lwsn.KNMI-2015.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc', decode_times=False) 
+racmo23_lwclearnet_monthly = xr.open_dataset('/nobackup/users/walj/racmo23/Monthly_data/lwsncs/lwsncs.KNMI-2015.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc', decode_times=False)
+racmo23_lwalldown_monthly = xr.open_dataset('/nobackup/users/walj/racmo23/Monthly_data/lwsd/lwsd.KNMI-2015.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc', decode_times=False)
+racmo23_lwcleardown_monthly = xr.open_dataset('/nobackup/users/walj/racmo23/Monthly_data/lwsdcs/lwsdcs.KNMI-2015.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc', decode_times=False)
 
-    lon_top = np.linspace(lon_min, lon_max, n_edge)
-    lat_top = np.full_like(lon_top, lat_max)
+racmo23_shf_monthly = xr.open_dataset('/nobackup/users/walj/racmo23/Monthly_data/senf/senf.KNMI-2015.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc', decode_times=False)
+racmo23_lhf_monthly = xr.open_dataset('/nobackup/users/walj/racmo23/Monthly_data/latf/latf.KNMI-2015.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc', decode_times=False)  
+racmo23_lwp_monthly = xr.open_dataset('/nobackup/users/walj/racmo23/Monthly_data/qli/qli.KNMI-2015.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc', decode_times=False)
+racmo23_iwp_monthly = xr.open_dataset('/nobackup/users/walj/racmo23/Monthly_data/qii/qii.KNMI-2015.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc', decode_times=False)
 
-    lat_left = np.linspace(lat_min, lat_max, n_edge)
-    lon_left = np.full_like(lat_left, lon_min)
 
-    lat_right = np.linspace(lat_min, lat_max, n_edge)
-    lon_right = np.full_like(lat_right, lon_max)
+#%% era5 monthly
 
-    edge_lon = np.concatenate([lon_bottom, lon_top, lon_left, lon_right])
-    edge_lat = np.concatenate([lat_bottom, lat_top, lat_left, lat_right])
+era5_temp = xr.open_dataset('/nobackup/users/walj/era5/Monthly/era5_coarse_t2m_ps.nc')
+era5_precip = xr.open_dataset('/nobackup/users/walj/era5/Monthly/era5_coarse_tp.nc')
+era5_sw_shf = xr.open_dataset('/nobackup/users/walj/era5/Monthly/era5_coarse_sw_shf.nc')
+era5_lw_lhf = xr.open_dataset('/nobackup/users/walj/era5/Monthly/era5_coarse_lw_lhf.nc')
+era5_clouds = xr.open_dataset('/nobackup/users/walj/era5/Monthly/era5_coarse_clouds.nc')
 
-    pts = rotpole.transform_points(ccrs.PlateCarree(), edge_lon, edge_lat)
+#%% era5 daily
 
-    rlon = pts[..., 0]
-    rlat = pts[..., 1]
+# era5_tmax = xr.open_dataset('/nobackup/users/walj/era5/era5_tmax_daily_eu.nc')
+# era5_tmin = xr.open_dataset('/nobackup/users/walj/era5/era5_tmin_daily_eu.nc')
 
-    rlat_min = float(rlat.min())
-    rlat_max = float(rlat.max())
-    rlon_min = float(rlon.min())
-    rlon_max = float(rlon.max())
+#%% eobs daily
 
-    return rlat_min, rlat_max, rlon_min, rlon_max
+eobs_temp = xr.open_dataset('/nobackup/users/walj/eobs/Daily/tg_ens_mean_0.1deg_reg_v31.0e.nc')
+eobs_precip = xr.open_dataset('/nobackup/users/walj/eobs/Daily/rr_ens_mean_0.1deg_reg_v31.0e.nc')
+eobs_swin = xr.open_dataset('/nobackup/users/walj/eobs/Daily/qq_ens_mean_0.1deg_reg_v31.0e.nc')
+eobs_tmax = xr.open_dataset('/nobackup/users/walj/eobs/Daily/tx_ens_mean_0.1deg_reg_v31.0e.nc')
+eobs_tmin = xr.open_dataset('/nobackup/users/walj/eobs/Daily/tn_ens_mean_0.1deg_reg_v31.0e.nc')
+eobs_pres = xr.open_dataset('/nobackup/users/walj/eobs/Daily/pp_ens_mean_0.1deg_reg_v32.0e.nc')
 
+#%% eobs monthly
 
-def subset_space(da, 
-                 lat2d, 
-                 lon2d, 
-                 lats, 
-                 lons, 
-                 dim_lat, 
-                 dim_lon, 
-                 rotpole_sel=ccrs.PlateCarree(),
-                 rotpole_native=ccrs.PlateCarree()):
-
-    if lats is None or lons is None:
-        return da
-
-    if isinstance(lats, (list, tuple)) and len(lats) == 2 and \
-       isinstance(lons, (list, tuple)) and len(lons) == 2:
-
-        lat_min, lat_max = sorted(lats)
-        lon_min, lon_max = sorted(lons)
-
-        if rotpole_sel == ccrs.PlateCarree():
-
-            mask = (
-                (lat2d >= lat_min) & (lat2d <= lat_max) &
-                (lon2d >= lon_min) & (lon2d <= lon_max)
-            )
-        
-        elif rotpole_sel != ccrs.PlateCarree(): 
-
-            if rotpole_sel == rotpole_native:
-                rlat1d = da[dim_lat]
-                rlon1d = da[dim_lon]
-                rlat2d, rlon2d = xr.broadcast(rlat1d, rlon1d)
-
-            elif rotpole_sel != rotpole_native:
-                pts = rotpole_sel.transform_points(ccrs.PlateCarree(), lon2d.values, lat2d.values)
-                rlon2d = xr.DataArray(pts[..., 0], coords=lat2d.coords, dims=lat2d.dims)
-                rlat2d = xr.DataArray(pts[..., 1], coords=lat2d.coords, dims=lat2d.dims)
-
-            rlat_min, rlat_max, rlon_min, rlon_max = rect_sel(lats, lons, rotpole_sel)
-
-            mask = (
-                (rlat2d >= rlat_min) & (rlat2d <= rlat_max) &
-                (rlon2d >= rlon_min) & (rlon2d <= rlon_max)
-            )
-            
-        da_sel = da.where(mask.compute(), drop=True)
-
-        return da_sel
-
-    if isinstance(lats, (int, float)) and isinstance(lons, (int, float)):
-        target_lat = float(lats)
-        target_lon = float(lons)
-
-        lat_rad = np.deg2rad(lat2d)
-        lon_rad = np.deg2rad(lon2d)
-        tlat = np.deg2rad(target_lat)
-        tlon = np.deg2rad(target_lon)
-
-        dlat = lat_rad - tlat
-        dlon = lon_rad - tlon
-
-        a = (
-            np.sin(dlat / 2.0)**2
-            + np.cos(tlat)*np.cos(lat_rad)*np.sin(dlon / 2.0)**2
-        )
-
-        R = 6371.0
-        dist = 2.0*R*np.arcsin(np.sqrt(a))
-
-        ii, jj = np.unravel_index(np.nanargmin(dist.values), dist.shape)
-        return da.isel({dim_lat: [ii], dim_lon: [jj]})
-
-    return da
-
-
-def subset_time(time, months=None, years=None):
-
-    tsel = time
-    if months is not None:
-        tsel = tsel.where(tsel.dt.month.isin(months), drop=True)
-
-    if years is not None and isinstance(years, (list, tuple)):
-        if len(years) == 2:
-            start, end = years
-            if start is not None:
-                tsel = tsel.where(tsel.dt.year >= start, drop=True)
-            if end is not None:
-                tsel = tsel.where(tsel.dt.year <= end, drop=True)
-        else:
-            tsel = tsel.where(tsel.dt.year.isin(years), drop=True)
-
-    return tsel
-
-
-def preprocess_netcdf_monthly(
-    source,
-    file_path,
-    var_name,
-    months=None,
-    years=None,
-    lats=None,
-    lons=None,
-    trim_border=None,
-    rotpole_sel=ccrs.PlateCarree(),
-    rotpole_native=ccrs.PlateCarree(),
-    chunks_time=180,
-    chunks_lat=200,
-    chunks_lon=200
-):
-    
-    src = source.upper()
-
-    # 1. read data and fix time if needed
-    ds = open_dataset(file_path)
-
-    # 2. rename coords to a common convention
-    rename = {}
-    if 'valid_time' in ds.coords:
-        rename['valid_time'] = 'time'
-    if 'lat' in ds.coords:
-        rename['lat'] = 'latitude'
-    if 'lon' in ds.coords:
-        rename['lon'] = 'longitude'
-    if rename:
-        ds = ds.rename(rename)
-
-    if 'time' not in ds.coords:
-        raise ValueError('No time coordinate found in dataset')
-
-    # 3. align monthly timestamps (RACMO2.4 mid month, etc.) to day 1
-    ds = ds.assign_coords(time=align_month_to_start(ds['time']))
-
-    # 4. select variable and convert units where needed
-    da = ds[var_name].astype('float32')
-
-    if 'RACMO' in src:
-        if var_name == 't2m' or var_name == 'tas':
-            da = da - 273.15
-            da.attrs['units'] = 'degC'
-        elif var_name == 'precip' or (var_name == 'pr' and not is_monthly_time(da['time'])):
-            da = da*86400.0
-            da.attrs['units'] = 'mm/day'
-        elif var_name == 'pr' and is_monthly_time(da['time']):
-            days_in_month = da['time'].dt.days_in_month
-            da = da / days_in_month
-            da.attrs['units'] = 'mm/day'
-        if var_name == 'sund':
-            if ('2.4' in src) and is_monthly_time(da['time']):
-                scale_to_seconds = 1e-5
-                days_in_month = da['time'].dt.days_in_month
-                da = scale_to_seconds*da / (days_in_month*3600.0)
-                da.attrs['units'] = 'hours/day'
-            else:
-                da = da / 3600.0
-                da.attrs['units'] = 'hours/day'
-        if var_name == 'rsds':
-            if ('2.4' in src) and is_monthly_time(da['time']):
-                days_in_month = da['time'].dt.days_in_month
-                da = da / (days_in_month*86400.0)
-                da.attrs['units'] = 'W/m2'
-
-    if 'ERA5' in src:
-        if var_name == 't2m':
-            da = da - 273.15
-            da.attrs['units'] = 'degC'
-        elif var_name in ['tp', 'precip']:
-            da = da*1000.0
-            da.attrs['units'] = 'mm/day'
-        elif var_name == 'ssrd':
-            da = da / 86400.0
-            da.attrs['units'] = 'W/m2'
-
-    # 5. determine spatial dims on the raw grid
-    if 'rlat' in da.dims and 'rlon' in da.dims:
-        dim_lat, dim_lon = 'rlat', 'rlon'
-    else:
-        dim_lat, dim_lon = 'latitude', 'longitude'
-
-    # 5a. ensure 1D latitude is ascending (only for 1D lat)
-    if 'latitude' in da.coords and da['latitude'].ndim == 1:
-        lat1d = da['latitude']
-        if lat1d[0] > lat1d[-1]:
-            da = da.isel(latitude=slice(None, None, -1))
-
-    # 5b. optionally remove n grid cells from each spatial border on the raw field
-    if trim_border is not None:
-        n = int(trim_border)
-        da = da.isel({dim_lat: slice(n, -n), dim_lon: slice(n, -n)})
-
-    # 6. build lat2d / lon2d on the trimmed grid and subset in space
-    if 'rlat' in da.dims and 'rlon' in da.dims:
-        # rotated grid already has 2D lat/lon
-        lat2d = da['latitude']
-        lon2d = da['longitude']
-    else:
-        # regular lat/lon grid, build 2D lat/lon by broadcasting
-        lat1d = da['latitude']
-        lon1d = da['longitude']
-        lat2d, lon2d = xr.broadcast(lat1d, lon1d)
-
-    da = subset_space(
-        da, 
-        lat2d, 
-        lon2d, 
-        lats, 
-        lons, 
-        dim_lat, 
-        dim_lon, 
-        rotpole_sel=rotpole_sel, 
-        rotpole_native=rotpole_native
-    )
-
-    # 7. decide if resampling is needed
-    #    If time spacing is monthly already, do not resample.
-    #    If not monthly (daily / subdaily), resample to monthly.
-    if is_monthly_time(da['time']):
-        da_month = da
-    else:
-        da_month = da.resample(time='MS').mean('time')
-
-    # 8. select months and years on the monthly time axis
-    tsel = subset_time(da_month['time'], months=months, years=years)
-    out = da_month.sel(time=tsel)
-
-    # 9. chunk
-    chunk_dict = {'time': chunks_time}
-    for dim in out.dims:
-        if dim in ['latitude', 'rlat']:
-            chunk_dict[dim] = chunks_lat
-        elif dim in ['longitude', 'rlon']:
-            chunk_dict[dim] = chunks_lon
-
-    out = out.chunk(chunk_dict).persist()
-
-    return out
+eobs_temp_monthly = xr.open_dataset('/nobackup/users/walj/eobs/Monthly/tg_ens_mean_0.1deg_reg_v31.0e_monthly.nc')
+eobs_precip_monthly = xr.open_dataset('/nobackup/users/walj/eobs/Monthly/rr_ens_mean_0.1deg_reg_v31.0e_monthly.nc')
+eobs_swin_monthly = xr.open_dataset('/nobackup/users/walj/eobs/Monthly/qq_ens_mean_0.1deg_reg_v31.0e_monthly.nc')
+eobs_tmax_monthly = xr.open_dataset('/nobackup/users/walj/eobs/Monthly/tx_ens_mean_0.1deg_reg_v31.0e_monthly.nc')
+eobs_tmin_monthly = xr.open_dataset('/nobackup/users/walj/eobs/Monthly/tn_ens_mean_0.1deg_reg_v31.0e_monthly.nc')
+eobs_pres_monthly = xr.open_dataset('/nobackup/users/walj/eobs/Monthly/pp_ens_mean_0.1deg_reg_v32.0e_monthly.nc')
 
+#%% racmo24 daily kext12
+
+racmo24_temp_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/tas.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_precip_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/pr.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_sund_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/sund.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+
+racmo24_lowcloud_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/cll.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_midcloud_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/clm.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_highcloud_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/clh.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+
+racmo24_swallnet_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/ssr.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_swclearnet_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/ssrc.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_swalldown_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/rsds.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_swcleardown_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/rsdscs.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+
+racmo24_lwallnet_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/str.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc') 
+racmo24_lwclearnet_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/strc.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_lwalldown_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/rlds.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_lwcleardown_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/rldscs.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+
+racmo24_shf_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/hfss.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_lhf_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/hfls.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+
+racmo24_lwp_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/clwvi.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_iwp_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Daily/clivi.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+
+racmo24_ps_kext12 = xr.open_dataset('/nobackup/users/walj/racmo24/Daily/ps.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_psl_kext12 = xr.open_dataset('/nobackup/users/walj/racmo24/Daily/psl.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+racmo24_q_kext12 = xr.open_dataset('/nobackup/users/walj/racmo24/Daily/huss.KNMI-1975.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+
+#%% racmo24 monthly kext12
+
+racmo24_temp_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/tas_monthlyA_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+racmo24_precip_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/pr_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+racmo24_sund_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/sund_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+
+racmo24_lowcloud_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/cll_monthlyA_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+racmo24_midcloud_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/clm_monthlyA_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+racmo24_highcloud_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/clh_monthlyA_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+
+racmo24_swallnet_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/ssr_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+racmo24_swclearnet_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/ssrc_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+racmo24_swalldown_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/rsds_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+racmo24_swcleardown_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/rsdscs_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+
+racmo24_lwallnet_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/str_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc') 
+racmo24_lwclearnet_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/strc_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+racmo24_lwalldown_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/rlds_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+racmo24_lwcleardown_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/rldscs_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+
+racmo24_shf_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/hfss_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+racmo24_lhf_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/hfls_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+
+racmo24_lwp_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/clwvi_monthlyA_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+racmo24_iwp_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/TestRacmo24/Monthly/clivi_monthlyA_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc')
+
+racmo24_ps_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/racmo24/Monthly/ps_monthlyA_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_202509.nc')
+racmo24_psl_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/racmo24/Monthly/psl_monthlyA_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_202509.nc')
+racmo24_q_monthly_kext12 = xr.open_dataset('/nobackup/users/walj/racmo24/Monthly/huss_monthlyA_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_202509.nc')
+
+#%% New
+
+era5_soil_skin = xr.open_dataset('/nobackup/users/walj/era5/Monthly/era5_coarse_soil_skin.nc')
+era5_water = xr.open_dataset('/nobackup/users/walj/era5/Monthly/era5_coarse_water.nc')
+era5_toa = xr.open_dataset('/nobackup/users/walj/era5/Monthly/era5_coarse_toa.nc')
+
+racmo24_swvl1_monthly = xr.open_dataset('/nobackup/users/walj/racmo24/Monthly/swvl1_monthlyA_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_202509.nc')
+racmo24_swvl1 = xr.open_dataset('/nobackup/users/walj/racmo24/Daily/swvl1.KNMI-2010.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+
+racmo24_tcw_monthly = xr.open_dataset('/nobackup/users/walj/racmo24/Monthly/tcw_monthlyA_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_202509.nc')
+racmo24_tcw = xr.open_dataset('/nobackup/users/walj/racmo24/Daily/tcw.KNMI-2010.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+
+racmo24_twv_monthly = xr.open_dataset('/nobackup/users/walj/racmo24/Monthly/prw_monthlyA_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_202509.nc')
+racmo24_twv = xr.open_dataset('/nobackup/users/walj/racmo24/Daily/prw.KNMI-2010.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+
+racmo24_wskin_monthly = xr.open_dataset('/nobackup/users/walj/racmo24/Monthly/wskin_monthlyA_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_202509.nc')
+racmo24_wskin = xr.open_dataset('/nobackup/users/walj/racmo24/Daily/wskin.KNMI-2010.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+
+racmo24_ts_monthly = xr.open_dataset('/nobackup/users/walj/racmo24/Monthly/ts_monthlyA_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_202509.nc')
+racmo24_ts = xr.open_dataset('/nobackup/users/walj/racmo24/Daily/ts.KNMI-2010.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+
+racmo24_tswin_monthly = xr.open_dataset('/nobackup/users/walj/racmo24/Monthly/rsdt_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_202509.nc')
+racmo24_tswin = xr.open_dataset('/nobackup/users/walj/racmo24/Daily/rsdt.KNMI-2010.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+
+racmo24_tswnet_monthly = xr.open_dataset('/nobackup/users/walj/racmo24/Monthly/tsr_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_202509.nc')
+racmo24_tswnet = xr.open_dataset('/nobackup/users/walj/racmo24/Daily/tsr.KNMI-2010.KEXT12.RACMO2.4p1_v5_trends_bugfixes.DD.nc')
+
+era5_land = xr.open_dataset('/nobackup/users/walj/era5/Monthly/era5_land.nc')
+era5_land_fluxes = xr.open_dataset('/nobackup/users/walj/era5/Monthly/era5_land_fluxes.nc')
+era5_land_soil = xr.open_dataset('/nobackup/users/walj/era5/Monthly/era5_land_soil.nc')
+era5_land_general = xr.open_dataset('/nobackup/users/walj/era5/Monthly/era5_land_gen.nc')
 
 #%%
 
-# racmo23_sund = xr.open_dataset('/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Monthly_data/sund/sund.KNMI-2001-2010.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc',
-#                                 decode_times=False)
+# import pandas as pd
+# import glob
 
-racmo24_sund = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/sund_monthlyS_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
+# def open_dataset(path):
 
-racmo24_sund_daily = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/sund.KNMI-2017.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
+#     files = sorted(glob.glob(path))
 
+#     try:
+#         ds = xr.open_mfdataset(
+#             files,
+#             combine='by_coords',
+#             chunks='auto',
+#             decode_times=True,
+#         )
+#         print('hoi1')
 
-# #%%
+#         return ds
 
-# racmo23_prec = xr.open_dataset('/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Monthly_data/precip/precip.KNMI-2001-2010.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc',
-#                                decode_times=False)
+#     except Exception:
 
-# racmo24_prec = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/pr_monthlyS_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
+#         ds = xr.open_mfdataset(
+#             files,
+#             combine='by_coords',
+#             chunks='auto',
+#             decode_times=False,
+#         )
 
-# racmo24_prec_daily = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/pr.KNMI-2016.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
+#         n_time = ds.sizes['time']
+#         new_time = pd.date_range(start='1979-01-01', periods=n_time, freq='MS')
+#         print(new_time)
+#         print('hoi2')
 
+#         ds = ds.assign_coords(time=new_time)
 
+#         ds['time'].attrs = {}
 
-# #%%
-
-# racmo24_daily = preprocess_netcdf_monthly(
-#     source='RACMO2.4',
-#     file_path='/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/sund.*.nc',
-#     var_name='sund'
-# )
-
-# racmo24 = preprocess_netcdf_monthly(
-#     source='RACMO2.4',
-#     file_path='/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/sund_*.nc',
-#     var_name='sund'
-# )
-
-# racmo23 = preprocess_netcdf_monthly(
-#     source='RACMO2.3',
-#     file_path='/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Monthly_data/sund/*.nc',
-#     var_name='sund'
-# )
-
-
-#%%
-
-# racmo23_prec = xr.open_dataset('/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Monthly_data/precip/precip.KNMI-2001-2010.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc',
-#                                decode_times=False)
-
-# racmo24_rsds = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/rsds_monthlyS_KEXT06_RACMO2.4p1_v5_nocloudtuning_201501_202412.nc')
-
-# racmo24_rsds_daily = xr.open_dataset('/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/rsds.KNMI-2020.KEXT06.RACMO2.4p1_v5_nocloudtuning.DD.nc')
-
-# racmo24_daily = preprocess_netcdf_monthly(
-#     source='RACMO2.4',
-#     file_path='/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Daily/rsds.*.nc',
-#     var_name='rsds'
-# )
-
-# racmo24 = preprocess_netcdf_monthly(
-#     source='RACMO2.4',
-#     file_path='/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning/Monthly/rsds_*.nc',
-#     var_name='rsds'
-# )
-
-# era5_rsds = xr.open_dataset('/nobackup/users/walj/era5/era5_rsds.nc')
-
-# eobs_rsds = xr.open_dataset('/nobackup/users/walj/eobs/qq_ens_mean_0.1deg_reg_v31.0e.nc')
+#         return ds
 
 
+# test1 = open_dataset('/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Daily_data/swsn/swsn.KNMI-2016.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.DD.nc')
+# test2 = open_dataset('/nobackup/users/walj/racmo23/Monthly/aclcovL/aclcovL.KNMI-2015.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc')
+# test3 = open_dataset('/net/pc230066/nobackup/users/dalum/RACMO2.3/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5/Monthly_data/t2m/t2m.KNMI-2011-2020.HXEUR12.eR2v3-v578rev-LU2015-MERRA2-fERA5.MM.nc')
 
-#%%
-
-test = {'1': 1, '2': 2, '3': 3}
-
-for key, val in test.items():
-    print('Key: {key}, Value: {val}')

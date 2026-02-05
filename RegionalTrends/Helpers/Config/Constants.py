@@ -3,12 +3,12 @@ import cartopy.crs as ccrs
 import os
 
 
-DATA_SOURCES = ['Eobs', 'ERA5', 'RACMO2.3', 'RACMO2.4']
+DATA_SOURCES = ['Eobs', 'ERA5L', 'ERA5', 'RACMO2.3', 'RACMO2.4']
 STATION_SOURCES = ['Bilt', 'Cabauw', 'Eelde', 'Maastricht', 'Vlissingen', 'Kooy']
 
 VAR_FILE_CFG = {
     'Eobs': {'Tg': 'tg', 'P': 'rr', 'SWin': 'qq', 'Tmax': 'tx', 'Tmin': 'tn', 
-             'RH': 'hu', 'Psl': 'pp', 'Tmaxmax': 'tx', 'Tminmin': 'tn'},
+             'RH': 'hu', 'Psl': 'pp'},
     'ERA5': {
         'Tg': 't2m', 'P': 'tp', 'Tmax': 'tmax', 'Tmin': 'tmin', 'Tdew': 'd2m',
         'SWin': 'avg_sdswrf', 'SWnet': 'avg_snswrf', 'SWincs': 'avg_sdswrfcs', 'SWnetcs': 'avg_snswrfcs',
@@ -16,7 +16,18 @@ VAR_FILE_CFG = {
         'SHF': 'avg_ishf', 'LHF': 'avg_slhtf',
         'CloudLow': 'lcc', 'CloudMid': 'mcc', 'CloudHigh': 'hcc', 'CloudTotal': 'tcc',
         'LWP': 'tclw', 'IWP': 'tciw',
-        'Ps': 'sp', 'Psl': 'msl', 'Tmaxmax': 'tmax', 'Tminmin': 'tmin',
+        'Ps': 'sp', 'Psl': 'msl',
+        'Ts': 'skt', 'SWC': 'src',
+        'SWVL1': 'swvl1', 'SWVL2': 'swvl2', 'SWVL3': 'swvl3', 'SWVL4': 'swvl4',
+        'TWC': 'tcw', 'TWV': 'tcwv',
+        'TSWin': 'avg_tdswrf', 'TSWnet': 'avg_tnswrf', 'TLWnet': 'avg_tnlwrf',
+        'TSWnetcs': 'avg_tnswrfcs', 'TLWnetcs': 'avg_tnlwrfcs',
+    },
+    'ERA5L': {
+        'Tg': 't2m', 'P': 'tp', 'Ps': 'sp', 'Tdew': 'd2m', 'Ts': 'skt',
+        'SWin': 'ssrd', 'SWnet': 'ssr', 'LWin': 'strd', 'LWnet': 'str',
+        'SHF': 'sshf', 'LHF': 'slhf',
+        'SWC': 'src', 'SWVL1': 'swvl1', 'SWVL2': 'swvl2', 'SWVL3': 'swvl3', 'SWVL4': 'swvl4',
     },
     'RACMO2.3': {
         'Tg': 't2m', 'P': 'precip', 'Sq': 'sund',
@@ -33,10 +44,15 @@ VAR_FILE_CFG = {
         'SHF': 'hfss', 'LHF': 'hfls',
         'CloudLow': 'cll', 'CloudMid': 'clm', 'CloudHigh': 'clh', 'CloudTotal': 'clt',
         'LWP': 'clwvi', 'IWP': 'clivi',
-        'Ps': 'ps', 'Psl': 'psl', 'Q': 'huss', 'Tmaxmax': 'tasmax', 'Tminmin': 'tasmin',
+        'Ps': 'ps', 'Psl': 'psl', 'Q': 'huss',
+        'Ts': 'ts', 'SWC': 'wskin',
+        'SWVL1': 'swvl1', 'SWVL2': 'swvl2', 'SWVL3': 'swvl3', 'SWVL4': 'swvl4',
+        'TWC': 'tcw', 'TWV': 'prw',
+        'TSWin': 'rsdt', 'TSWnet': 'tsr', 'TLWnet': 'toptr',
+        'TSWnetcs': 'tsrc', 'TLWnetcs': 'ttrc',
     },
     'Station': {'Tg': 'TG', 'P': 'RH', 'Sq': 'SQ', 'SWin': 'Q', 'Tmax': 'TX', 'Tmin': 'TN', 
-                'RH': 'UG', 'Psl': 'PG', 'Tmaxmax': 'TX', 'Tminmin': 'TN'},
+                'RH': 'UG', 'Psl': 'PG', 'CloudTotal': 'NG'},
 }
 
 STATION_COORD_CFG = {
@@ -75,14 +91,29 @@ VAR_NAME_CFG = {
     'Ps': 'Surface Pressure',
     'Psl': 'Sea Level Pressure',
     'Q': 'Specific Humidity',
+    'Ts': 'Skin Temperature',
+    'SWC': 'Skin Water Content',
+    'SWVL1': 'Soil Moisture Layer 1',
+    'SWVL2': 'Soil Moisture Layer 2',
+    'SWVL3': 'Soil Moisture Layer 3',
+    'SWVL4': 'Soil Moisture Layer 4',
+    'TWC': 'Total Column Water',
+    'TWV': 'Total Column Water Vapor',
+    'TSWin': r'SW$_{\text{TOA,in}}$',
+    'TSWnet': r'SW$_{\text{TOA,net}}$',
+    'TLWnet': r'LW$_{\text{TOA,net}}$',
+    'TSWnetcs': r'SW$_{\text{TOA,net,cs}}$',
+    'TLWnetcs': r'LW$_{\text{TOA,net,cs}}$',
 
-    'Tmaxmax': 'Annual maximum Temperature',
-    'Tminmin': 'Annual minimum Temperature',
+    'P_rel': 'Relative Precipitation',
     'RH_proxy': 'Relative Humidity',
     'Bowen': 'Bowen Ratio',
     'Albedo': 'Albedo',
     'Q_era': 'Specific Humidity',
     'Q_obs': 'Specific Humidity',
+    'Q_all': 'Specific Humidity',
+    'RH_all': 'Relative Humidity',
+    'Rnet': 'Net Radiation',
 }
 
 VAR_SYMBOL_CFG = {
@@ -109,17 +140,32 @@ VAR_SYMBOL_CFG = {
     'CloudTotal': r'C$_{\text{total}}$',
     'LWP': 'LWP',
     'IWP': 'IWP',
-    'Ps': r'p$_{s}$',
-    'Psl': r'p$_{msl}$',
+    'Ps': r'p$_{\text{s}}$',
+    'Psl': r'p$_{\text{msl}}$',
     'Q': 'q',
+    'Ts': r'T$_{\text{s}}$',
+    'SWC': 'SWC',
+    'SWVL1': 'SWVL1',
+    'SWVL2': 'SWVL2',
+    'SWVL3': 'SWVL3',
+    'SWVL4': 'SWVL4',
+    'TWC': 'TWC',
+    'TWV': 'TWV',
+    'TSWin': r'SW$_{\text{TOA,in}}$',
+    'TSWnet': r'SW$_{\text{TOA,net}}$',
+    'TLWnet': r'LW$_{\text{TOA,net}}$',
+    'TSWnetcs': r'SW$_{\text{TOA,net,cs}}$',
+    'TLWnetcs': r'LW$_{\text{TOA,net,cs}}$',
 
-    'Tmaxmax': r'T$_{\text{xx}}$',
-    'Tminmin': r'T$_{\text{nn}}$',
+    'P_rel': r'P$_{\text{rel}}$',
     'RH_proxy': 'RH',
     'Bowen': 'Bowen',
     'Albedo': r'$\alpha$',
     'Q_era': 'q',
     'Q_obs': 'q',
+    'Q_all': 'q',
+    'RH_all': 'RH',
+    'Rnet': r'R$_{\text{net}}$',
 }
 
 VAR_UNIT_CFG = {
@@ -128,7 +174,7 @@ VAR_UNIT_CFG = {
     'Tmin': '°C',
     'RH': '%',
     'Tdew': '°C',
-    'P': 'mm',
+    'P': 'mm/day',
     'Sq': 'hours/day',
     'SWin': r'W/m$^2$',
     'SWnet': r'W/m$^2$',
@@ -149,14 +195,29 @@ VAR_UNIT_CFG = {
     'Ps': 'hPa',
     'Psl': 'hPa',
     'Q': 'g/kg',
+    'Ts': '°C',
+    'SWC': 'g/m$^2$',
+    'SWVL1': '%',
+    'SWVL2': '%',
+    'SWVL3': '%',
+    'SWVL4': '%',
+    'TWC': 'kg/m$^2$',
+    'TWV': 'kg/m$^2$',
+    'TSWin': r'W/m$^2$',
+    'TSWnet': r'W/m$^2$',
+    'TLWnet': r'W/m$^2$',
+    'TSWnetcs': r'W/m$^2$',
+    'TLWnetcs': r'W/m$^2$',
 
-    'Tmaxmax': '°C',
-    'Tminmin': '°C',
+    'P_rel': '%',
     'RH_proxy': '%',
     'Bowen': '',
     'Albedo': '',
     'Q_era': 'g/kg',
     'Q_obs': 'g/kg',
+    'Q_all': 'g/kg',
+    'RH_all': '%',
+    'Rnet': r'W/m$^2$',
 }
 
 

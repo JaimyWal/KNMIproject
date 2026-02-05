@@ -1,5 +1,4 @@
 import numpy as np
-import xarray as xr
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
@@ -17,6 +16,11 @@ from importlib import reload
 from RegionalTrends.Helpers import ProcessNetCDF
 reload(ProcessNetCDF)
 from RegionalTrends.Helpers.ProcessNetCDF import rect_sel
+
+# Pre-download cartopy features to avoid repeated downloads during plotting
+import cartopy.feature as cfeature
+_ = cfeature.NaturalEarthFeature('physical', 'coastline', '50m')
+_ = cfeature.NaturalEarthFeature('cultural', 'admin_0_boundary_lines_land', '50m')
 
 
 def cbar_extension(datasets, crange):
@@ -118,9 +122,11 @@ def plot_map(fig, ax, data, lon, lat,
     # Plotting
     ax.set_aspect('auto')
 
-    ax.coastlines(resolution='10m', linewidth=1.5)
-    ax.add_feature(cfeature.BORDERS, linestyle='-', lw=1.5)
-    ax.add_feature(cfeature.OCEAN, facecolor='#edf0f5')
+    # Use 50m resolution for speed (10m is very slow)
+    # Features are drawn with zorder to ensure proper layering
+    ax.add_feature(cfeature.OCEAN, facecolor='#edf0f5', zorder=0, rasterized=True)
+    ax.coastlines(resolution='50m', linewidth=1.5, zorder=2)
+    ax.add_feature(cfeature.BORDERS, linestyle='-', lw=1.0, zorder=2)
 
     # Give plot boundaries (with small padding for ticklabels)
     eps = 1e-6
@@ -438,7 +444,7 @@ def plot_map(fig, ax, data, lon, lat,
         else:
             y_min, y_max, x_min, x_max = rect_sel(lats_area, lons_area, proj_area)
 
-        n_edge = int(5e4)
+        n_edge = 500  # Reduced from 50000 for speed
 
         x_bottom = np.linspace(x_min, x_max, n_edge)
         y_bottom = np.full_like(x_bottom, y_min)
@@ -502,27 +508,34 @@ def shared_colorbar(
     thickness=0.03,
     label_pad=10,
     extendfrac=0.04,
-    length_scale=1.0
+    length_scale=1.0,
+    extend_into_axes=False
 ):
-
     extension = cbar_extension(datasets, crange)
 
-    # Calculate length adjustment to keep color range portion consistent
-    # When extensions are present, we need to make the total colorbar longer
-    # so that the actual color range part stays the same length
+    # Calculate length adjustment based on extend_into_axes mode
     if extendfrac != 'auto' and extendfrac is not None:
         ext_frac = float(extendfrac)
-        if extension == 'both':
-            # Two extensions: total length = color_range / (1 - 2*ext_frac)
-            length_adjustment = 1.0 / (1.0 - 2.0 * ext_frac)
-        elif extension in ('min', 'max'):
-            # One extension: total length = color_range / (1 - ext_frac)
-            length_adjustment = 1.0 / (1.0 - ext_frac)
-        else:
-            length_adjustment = 1.0
     else:
         ext_frac = 0.0
+    
+    if extend_into_axes:
+        # Total colorbar matches axes - no length adjustment needed
+        # Extensions will eat into the color range space
         length_adjustment = 1.0
+        ext_frac_for_positioning = 0.0  # No position adjustment
+    else:
+        # Main body matches axes - extend total length so color range is preserved
+        if ext_frac > 0:
+            if extension == 'both':
+                length_adjustment = 1.0 / (1.0 - 2.0 * ext_frac)
+            elif extension in ('min', 'max'):
+                length_adjustment = 1.0 / (1.0 - ext_frac)
+            else:
+                length_adjustment = 1.0
+        else:
+            length_adjustment = 1.0
+        ext_frac_for_positioning = ext_frac
 
     fig.canvas.draw()
     axes = np.atleast_1d(axes)
@@ -538,16 +551,14 @@ def shared_colorbar(
         bottom = center - base_height / 2
         
         # Adjust position so main body is centered, extensions stick out
+        # Only apply if NOT using extend_into_axes mode
         if extension == 'min':
-            # Extension at bottom, shift down so main body stays centered
-            ext_size = height * ext_frac
+            ext_size = height * ext_frac_for_positioning
             bottom = bottom - ext_size
         elif extension == 'max':
-            # Extension at top, no shift needed (main body already at correct position)
             pass
         elif extension == 'both':
-            # Extensions on both sides, shift down by one extension size
-            ext_size = height * ext_frac
+            ext_size = height * ext_frac_for_positioning
             bottom = bottom - ext_size
 
         # Determine left/right position
@@ -604,16 +615,14 @@ def shared_colorbar(
         left = center - base_width / 2
         
         # Adjust position so main body is centered, extensions stick out
+        # Only apply if NOT using extend_into_axes mode
         if extension == 'min':
-            # Extension on left, shift left so main body stays centered
-            ext_size = width * ext_frac
+            ext_size = width * ext_frac_for_positioning
             left = left - ext_size
         elif extension == 'max':
-            # Extension on right, no shift needed (main body already at correct position)
             pass
         elif extension == 'both':
-            # Extensions on both sides, shift left by one extension size
-            ext_size = width * ext_frac
+            ext_size = width * ext_frac_for_positioning
             left = left - ext_size
 
         bottom = min(p.y0 for p in positions) - (pad + thickness)
