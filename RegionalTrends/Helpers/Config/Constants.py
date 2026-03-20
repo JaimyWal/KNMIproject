@@ -109,6 +109,7 @@ VAR_NAME_CFG = {
     'RH_proxy': 'Relative Humidity',
     'Bowen': 'Bowen Ratio',
     'Albedo': 'Albedo',
+    'Albedocs': 'Clear-Sky Albedo',
     'Q_era': 'Specific Humidity',
     'Q_obs': 'Specific Humidity',
     'Q_all': 'Specific Humidity',
@@ -161,6 +162,7 @@ VAR_SYMBOL_CFG = {
     'RH_proxy': 'RH',
     'Bowen': 'Bowen',
     'Albedo': r'$\alpha$',
+    'Albedocs': r'$\alpha_{\text{cs}}$',
     'Q_era': 'q',
     'Q_obs': 'q',
     'Q_all': 'q',
@@ -213,6 +215,7 @@ VAR_UNIT_CFG = {
     'RH_proxy': '%',
     'Bowen': '',
     'Albedo': '',
+    'Albedocs': '',
     'Q_era': 'g/kg',
     'Q_obs': 'g/kg',
     'Q_all': 'g/kg',
@@ -248,8 +251,8 @@ rotpole24_kext06 = load_rotpole(
 )
 
 rotpole24_kext12 = load_rotpole(
-    '/nobackup/users/walj/TestRacmo24/Monthly',
-    'pr_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_197712.nc'
+    '/nobackup/users/walj/racmo24/Monthly',
+    'pr_monthlyS_KEXT12_RACMO2.4p1_v5_trends_bugfixes_197206_202509.nc'
 )
 
 PROJ_CFG = {

@@ -99,7 +99,7 @@ def area_weighted_mean(ds, rotpole_native=None, weights=None):
         mask = ds.notnull()
         w_masked = weights.where(mask)
         
-        weighted_sum = (ds * w_masked).sum(dim='station')
+        weighted_sum = (ds*w_masked).sum(dim='station')
         sum_of_weights = w_masked.sum(dim='station')
         
         area_mean = weighted_sum / sum_of_weights

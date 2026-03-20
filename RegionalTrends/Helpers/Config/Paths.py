@@ -17,6 +17,7 @@ BASE_DIR_CFG = {
     'RACMO2.3_ERIK': '/net/pc230066/nobackup_1/users/vanmeijg/CORDEX_CMIP6_ROOT/HXEUR12/eR2v3-v578rev-LU2015-MERRA2-fERA5',
     'RACMO2.4_KEXT06': '/net/pc200010/nobackup/users/dalum/RACMO2.4/RACMO_output/KEXT06/RACMO2.4p1_v5_nocloudtuning',
     'RACMO2.4_KEXT12': '/nobackup/users/walj/racmo24',
+    'RACMO2.4_AER': '/nobackup/users/walj/racmo24int',
     'Station': '/nobackup/users/walj/knmi',
 }
 
@@ -194,6 +195,12 @@ def build_file_cfg(freq_str, racmo24_sep, racmo23_base):
         'TLWnet': connect_paths('RACMO2.4_KEXT12', f'{freq_str}/toptr{racmo24_sep}*.nc'),
         'TSWnetcs': connect_paths('RACMO2.4_KEXT12', f'{freq_str}/tsrc{racmo24_sep}*.nc'),
         'TLWnetcs': connect_paths('RACMO2.4_KEXT12', f'{freq_str}/ttrc{racmo24_sep}*.nc'),
+    }
+
+    cfg['RACMO2.4_AER'] = {
+        'Tg': connect_paths('RACMO2.4_AER', f'tas{racmo24_sep}*.nc'),
+        'SWin': connect_paths('RACMO2.4_AER', f'rsds{racmo24_sep}*.nc'),
+        'SWincs': connect_paths('RACMO2.4_AER', f'rsdscs{racmo24_sep}*.nc'),
     }
 
     freq_str = 'Daily'

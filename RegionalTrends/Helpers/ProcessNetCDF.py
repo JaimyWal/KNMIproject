@@ -260,14 +260,7 @@ def subset_time(time, months=None, years=None):
         tsel = tsel.where(tsel.dt.month.isin(months), drop=True)
 
     if years is not None and isinstance(years, (list, tuple)):
-        if len(years) == 2:
-            start, end = years
-            if start is not None:
-                tsel = tsel.where(tsel.dt.year >= start, drop=True)
-            if end is not None:
-                tsel = tsel.where(tsel.dt.year <= end, drop=True)
-        else:
-            tsel = tsel.where(tsel.dt.year.isin(years), drop=True)
+        tsel = tsel.where(tsel.dt.year.isin(years), drop=True)
 
     return tsel
 

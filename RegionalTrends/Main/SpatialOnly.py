@@ -48,18 +48,18 @@ dask.config.set(scheduler='threads', num_workers=12)
 #%% User inputs
 
 # Main arguments
-var = 'Rnet'
+var = 'SWincs'
 file_freq = 'Monthly'
 proc_type = 'Mean'
-# data_base = ['ERA5', 'Eobs', 'ERA5']
-# data_compare = ['RACMO2.4', 'RACMO2.4', 'Eobs']
-data_base = ['ERA5', 'ERA5L', 'RACMO2.3', 'RACMO2.4']
+# data_base = ['ERA5', 'ERA5', 'RACMO2.4']
+# data_compare = ['RACMO2.4', 'RACMO2.4_AER', 'RACMO2.4_AER']
+data_base = ['ERA5', 'RACMO2.3', 'RACMO2.4', 'RACMO2.4_AER']
 data_compare = None
 save_name_base = None#'AllSeasons19802020'
 
 # Data selection arguments
-months_dict = {'DJF': [12, 1, 2], 'MAM': [3, 4, 5], 'JJA': [6, 7, 8], 'SON': [9, 10, 11]}
-years = [1980, 2020] 
+months_dict = {'DJF': [12, 1, 2], 'MAM': [3, 4, 5], 'JJA': [6, 7, 8], 'SON': [9, 10, 11], 'ALL': np.arange(1,13)}
+years = np.arange(1980, 2020 + 1)
 lats = [37.7, 63.3]
 lons = [-13.3, 22.3]
 proj_sel = 'RACMO2.4'
@@ -67,28 +67,28 @@ land_only = False
 trim_border = None
 
 # Spatial plotting arguments
-plot_climatology = True
-avg_crange = {'DJF': [-20, 50], 'MAM': [20, 200], 'JJA': [50, 300], 'SON': [0, 80]}
-# avg_crange = [10, 50]
-std_mask_ref = data_base
+plot_climatology = False
+# avg_crange = {'DJF': [-20, 50], 'MAM': [20, 200], 'JJA': [50, 300], 'SON': [0, 80]}
+avg_crange = [-15, 15]
+std_mask_ref = None
 std_dir = 'Lesser'
-shared_cbar_avg = False
+shared_cbar_avg = True
 shared_cbar_label_avg = True
 short_cbar_label_avg = False
-cbar_ticks_avg_shared = 5
+cbar_ticks_avg_shared = 2.5
 cbar_ticks_avg_sep = [20, 40, 50, 20]
 cbar_ticks_num_avg = False
 
 # Trend plotting arguments
 trend_calc = True
-trend_crange = {'DJF': [-2, 2], 'MAM': [-4, 4], 'JJA': [-5, 5], 'SON': [-2, 2]}
-# trend_crange = [-1.5,1.5]
+# trend_crange = {'DJF': [-2, 2], 'MAM': [-4, 4], 'JJA': [-5, 5], 'SON': [-2, 2]}
+trend_crange = [-5, 5]
 trend_regrid = False
 fit_against_gmst = False
-shared_cbar_trend = False
+shared_cbar_trend = True
 shared_cbar_label_trend = True
 short_cbar_label_trend = False
-cbar_ticks_trend_shared = 0.5
+cbar_ticks_trend_shared = 1
 cbar_ticks_trend_sep = [1, 2, 2.5, 1]
 cbar_ticks_num_trend = False
 
@@ -163,7 +163,7 @@ def get_fit_config(fit_against_gmst):
 
 def get_trend_unit(var, var_units_cfg, fit_unit):
     if var_units_cfg[var] == '':
-        return 'per' + fit_unit
+        return 'per ' + fit_unit
     return var_units_cfg[var] + ' / ' + fit_unit
 
 def get_var_symbol(var, var_symbol_cfg):
@@ -219,6 +219,18 @@ def setup_colormaps(var, var_colors_cfg, has_comparison, cmap_type, n_disc_color
 
 def ensure_list(param, n):
     return param if isinstance(param, list) else [param]*n
+
+def auto_chunk(dataarray, time_dim=None, time_chunk=None, spatial_size=100):
+    chunks = {}
+    if time_dim is not None:
+        if time_chunk is None:
+            chunks[time_dim] = -1
+        else:
+            chunks[time_dim] = time_chunk
+    for d in ('latitude','longitude','rlat','rlon'):
+        if d in dataarray.dims:
+            chunks[d] = spatial_size
+    return dataarray.chunk(chunks)
 
 #%% Run configuration
 
@@ -284,7 +296,8 @@ def load_source_data(data_source):
     # Extend years if needed for DJF-style seasons
     years_load = list(years)
     if needs_extended_years(months_dict):
-        years_load[0] = years[0] - 1
+        extra_years = {y - 1 for y in years} - set(years)
+        years_load = sorted(set(years_load) | extra_years)
     
     # Load the variable
     data_raw = load_var(
@@ -476,10 +489,9 @@ def filter_by_season(data, months, years):
     # Assign climate year for this specific season
     data_season = assign_clim_year(data_season, months)
     
-    # Filter by climate year range
-    y0, y1 = years[0], years[-1]
-    return data_season.where((data_season['clim_year'] >= y0) & 
-                              (data_season['clim_year'] <= y1), drop=True)
+    # Filter by exact climate years
+    years_arr = np.asarray(years)
+    return data_season.where(data_season['clim_year'].isin(years_arr), drop=True)
 
 def compute_seasonal_yearly(data, months, years, proc_type='Mean'):
     
@@ -491,7 +503,12 @@ def compute_seasonal_yearly(data, months, years, proc_type='Mean'):
     elif proc_type == 'Min':
         yearly = filtered.groupby('clim_year').min('time')
     else:
-        yearly = filtered.groupby('clim_year').mean('time')
+        month_weights = filtered['time'].dt.days_in_month.astype('float32')
+        month_weights = month_weights.assign_coords(clim_year=filtered['clim_year'])
+
+        weighted_sum = (filtered*month_weights).groupby('clim_year').sum('time')
+        weight_sum = month_weights.where(filtered.notnull()).groupby('clim_year').sum('time')
+        yearly = weighted_sum / weight_sum
     
     return yearly.astype('float32')
 
@@ -526,8 +543,8 @@ def compute_correlation_lazy(x, y, dim='time'):
     x, y = xr.align(x, y, join='inner')
     
     time_chunk = 365 if len(x[dim]) > 1000 else -1
-    x = x.chunk({dim: time_chunk, 'latitude': 100, 'longitude': 100})
-    y = y.chunk({dim: time_chunk, 'latitude': 100, 'longitude': 100})
+    x = auto_chunk(x, time_dim=dim, time_chunk=time_chunk, spatial_size=100)
+    y = auto_chunk(y, time_dim=dim, time_chunk=time_chunk, spatial_size=100)
     
     valid = np.isfinite(x) & np.isfinite(y)
     xv = x.where(valid)
@@ -547,8 +564,8 @@ def compute_rmse_lazy(x, y, dim='time'):
     x, y = xr.align(x, y, join='inner')
     
     time_chunk = 365 if len(x[dim]) > 1000 else -1
-    x = x.chunk({dim: time_chunk, 'latitude': 100, 'longitude': 100})
-    y = y.chunk({dim: time_chunk, 'latitude': 100, 'longitude': 100})
+    x = auto_chunk(x, time_dim=dim, time_chunk=time_chunk, spatial_size=100)
+    y = auto_chunk(y, time_dim=dim, time_chunk=time_chunk, spatial_size=100)
     
     valid = np.isfinite(x) & np.isfinite(y)
     err = y.where(valid) - x.where(valid)
@@ -568,8 +585,8 @@ def compute_std_ref_lazy(base_fit, comp_fit_reg, std_ref_type):
     if std_ref_type == 'Pool':
         xb, yc = xr.align(base_fit, comp_fit_reg, join='inner')
         valid = np.isfinite(xb) & np.isfinite(yc)
-        xb = xb.where(valid).chunk({'fit_against': -1, 'latitude': 100, 'longitude': 100})
-        yc = yc.where(valid).chunk({'fit_against': -1, 'latitude': 100, 'longitude': 100})
+        xb = auto_chunk(xb.where(valid), time_dim='fit_against', time_chunk=-1, spatial_size=100)
+        yc = auto_chunk(yc.where(valid), time_dim='fit_against', time_chunk=-1, spatial_size=100)
         
         fits_xb = xb.polyfit(dim='fit_against', deg=1, skipna=True)
         trend_xb = xr.polyval(xb['fit_against'], fits_xb.polyfit_coefficients)
@@ -587,7 +604,7 @@ def compute_std_ref_lazy(base_fit, comp_fit_reg, std_ref_type):
         # std_ref_type is 'base' or 'compare'
         ref_fit = base_fit if std_ref_type == 'base' else comp_fit_reg
         _, ref_fit = xr.align(base_fit, ref_fit, join='inner')
-        ref_fit = ref_fit.chunk({'fit_against': -1, 'latitude': 100, 'longitude': 100})
+        ref_fit = auto_chunk(ref_fit, time_dim='fit_against', time_chunk=-1, spatial_size=100)
         n_ref = np.isfinite(ref_fit).sum('fit_against')
         fits_ref = ref_fit.polyfit(dim='fit_against', deg=1, skipna=True)
         trend_ref = xr.polyval(ref_fit['fit_against'], fits_ref.polyfit_coefficients)
@@ -596,18 +613,25 @@ def compute_std_ref_lazy(base_fit, comp_fit_reg, std_ref_type):
 
 def get_title(base_src, comp_src, data_sources, switch_sign):
 
-    base_name = next(key for key in data_sources if key in base_src)
-    
+    def clean(src):
+        if src is None:
+            return None
+        t = src.replace('RACMO2.4_AER', 'R2.4A')
+        t = t.replace('RACMO2.4', 'R2.4')
+        t = t.replace('ACMO', '')
+        t = t.replace('Eobs', 'E-OBS')
+        return t
+
+    base_name = clean(base_src)
     if comp_src is None:
         title = base_name
     else:
-        comp_name = next(key for key in data_sources if key in comp_src)
+        comp_name = clean(comp_src)
         if switch_sign:
             title = f"{base_name} - {comp_name}"
         else:
             title = f"{comp_name} - {base_name}"
-    
-    return title.replace('ACMO', '').replace('Eobs', 'E-OBS')
+    return title
 
 # =============================================================================
 # PRE-COMPUTE SEASONAL SLICES
@@ -624,7 +648,7 @@ for month_key, months in months_dict.items():
         monthly_filtered = filter_by_season(data['monthly'], months, years)
         seasonal_slices[(src, month_key, 'monthly')] = monthly_filtered
         
-        # Cache yearly aggregates (used for correlation/RMSE with Yearly freq)
+        # Cache yearly aggregates
         yearly_agg = compute_seasonal_yearly(data['monthly'], months, years, proc_type)
         seasonal_slices[(src, month_key, 'yearly')] = yearly_agg
         
@@ -917,7 +941,7 @@ for month_key in months_dict.keys():
 #   PLOTTING HELPER FUNCTIONS
 #   ============================================================================
 
-def compute_cbar_pad(fig, axes, cbar_orientation, extra_pad=0.01):
+def compute_cbar_pad(fig, axes, cbar_orientation, extra_pad=0.015):
 
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
@@ -1213,6 +1237,8 @@ if save_name_base is not None:
         save_name_avg = f'{save_name_base}_{var}_bias'
     else:
         save_name_avg = f'{save_name_base}_{var}_climatology'
+else:
+    save_name_avg = None
 
 if plot_climatology:
     plot_spatial_grid(
@@ -1256,6 +1282,8 @@ if save_name_base is not None:
         save_name_trend = f'{save_name_base}_{var}_trenddiff'
     else:
         save_name_trend = f'{save_name_base}_{var}_trend'
+else:
+    save_name_trend = None
 
 if trend_calc:
     plot_spatial_grid(
@@ -1293,6 +1321,8 @@ if trend_calc:
 
 if save_name_base is not None:
     save_name_corr = f'{save_name_base}_{var}_corr'
+else:
+    save_name_corr = None
 
 if corr_calc:
     plot_spatial_grid(
@@ -1328,6 +1358,8 @@ if corr_calc:
 
 if save_name_base is not None:
     save_name_rmse = f'{save_name_base}_{var}_rmse'
+else:
+    save_name_rmse = None
 
 if rmse_calc:
     plot_spatial_grid(
@@ -1345,4 +1377,3 @@ if rmse_calc:
 
 
 #%%
-

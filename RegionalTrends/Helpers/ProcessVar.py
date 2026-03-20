@@ -114,6 +114,14 @@ def Albedo(**kwargs):
     return SWout / SWin_safe
 
 
+def Albedocs(**kwargs):
+    SWin = load_single_var(var_to_load='SWincs', **kwargs)
+    SWnet = load_single_var(var_to_load='SWnetcs', **kwargs)
+    SWout = SWin - SWnet
+    SWin_safe = SWin.where(np.abs(SWin) > 5)
+    return SWout / SWin_safe
+
+
 def Q_from_era(**kwargs):
     Tdew= load_single_var(var_to_load='Tdew', **kwargs)
     Ps = load_single_var(var_to_load='Ps', **kwargs)
@@ -156,6 +164,7 @@ DERIVED_VARS = {
     'RH_proxy': RH_proxy,
     'Bowen': Bowen,
     'Albedo': Albedo,
+    'Albedocs': Albedocs,
     'Q_era': Q_from_era,
     'Q_obs': Q_from_obs,
     'P_rel': P_rel,

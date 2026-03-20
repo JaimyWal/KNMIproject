@@ -1,0 +1,92 @@
+import xarray as xr
+import matplotlib.pyplot as plt
+
+# ds1 = xr.open_dataset('/nobackup/users/walj/aerosoles/aerosol_cams_3d_climatology_47r1.nc')
+# ds2 = xr.open_dataset('/nobackup/users/walj/aerosoles/aerosol_cams_climatology_49r2_1951-2019_4D.nc')
+# ds3 = xr.open_dataset('/nobackup/users/walj/aerosoles/aerosol_ifs_rrtm_46R1_with_NI_AM.nc')
+# ds4 = xr.open_dataset('/nobackup/users/walj/aerosoles/aerosol_ifs_49R2.nc')
+
+adicomp = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/adicomp.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+convect = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/convect.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+horadv = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/horadv.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+lcbotdn = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/lcbotdn.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+lcnet = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/lcnet.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+lctopdn = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/lctopdn.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+lscld = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/lscld.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+lwbotdn = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/lwbotdn.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+lwnet = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/lwnet.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+lwtopdn = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/lwtopdn.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+mlhgtf3d = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/mlhgtf3d.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+mlhgth3d = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/mlhgth3d.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+radtot = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/radtot.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+scbotdn = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/scbotdn.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+scnet = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/scnet.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+sctopdn = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/sctopdn.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+swbotdn = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/swbotdn.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+swnet = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/swnet.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+swtopdn = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/swtopdn.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+templ1 = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/templ1.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+totdyn = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/totdyn.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+totphys = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/totphys.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+tottend = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/tottend.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+udtdx = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/udtdx.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+udtdy = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/udtdy.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+vdffric = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/vdffric.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+vdfphase = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/vdfphase.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+vdfsens = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/vdfsens.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+vdftot = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/vdftot.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+vdtdx = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/vdtdx.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+vdtdy = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/vdtdy.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+vertadv = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Daily/vertadv.KNMI-1950.KEXT12.RACMO2.4p1_v5_enbud1yr.DD.nc')
+
+# adicomp_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/adicomp_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# convect_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/convect_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# horadv_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/horadv_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# lcbotdn_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/lcbotdn_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# lcnet_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/lcnet_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# lctopdn_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/lctopdn_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# lscld_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/lscld_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# lwbotdn_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/lwbotdn_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# lwnet_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/lwnet_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# lwtopdn_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/lwtopdn_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# mlhgtf3d_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/mlhgtf3d_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# mlhgth3d_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/mlhgth3d_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# radtot_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/radtot_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# scbotdn_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/scbotdn_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# scnet_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/scnet_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# sctopdn_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/sctopdn_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# swbotdn_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/swbotdn_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# swnet_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/swnet_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# swtopdn_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/swtopdn_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# templ1_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/templ1_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# totdyn_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/totdyn_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# totphys_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/totphys_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# tottend_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/tottend_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# udtdx_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/udtdx_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# udtdy_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/udtdy_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# vdffric_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/vdffric_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# vdfphase_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/vdfphase_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# vdfsens_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/vdfsens_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# vdftot_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/vdftot_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# vdtdx_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/vdtdx_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# vdtdy_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/vdtdy_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+# vertadv_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/vertadv_l1_monthlyS_KEXT12_RACMO2.4p1_v5_enbudtesting_195001_195012.nc')
+tottend_monthly = xr.open_dataset('/nobackup/users/walj/enbudtesting2/Monthly/tottend_monthlyS_KEXT12_RACMO2.4p1_v5_enbud1yr_195001_195112.nc')
+
+#%%
+
+# (totdyn['totdyn'] - adicomp['adicomp'] - horadv['horadv'] - vertadv['vertadv']).isel(time=0).plot()
+# (radtot['radtot'] - lwnet['lwnet'] - swnet['swnet']).isel(time=2).plot()
+# (vdftot['vdftot'] - vdfsens['vdfsens'] - vdfphase['vdfphase'] - vdffric['vdffric']).isel(time=2).plot()
+
+# mlhgth3d['mlhgth3d'].isel(time=0, level=-2).plot()
+
+# calculate a monthly total from the daily tottend dataset
+# resampling produces a time series labelled at month-ends (1M).
+tottend_summed = tottend['tottend'].resample(time='1M').sum()
+
+diff = tottend_monthly['tottend'].isel(time=0)/(86400)**2 - tottend_summed.isel(time=0)/86400
+
+# data = tottend_summed.isel(time=0)/86400
+# mx = -10
+# data.plot(vmin=-mx, vmax=mx, cmap='RdBu_r')

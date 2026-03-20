@@ -47,13 +47,13 @@ dask.config.set(scheduler='threads', num_workers=12)
 #%% User Inputs
 
 # Main arguments
-var = 'Tg'
+var = 'SWincs'
 file_freq = 'Monthly'
 proc_type = 'Mean'
 save_name_base = None#'NLAllSeasons19802020'
 
 # Common data selection arguments
-years = [1980, 2020]
+years = np.arange(1980, 2020 + 1)
 lats = [50.7, 53.6]
 lons = [3.25, 7.35]
 # lats = ['Bilt', 'Eelde', 'Vlissingen', 'Maastricht', 'Kooy']
@@ -64,7 +64,7 @@ trim_border = None
 
 # Trend time series plot arguments
 plot_trends = True
-data_sources_trend = ['Stations', 'Eobs', 'ERA5', 'ERA5L', 'RACMO2.3', 'RACMO2.4']
+data_sources_trend = ['ERA5', 'RACMO2.3', 'RACMO2.4', 'RACMO2.4_AER']
 stations_trend = ['Bilt', 'Eelde', 'Vlissingen', 'Maastricht', 'Kooy']
 months_dict = {'DJF': [12, 1, 2], 'MAM': [3, 4, 5], 'JJA': [6, 7, 8], 'SON': [9, 10, 11]}
 trend_layout = (2, 2)
@@ -156,6 +156,7 @@ SOURCE_LABELS = {
     'Eobs': 'E-OBS', 'Eobs_fine': 'E-OBS', 'Eobs_coarse': 'E-OBS',
     'ERA5': 'ERA5', 'ERA5L': 'ERA5L', 'ERA5_land': 'ERA5L', 'ERA5_coarse': 'ERA5',
     'RACMO2.3': 'R2.3', 'RACMO2.4': 'R2.4', 'RACMO2.4_KEXT06': 'R2.4',
+    'RACMO2.4_AER': 'R2.4A',
     'Stations': 'Stations',
 }
 
@@ -225,10 +226,9 @@ def filter_by_season(data, months, years):
     # Assign climate year for this specific season
     data_season = assign_clim_year(data_season, months)
     
-    # Filter by climate year range
-    y0, y1 = years[0], years[-1]
-    return data_season.where((data_season['clim_year'] >= y0) & 
-                              (data_season['clim_year'] <= y1), drop=True)
+    # Filter by exact climate years
+    years_arr = np.asarray(years)
+    return data_season.where(data_season['clim_year'].isin(years_arr), drop=True)
 
 def compute_seasonal_yearly(data, months, years, proc_type='Mean'):
     
@@ -240,7 +240,13 @@ def compute_seasonal_yearly(data, months, years, proc_type='Mean'):
     elif proc_type == 'Min':
         yearly = filtered.groupby('clim_year').min('time')
     else:
-        yearly = filtered.groupby('clim_year').mean('time')
+        month_weights = filtered['time'].dt.days_in_month.astype('float32')
+        month_weights = month_weights.assign_coords(clim_year=filtered['clim_year'])
+
+        weighted_sum = (filtered*month_weights).groupby('clim_year').sum('time')
+        weight_sum = month_weights.where(filtered.notnull()).groupby('clim_year').sum('time')
+        yearly = weighted_sum / weight_sum
+        # yearly = filtered.groupby('clim_year').mean('time')
     
     return yearly.astype('float32')
 
@@ -349,7 +355,8 @@ all_sources_to_load = list(all_gridded_sources) + list(all_stations)
 years_load = list(years)
 if needs_extended_years(months_dict=months_dict, 
                         months_lists=[months_scatter, months_raw, months_spatial]):
-    years_load[0] = years[0] - 1
+    extra_years = {y - 1 for y in years} - set(years)
+    years_load = sorted(set(years_load) | extra_years)
 
 # Load all source data
 source_data = {}
@@ -668,7 +675,7 @@ if plot_trends:
         figsize=(trend_panel_width * n_cols, trend_panel_height * n_rows),
         sharex=True, sharey=False
     )
-    wspace = 0.02 if trend_mirror_y_axes else 0.16
+    wspace = 0.06 if trend_mirror_y_axes else 0.16
     fig.subplots_adjust(left=0.12, right=0.98, bottom=0.10, top=0.95, wspace=wspace, hspace=0.18)
     axes = normalize_axes(axes, n_rows, n_cols)
     
@@ -686,7 +693,7 @@ if plot_trends:
             
             stats = trend_stats[src]
             color = COLORS[ii % len(COLORS)]
-            label = f'{get_source_label(src)} ({stats["slope_trend"]:.2f} ± {stats["slope_trend_std"]:.2f} {trend_unit})'
+            label = fr'{get_source_label(src)} ({stats['slope_trend']:.2f} $\pm$ {stats['slope_trend_std']:.2f} {trend_unit})'
             
             order = np.argsort(stats['x_clean'])
             x_sorted, y_sorted = stats['x_clean'][order], stats['y_clean'][order]
@@ -780,7 +787,8 @@ if plot_scatter and data_sources_scatter and data_compare_scatter and scatter_re
             sharex=share_x, sharey=share_y
         )
         
-        wspace = 0.03 if (share_x and share_y) else (0.12 if (share_x or share_y) else 0.25)
+        # a bit more horizontal padding so tick labels don’t rub
+        wspace = 0.05 if (share_x and share_y) else (0.14 if (share_x or share_y) else 0.25)
         fig.subplots_adjust(left=0.12, right=0.98, bottom=0.16, 
                            top=0.92, wspace=wspace, hspace=0.16 if n_rows > 1 else 0.08)
         axes = normalize_axes(axes, n_rows, n_cols)
@@ -942,9 +950,9 @@ if plot_spatial_trends and data_sources_spatial:
         show_x = (idx // n_cols == n_rows - 1)
         show_y = (idx % n_cols == 0)
         
-        # Get coordinates for plotting
+        # For station data, load full grid and map station values using stored coordinates
         if is_station_data:
-            # Load reference grid for station-based data
+            # Load reference grid for plotting extent
             ref_data = load_var(
                 var=var, data_source=spatial_src, data_sources=data_sources,
                 station_sources=station_sources, file_freq=file_freq,
@@ -953,46 +961,47 @@ if plot_spatial_trends and data_sources_spatial:
                 land_only=False, trim_border=None, rotpole_sel=proj_sel, station_coords=None,
             )
             
-            if 'lon' in ref_data.coords:
-                lons_plot = ref_data['lon'].values
-                lats_plot = ref_data['lat'].values
-            elif 'longitude' in ref_data.coords:
+            # Get coordinate arrays from reference grid
+            if 'longitude' in ref_data.coords:
                 lons_plot = ref_data['longitude'].values
                 lats_plot = ref_data['latitude'].values
-            else:
-                coord_names = list(ref_data.coords)
-                lons_plot = ref_data.coords[coord_names[-1]].values
-                lats_plot = ref_data.coords[coord_names[-2]].values
+            elif 'lon' in ref_data.coords:
+                lons_plot = ref_data['lon'].values
+                lats_plot = ref_data['lat'].values
             
-            # Create 2D grid with station values
-            station_lons = monthly_data['station_lon'].values
-            station_lats = monthly_data['station_lat'].values
+            # Get stored station coordinates (exact grid cell centers from subset_space)
+            stn_lats = monthly_data['station_lat'].values
+            stn_lons = monthly_data['station_lon'].values
             
-            if lons_plot.ndim == 1:
-                trend_2d = np.full((len(lats_plot), len(lons_plot)), np.nan, dtype='float32')
-                for slon, slat, val in zip(station_lons, station_lats, trend_field.values):
-                    trend_2d[np.argmin(np.abs(lats_plot - slat)), np.argmin(np.abs(lons_plot - slon))] = val
-            else:
-                trend_2d = np.full(lons_plot.shape, np.nan, dtype='float32')
-                for slon, slat, val in zip(station_lons, station_lats, trend_field.values):
-                    min_idx = np.unravel_index(np.argmin((lons_plot - slon)**2 + (lats_plot - slat)**2), lons_plot.shape)
-                    trend_2d[min_idx] = val
+            # Create 2D trend field by finding exact coordinate matches (no distance calc)
+            trend_2d = np.full(lons_plot.shape if lons_plot.ndim == 2 else (len(lats_plot), len(lons_plot)), 
+                               np.nan, dtype='float32')
+            
+            for slat, slon, val in zip(stn_lats, stn_lons, trend_field.values):
+                if lons_plot.ndim == 2:
+                    # 2D coordinates (rotated pole): find where both match
+                    match = np.where((lats_plot == slat) & (lons_plot == slon))
+                    if len(match[0]) > 0:
+                        trend_2d[match[0][0], match[1][0]] = val
+                else:
+                    # 1D coordinates: find index in each dimension
+                    i_match = np.where(lats_plot == slat)[0]
+                    j_match = np.where(lons_plot == slon)[0]
+                    if len(i_match) > 0 and len(j_match) > 0:
+                        trend_2d[i_match[0], j_match[0]] = val
             
             trend_field = xr.DataArray(trend_2d, dims=['y', 'x'])
         else:
-            # Regular grid
-            if 'lon' in monthly_data.coords:
-                trend_field = trend_field.assign_coords(latitude=monthly_data['lat'], longitude=monthly_data['lon'])
-            elif 'latitude' in monthly_data.coords:
-                trend_field = trend_field.assign_coords(latitude=monthly_data['latitude'], longitude=monthly_data['longitude'])
-            
+            # Gridded data: coordinates already present from polyfit chain
             if 'longitude' in trend_field.coords:
                 lons_plot = trend_field['longitude'].values
                 lats_plot = trend_field['latitude'].values
-            else:
-                coord_names = list(trend_field.coords)
-                lons_plot = trend_field.coords[coord_names[-1]].values
-                lats_plot = trend_field.coords[coord_names[-2]].values
+            elif 'lon' in trend_field.coords:
+                lons_plot = trend_field['lon'].values
+                lats_plot = trend_field['lat'].values
+            elif 'rlon' in trend_field.coords:
+                lons_plot = monthly_data['longitude'].values
+                lats_plot = monthly_data['latitude'].values
         
         mesh, _ = plot_map(
             fig, ax, trend_field, lons_plot, lats_plot,
