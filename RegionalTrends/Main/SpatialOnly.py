@@ -33,7 +33,6 @@ from RegionalTrends.Helpers import GridBounds
 reload(GridBounds)          
 from RegionalTrends.Helpers.GridBounds import grid_with_bounds
 
-# Data config custom libraries
 import RegionalTrends.Helpers.Config.Constants as Constants
 reload(Constants)
 
@@ -41,20 +40,19 @@ import RegionalTrends.Helpers.Config.Plotting as Plotting
 reload(Plotting)
 from RegionalTrends.Helpers.Config.Plotting import build_corr_cmap, convert_cmap
 
-
 plt.rcParams['axes.unicode_minus'] = False
 dask.config.set(scheduler='threads', num_workers=12)
 
 #%% User inputs
 
 # Main arguments
-var = 'SWincs'
+var = 'SWin'
 file_freq = 'Monthly'
 proc_type = 'Mean'
-# data_base = ['ERA5', 'ERA5', 'RACMO2.4']
-# data_compare = ['RACMO2.4', 'RACMO2.4_AER', 'RACMO2.4_AER']
-data_base = ['ERA5', 'RACMO2.3', 'RACMO2.4', 'RACMO2.4_AER']
-data_compare = None
+data_base = ['ERA5', 'ERA5', 'RACMO2.4']
+data_compare = ['RACMO2.4', 'RACMO2.4A', 'RACMO2.4A']
+# data_base = ['ERA5', 'RACMO2.3', 'RACMO2.4', 'RACMO2.4A']
+# data_compare = None
 save_name_base = None#'AllSeasons19802020'
 
 # Data selection arguments
@@ -82,7 +80,7 @@ cbar_ticks_num_avg = False
 # Trend plotting arguments
 trend_calc = True
 # trend_crange = {'DJF': [-2, 2], 'MAM': [-4, 4], 'JJA': [-5, 5], 'SON': [-2, 2]}
-trend_crange = [-5, 5]
+trend_crange = [-4, 4]
 trend_regrid = False
 fit_against_gmst = False
 shared_cbar_trend = True

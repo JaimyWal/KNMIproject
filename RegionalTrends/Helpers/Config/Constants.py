@@ -5,6 +5,12 @@ import os
 
 DATA_SOURCES = ['Eobs', 'ERA5L', 'ERA5', 'RACMO2.3', 'RACMO2.4']
 STATION_SOURCES = ['Bilt', 'Cabauw', 'Eelde', 'Maastricht', 'Vlissingen', 'Kooy']
+TENDENCY_VARS = ['adicomp', 'confric', 'conphase', 'consens', 'contot', 'dyntot', 'horadv', 'lcbotdn', 'lctopdn',
+                 'lcbotup', 'lctopup', 'lcnet', 'lscld', 'lwbotdn', 'lwbotup', 'lwnet', 'lwtopdn', 'lwtopup', 'numbnd',
+                 'numdif', 'orography', 'phystot', 'radtot', 'scbotdn', 'scbotup', 'scnet', 'sctopdn', 'sctopup',
+                 'swbotdn', 'swbotup', 'swnet', 'swtopdn', 'swtopup', 'tendtot', 'tendtotpr', 'udtdx', 'vdffric', 
+                 'vdfphase', 'vdfsens', 'vdftot', 'vdtdy', 'vertadv']
+ENBUD_VARS = TENDENCY_VARS + ['templ1', 'templ1s', 'templ1spr', 'mlmid', 'mltop']
 
 VAR_FILE_CFG = {
     'Eobs': {'Tg': 'tg', 'P': 'rr', 'SWin': 'qq', 'Tmax': 'tx', 'Tmin': 'tn', 
@@ -50,6 +56,16 @@ VAR_FILE_CFG = {
         'TWC': 'tcw', 'TWV': 'prw',
         'TSWin': 'rsdt', 'TSWnet': 'tsr', 'TLWnet': 'toptr',
         'TSWnetcs': 'tsrc', 'TLWnetcs': 'ttrc',
+        'adicomp': 'adicomp', 'confric': 'confric', 'conphase': 'conphase', 'consens': 'consens',
+        'contot': 'contot', 'dyntot': 'dyntot', 'horadv': 'horadv', 'lcbotdn': 'lcbotdn', 'lctopdn': 'lctopdn',
+        'lcbotup': 'lcbotup', 'lctopup': 'lctopup', 'lcnet': 'lcnet', 'lscld': 'lscld', 'lwbotdn': 'lwbotdn', 
+        'lwbotup': 'lwbotup', 'lwnet': 'lwnet', 'lwtopdn': 'lwtopdn', 'lwtopup': 'lwtopup', 'mlmid': 'mlmid', 
+        'mltop': 'mltop', 'numbnd': 'numbnd', 'numdif': 'numdif', 'orography': 'orography', 'phystot': 'phystot',
+        'radtot': 'radtot', 'scbotdn': 'scbotdn', 'scbotup': 'scbotup', 'scnet': 'scnet', 'sctopdn': 'sctopdn', 
+        'sctopup': 'sctopup', 'swbotdn': 'swbotdn', 'swbotup': 'swbotup', 'swnet': 'swnet', 'swtopdn': 'swtopdn', 
+        'swtopup': 'swtopup', 'templ1': 'templ1', 'templ1s': 'templ1s', 'templ1spr': 'templ1spr', 'tendtot': 'tendtot',
+        'tendtotpr': 'tendtotpr', 'udtdx': 'udtdx', 'vdffric': 'vdffric', 'vdfphase': 'vdfphase', 'vdfsens': 'vdfsens',
+        'vdftot': 'vdftot', 'vdtdy': 'vdtdy', 'vertadv': 'vertadv'
     },
     'Station': {'Tg': 'TG', 'P': 'RH', 'Sq': 'SQ', 'SWin': 'Q', 'Tmax': 'TX', 'Tmin': 'TN', 
                 'RH': 'UG', 'Psl': 'PG', 'CloudTotal': 'NG'},
@@ -115,6 +131,55 @@ VAR_NAME_CFG = {
     'Q_all': 'Specific Humidity',
     'RH_all': 'Relative Humidity',
     'Rnet': 'Net Radiation',
+
+#   tendencies:
+    'adicomp': 'Adiabatic Compression',
+    'confric': 'Convective Friction',
+    'conphase': 'Convective Phase Change',
+    'consens': 'Convective Sensible Heating',
+    'contot': 'Cumulus Convection',
+    'dyntot': 'Dynamical',
+    'horadv': 'Horizontal Advection',
+    'lcbotdn': 'Clear-Sky Longwave from layer to surface',
+    'lctopdn': 'Clear-Sky Longwave from TOA to layer',
+    'lcbotup': 'Clear-Sky Longwave from surface to layer',
+    'lctopup': 'Clear-Sky Longwave from layer to TOA',
+    'lcnet': 'Clear-Sky Longwave Net',
+    'lscld': 'Large-Scale Cloud',
+    'lwbotdn': 'Longwave from layer to surface',
+    'lwbotup': 'Longwave from surface to layer',
+    'lwnet': 'Longwave Net',
+    'lwtopdn': 'Longwave from TOA to layer',
+    'lwtopup': 'Longwave from layer to TOA',
+    'mlmid': 'Model Center Layer Height',
+    'mltop': 'Model Top Layer Height',
+    'numbnd': 'Boundary Relaxation',
+    'numdif': 'Numerical Diffusion',
+    'orography': 'Orography',
+    'phystot': 'Physics',
+    'radtot': 'Radiation',
+    'scbotdn': 'Clear-Sky Shortwave from layer to surface',
+    'scbotup': 'Clear-Sky Shortwave from surface to layer',
+    'scnet': 'Clear-Sky Shortwave Net',
+    'sctopdn': 'Clear-Sky Shortwave from TOA to layer',
+    'sctopup': 'Clear-Sky Shortwave from layer to TOA',
+    'swbotdn': 'Shortwave from layer to surface',
+    'swbotup': 'Shortwave from surface to layer',
+    'swnet': 'Shortwave Net',
+    'swtopdn': 'Shortwave from TOA to layer',
+    'swtopup': 'Shortwave from layer to TOA',
+    'templ1': 'Lowermost model layer temperature',
+    'templ1s': 'Lowermost model layer temperature',
+    'templ1spr': 'Lowermost model layer temperature',
+    'tendtot': 'Total Tendency',
+    'tendtotpr': 'Total Tendency',
+    'udtdx': 'Zonal Advection',
+    'vdffric': 'Vertical Diffusive Friction',
+    'vdfphase': 'Vertical Diffusive Phase Change',
+    'vdfsens': 'Vertical Diffusive Sensible Heating',
+    'vdftot': 'Vertical Diffusion',
+    'vdtdy': 'Meridional Advection',
+    'vertadv': 'Vertical Advection',
 }
 
 VAR_SYMBOL_CFG = {
@@ -157,6 +222,7 @@ VAR_SYMBOL_CFG = {
     'TLWnet': r'LW$_{\text{TOA,net}}$',
     'TSWnetcs': r'SW$_{\text{TOA,net,cs}}$',
     'TLWnetcs': r'LW$_{\text{TOA,net,cs}}$',
+    'templ1': r'T$_{\text{L1}}$',
 
     'P_rel': r'P$_{\text{rel}}$',
     'RH_proxy': 'RH',
@@ -169,6 +235,7 @@ VAR_SYMBOL_CFG = {
     'RH_all': 'RH',
     'Rnet': r'R$_{\text{net}}$',
 }
+# No symbols for the tendencies.
 
 VAR_UNIT_CFG = {
     'Tg': '°C',
@@ -210,6 +277,7 @@ VAR_UNIT_CFG = {
     'TLWnet': r'W/m$^2$',
     'TSWnetcs': r'W/m$^2$',
     'TLWnetcs': r'W/m$^2$',
+    'templ1': '°C',
 
     'P_rel': '%',
     'RH_proxy': '%',
@@ -222,6 +290,7 @@ VAR_UNIT_CFG = {
     'RH_all': '%',
     'Rnet': r'W/m$^2$',
 }
+# No units for the tendencies.
 
 
 def load_rotpole(rotpole_dir, rotpole_file):
@@ -258,6 +327,7 @@ rotpole24_kext12 = load_rotpole(
 PROJ_CFG = {
     'RACMO2.3': rotpole23,
     'RACMO2.4': rotpole24_kext12,
+    'RACMO2.4A': rotpole24_kext12,
     'RACMO2.4_KEXT06': rotpole24_kext06,
     'RACMO2.4_KEXT12': rotpole24_kext12
 }

@@ -13,13 +13,18 @@ from RegionalTrends.Helpers.ProcessStation import preprocess_station
 
 import RegionalTrends.Helpers.Config.Paths as Paths
 reload(Paths)
-from RegionalTrends.Helpers.Config.Paths import build_file_cfg, freq_tags
+from RegionalTrends.Helpers.Config.Paths import build_file_cfg
 
+import RegionalTrends.Helpers.Config.Constants as Constants
+reload(Constants)
+
+enbud_vars = Constants.ENBUD_VARS
 
 DEFAULT_TRIM_BORDERS = {
     'RACMO2.4_KEXT06': 8,
     'RACMO2.4_KEXT12': 4,
     'RACMO2.4': 4,
+    'RACMO2.4A': 4
 }
 
 
@@ -41,8 +46,7 @@ def load_single_var(
     station_coords=None,
 ):
 
-    freq_str, racmo24_sep, racmo23_base = freq_tags(file_freq)
-    file_cfg = build_file_cfg(freq_str, racmo24_sep, racmo23_base)
+    file_cfg = build_file_cfg(file_freq)
     
     if trim_border is None:
         trim_border = DEFAULT_TRIM_BORDERS.get(data_source, None)
@@ -77,8 +81,8 @@ def load_single_var(
             station_coords=station_coords,
         ).squeeze()
 
-    if file_freq == 'Monthly' and not is_monthly_time(data['time']):
-        data = data.resample(time='MS').mean('time')          
+    if file_freq == 'Monthly' and not is_monthly_time(data['time']) and var_to_load not in enbud_vars:
+        data = data.resample(time='MS').mean('time')
 
     return data
 
@@ -157,8 +161,24 @@ def Rnet(**kwargs):
     return SWnet + LWnet
 
 
-# Also add advection here for example as well. However, this requires differentiation in space
-# and therefore also need to convert from rotated grid to normal grid...
+def senstot(**kwargs):
+    consens = load_single_var(var_to_load='consens', **kwargs)
+    vdfsens = load_single_var(var_to_load='vdfsens', **kwargs)
+    return consens + vdfsens
+
+
+def phasetot(**kwargs):
+    conphase = load_single_var(var_to_load='conphase', **kwargs)
+    vdfphase = load_single_var(var_to_load='vdfphase', **kwargs)
+    lscld = load_single_var(var_to_load='lscld', **kwargs)
+    return conphase + vdfphase + lscld
+
+
+def frictot(**kwargs):
+    confric = load_single_var(var_to_load='confric', **kwargs)
+    vdffric = load_single_var(var_to_load='vdffric', **kwargs)
+    return confric + vdffric
+
 
 DERIVED_VARS = {
     'RH_proxy': RH_proxy,
@@ -169,6 +189,9 @@ DERIVED_VARS = {
     'Q_obs': Q_from_obs,
     'P_rel': P_rel,
     'Rnet': Rnet,
+    'senstot': senstot,
+    'phasetot': phasetot,
+    'frictot': frictot,
 }
 
 

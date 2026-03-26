@@ -47,7 +47,7 @@ dask.config.set(scheduler='threads', num_workers=12)
 #%% User Inputs
 
 # Main arguments
-var = 'SWincs'
+var = 'templ1'
 file_freq = 'Monthly'
 proc_type = 'Mean'
 save_name_base = None#'NLAllSeasons19802020'
@@ -64,7 +64,7 @@ trim_border = None
 
 # Trend time series plot arguments
 plot_trends = True
-data_sources_trend = ['ERA5', 'RACMO2.3', 'RACMO2.4', 'RACMO2.4_AER']
+data_sources_trend = ['RACMO2.4A']
 stations_trend = ['Bilt', 'Eelde', 'Vlissingen', 'Maastricht', 'Kooy']
 months_dict = {'DJF': [12, 1, 2], 'MAM': [3, 4, 5], 'JJA': [6, 7, 8], 'SON': [9, 10, 11]}
 trend_layout = (2, 2)

@@ -3,6 +3,10 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 import cartopy.crs as ccrs
+from importlib import reload
+
+import RegionalTrends.Helpers.Config.Constants as Constants
+reload(Constants)
 
 xr.set_options(use_new_combine_kwarg_defaults=True)
 
@@ -54,6 +58,12 @@ def is_daily_time(time):
     unique_triples = np.unique(np.stack([year, month, day], axis=1), axis=0)
 
     return len(unique_triples) == len(time)
+
+
+def is_three_hourly_time(time):
+    t = pd.DatetimeIndex(time.values)
+    dt = np.diff(t.values).astype('timedelta64[h]')
+    return np.nanmedian(dt) == np.timedelta64(3, 'h')
 
 
 def align_month_to_start(time):
@@ -326,7 +336,11 @@ def preprocess_netcdf(
     if rename:
         ds = ds.rename(rename)
 
-    # 3. align timestamps: monthly to day 1, daily/sub-daily to midnight
+    if var_name in Constants.TENDENCY_VARS and is_three_hourly_time(ds['time']): 
+        ds = ds.shift(time=-1)
+        ds = ds.sel(time=slice(None, f'{years[-1]}-12-31 23:59:59'))
+
+    # 3. align timestamps: monthly to day 1, daily to midnight
     ds = ds.assign_coords(time=align_time(ds['time']))
 
     # 4. select variable and convert units where needed
@@ -382,7 +396,8 @@ def preprocess_netcdf(
             da = da.where(landmask)
 
     if 'RACMO' in src:
-        if var_name in ['t2m', 'tas', 'tasmax', 'tasmin', 'td2m', 'tdew2m', 'ts']:
+        if var_name in ['t2m', 'tas', 'tasmax', 'tasmin', 'td2m', 'tdew2m', 'ts',
+                        'templ1', 'templ1s', 'templ1spr']:
             da = da - 273.15
             da.attrs['units'] = 'degC'
         elif var_name == 'precip' or (var_name == 'pr' and not is_monthly_time(da['time'])):
