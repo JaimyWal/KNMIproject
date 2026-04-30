@@ -36,24 +36,48 @@ dask.config.set(scheduler='threads', num_workers=12)
 #%% User inputs
 
 # Main arguments
-var_tend_plot = ['tendtot', 'dyntot']
-var_tend_close_pr = ['dyntot', 'radtot', 'senstot', 'phasetot', 'frictot', 'numdif', 'numbnd']
+var_tend_main = {
+    'Total Tendency': 'tendtot',
+    'Total Radiative Tendency': 'radtot',
+    'Shortwave Radiative Tendency': 'swnet',
+    'Longwave Radiative Tendency': 'lwnet',
+    'Total Dynamical Tendency': 'dyntot',
+}
+var_tend_sums = {
+    'Total Tendency': ['dyntot', 'radtot', 'senstot', 'phasetot', 'frictot', 'numtot'],
+    'Total Radiative Tendency': ['swnet', 'lwnet'],
+    'Shortwave Radiative Tendency': ['swtopdn', 'swtopup', 'swbotdn', 'swbotup'],
+    'Longwave Radiative Tendency': ['lwtopdn', 'lwtopup', 'lwbotdn', 'lwbotup'],
+    'Total Dynamical Tendency': ['horadv', 'vertadv', 'adicomp', 'orography'],
+}
+var_tend_close_pr = ['dyntot', 'radtot', 'senstot', 'phasetot', 'frictot', 'numtot']
 var_tend_close_true = 'tendtot'
 var_temp = 'templ1'
-file_freq = 'Raw'
+file_freq = 'Seasonal'
 proc_freq = 'Seasonal'
-relation = 'Yearly'
+relation = 'Adjacent'
 save_name_base = None
 
 # Data selection arguments
-years = np.arange(1980, 2023 + 1)
+years = np.arange(1961, 2023 + 1)
 months_dict = {'DJF': [12, 1, 2], 'MAM': [3, 4, 5], 'JJA': [6, 7, 8], 'SON': [9, 10, 11]}
+# months_dict = {'Jan': [1], 'Feb': [2], 'Mar': [3], 'Apr': [4], 'May': [5], 'Jun': [6], 'Jul': [7], 'Aug': [8], 'Sep': [9], 'Oct': [10], 'Nov': [11], 'Dec': [12]}
 # months_dict = None
 lats = [50.7, 53.6]
 lons = [3.25, 7.35]
 proj_sel = 'RACMO2.4'
 land_only = True
 trim_border = None
+
+# Group time series plot arguments
+group_layout = (2, 2)
+group_panel_width = 6
+group_panel_height = 4
+group_y_range = None
+group_shared_labels = True
+group_mirror_y_axes = True
+group_x_year = True
+group_yearly = True
 
 # Closure time series plot arguments
 close_layout = (2, 2)
@@ -62,8 +86,11 @@ close_panel_height = 4
 close_y_range = None
 close_shared_labels = True
 close_mirror_y_axes = True
+close_x_year = True
+close_yearly = True
 
 # Reference
+# Optie voor year round plot (als relatie adjacent is)
 
 #%% Dataset configurations
 
@@ -87,6 +114,10 @@ SEASONS = (
     ((6, 7, 8), 7),
     ((9, 10, 11), 10),
 )
+
+COLORS = ['#000000', '#DB2525', '#0168DE', '#00A236', '#CA721B', '#7B2CBF', '#E91E8C', '#808080']
+
+PANEL_KEYS = list(months_dict.keys()) if months_dict is not None else ['All']
 
 #%% ============================================================================
 #   HELPER FUNCTIONS
@@ -163,6 +194,61 @@ def compute_seasonal_yearly(data, months, years, proc_type='Mean'):
     
     return yearly.astype('float32')
 
+def compute_yearly_mean(data, interval):
+    if interval in {'Raw', 'Daily'}:
+        yearly = data.groupby('time.year').mean('time')
+    elif interval == 'Monthly':
+        weights = data['time'].dt.days_in_month.astype('float32')
+        weighted_sum = (data*weights).groupby('time.year').sum('time')
+        weight_sum = weights.where(data.notnull()).groupby('time.year').sum('time')
+        yearly = weighted_sum / weight_sum
+    elif interval == 'Seasonal':
+        time_index = pd.DatetimeIndex(data['time'].values)
+        season_days = (
+            (time_index - pd.DateOffset(months=1)).days_in_month
+            + time_index.days_in_month
+            + (time_index + pd.DateOffset(months=1)).days_in_month
+        ).astype('float32')
+        weights = xr.DataArray(season_days, dims=['time'], coords={'time': data['time']})
+        weighted_sum = (data*weights).groupby('time.year').sum('time')
+        weight_sum = weights.where(data.notnull()).groupby('time.year').sum('time')
+        yearly = weighted_sum / weight_sum
+
+    year_vals = yearly['year'].values
+    full_time = full_interval_time(data['time'], interval='Yearly')
+    return yearly.rename({'year': 'time'}).assign_coords(
+        time=('time', pd.to_datetime(dict(year=year_vals, month=1, day=1)))
+    ).reindex(time=full_time).astype('float32')
+
+def sum_tendency_terms(data_dict, vars_to_sum):
+    total = 0
+    for var in vars_to_sum:
+        total = total + data_dict[var]
+    return total
+
+def build_group_panel_data(group_name, tendency_data):
+    main_var = var_tend_main[group_name]
+    group_vars = var_tend_sums.get(group_name, [])
+
+    return {
+        'main': tendency_data.get(main_var),
+        'components': {var: tendency_data.get(var) for var in group_vars},
+    }
+
+def build_closure_panel_data(tendency_data, temp_close):
+    summed_processes = sum_tendency_terms(tendency_data, var_tend_close_pr)
+    true_tendency = tendency_data.get(var_tend_close_true)
+    diff_true = None if temp_close is None or true_tendency is None else temp_close - true_tendency
+    diff_sum = None if temp_close is None or summed_processes is None else temp_close - summed_processes
+
+    return {
+        'summed_processes': summed_processes,
+        'true_tendency': true_tendency,
+        'temp_close': temp_close,
+        'diff_true': diff_true,
+        'diff_sum': diff_sum,
+    }
+
 #%% ============================================================================
 #   PHASE 1: LOAD ALL DATA ONCE
 #   ============================================================================
@@ -171,8 +257,11 @@ print('='*60)
 print('PHASE 1: Loading all data')
 print('='*60)
 
-vars_all = set(var_tend_plot + var_tend_close_pr + [var_tend_close_true] + [var_temp])
-vars_tendencies = set(var_tend_plot + var_tend_close_pr + [var_tend_close_true])
+var_tend_main_vars = list(var_tend_main.values())
+var_tend_sum_vars = [var for vars_group in var_tend_sums.values() for var in vars_group]
+vars_all = set(var_tend_main_vars + var_tend_sum_vars + var_tend_close_pr + [var_tend_close_true] +
+               ([var_temp] if var_temp is not None else []))
+vars_tendencies = set(var_tend_main_vars + var_tend_sum_vars + var_tend_close_pr + [var_tend_close_true])
 
 # Extend years if needed for DJF-style seasons
 years_load = list(years)
@@ -281,8 +370,8 @@ if var_temp is not None:
                 time=full_interval_time(temp_da['time'], interval='Monthly')
             ).astype('float32')
         seasonal_parts = []
+        years_temp = np.append(years, years[-1] + 1)
         for months, time_month in SEASONS:
-            years_temp = np.append(years, years[-1] + 1)
             seasonal = compute_seasonal_yearly(monthly_temperature, months, years_temp, proc_type='Mean')
             season_year = seasonal['clim_year'].values
             seasonal = seasonal.rename({'clim_year': 'time'}).assign_coords(
@@ -304,13 +393,35 @@ if var_temperature is not None:
         else:
             print('Yearly relation not implemented for this proc_freq, because of leap years')
 
+var_tend_yearly = {}
+var_temp_yearly = None
+var_temp_close_yearly = None
+if group_yearly or close_yearly:
+    for var in vars_tendencies:
+        var_tend_yearly[var] = construct_tendency(
+            var_tendencies[var],
+            interval='Yearly',
+            relation='Adjacent',
+            return_intermediates=False
+        )
+    if var_temperature is not None:
+        var_temp_yearly = compute_yearly_mean(var_temperature, proc_freq)
+        var_temp_close_yearly = var_temp_yearly.shift(time=-1) - var_temp_yearly
+
 # Filter for selected months and years
 for var, data in var_tendencies.items():
     var_tendencies[var] = data.where(data['time'].dt.year.isin(years), drop=True)
 
+for var, data in var_tend_yearly.items():
+    var_tend_yearly[var] = data.where(data['time'].dt.year.isin(years), drop=True)
+
 if var_temperature is not None:
-    var_temperature = var_temperature.where(var_temperature['time'].dt.year.isin(years), drop=True)
+    # var_temperature = var_temperature.where(var_temperature['time'].dt.year.isin(years), drop=True)
     var_temp_close = var_temp_close.where(var_temp_close['time'].dt.year.isin(years), drop=True)
+
+if var_temp_yearly is not None:
+    # var_temp_yearly = var_temp_yearly.where(var_temp_yearly['time'].dt.year.isin(years), drop=True)
+    var_temp_close_yearly = var_temp_close_yearly.where(var_temp_close_yearly['time'].dt.year.isin(years), drop=True)
 
 var_tend_proc = {}
 var_temp_proc = {}
@@ -338,9 +449,94 @@ else:
     var_temp_proc['All'] = var_temperature
     var_temp_close_proc['All'] = var_temp_close
 
+group_panel_data = {
+    group_name: {month_key: build_group_panel_data(group_name, var_tend_proc[month_key]) for month_key in PANEL_KEYS}
+    for group_name in var_tend_main
+}
+group_yearly_data = {
+    group_name: build_group_panel_data(group_name, var_tend_yearly)
+    for group_name in var_tend_main
+}
+
+closure_panel_data = {
+    month_key: build_closure_panel_data(var_tend_proc[month_key], var_temp_close_proc.get(month_key))
+    for month_key in PANEL_KEYS
+}
+closure_yearly_data = build_closure_panel_data(var_tend_yearly, var_temp_close_yearly) if close_yearly else None
+
 #%% ============================================================================
 #   PLOTTING HELPER FUNCTIONS
 #   ============================================================================
+
+def format_panel_title(month_key):
+    if relation == 'Adjacent' and months_dict is not None:
+        panel_keys = list(months_dict.keys())
+        if month_key in panel_keys:
+            next_key = panel_keys[(panel_keys.index(month_key) + 1) % len(panel_keys)]
+            return f'{month_key} $\\rightarrow$ {next_key}'
+
+    return month_key
+
+def plot_time_values(data, use_year_axis=False):
+    if data is None or not use_year_axis:
+        return None if data is None else data['time'].values
+
+    year_vals = data['time'].dt.year.values
+    return pd.to_datetime(dict(year=year_vals, month=1, day=1))
+
+def group_plot_series(group_name, panel_data):
+    group_vars = var_tend_sums.get(group_name, [])
+    group_colors = COLORS[1:]
+
+    panel_series = [(group_name, panel_data['main'], COLORS[0], '-')]
+    for ii, var in enumerate(group_vars):
+        panel_series.append((var_name_cfg.get(var, var), panel_data['components'].get(var), group_colors[ii % len(group_colors)], '-'))
+
+    return panel_series
+
+def closure_actual_plot_series(panel_data):
+    return [
+        ('Summed processes', panel_data['summed_processes'], 'tab:blue', '-'),
+        (var_name_cfg.get(var_tend_close_true, var_tend_close_true), panel_data['true_tendency'], 'tab:orange', '-'),
+        (r'$\Delta T$', panel_data['temp_close'], 'tab:green', '-'),
+    ]
+
+def closure_difference_plot_series(panel_data):
+    return [
+        (r'$\Delta T$ - tendtot', panel_data['diff_true'], 'tab:red', '-'),
+        (r'$\Delta T$ - summed processes', panel_data['diff_sum'], 'tab:purple', '-'),
+    ]
+
+def plot_series_list(ax, panel_series, use_year_axis=False):
+    for label, data, color, linestyle in panel_series:
+        if data is None:
+            continue
+        ax.plot(
+            plot_time_values(data, use_year_axis=use_year_axis),
+            data.values,
+            c=color,
+            lw=2.5,
+            ms=4,
+            marker='o',
+            ls=linestyle,
+            label=label,
+        )
+
+def format_time_axis(ax, title, title_fs, tick_fs, zero_line=False):
+    if zero_line:
+        ax.axhline(0.0, color='k', lw=1.0, alpha=0.6)
+
+    ax.grid(True, alpha=0.3)
+    ax.set_title(title, fontsize=title_fs, fontweight='bold')
+    ax.tick_params(axis='both', labelsize=tick_fs)
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator(minticks=3, maxticks=10))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+
+def style_legend(ax, legend_fs):
+    leg = ax.legend(fontsize=legend_fs, handlelength=1.5, loc='best')
+    leg.set_zorder(20)
+    for line in leg.get_lines():
+        line.set_linewidth(3.0)
 
 def normalize_axes(axes, n_rows, n_cols):
     if n_rows == 1 and n_cols == 1:
@@ -406,150 +602,198 @@ def save_figure(save_name_base, var, suffix):
     plt.savefig(str(pdf_dir / f'{save_name}.pdf'), format='pdf', bbox_inches='tight')
     plt.savefig(str(jpg_dir / f'{save_name}.jpg'), format='jpg', dpi=300, bbox_inches='tight')
 
-# def make_axis_label(var, var_name_cfg, var_units_cfg, prefix=''):
-#     # src_label = get_source_label(source) # aanpassen voor betere variabel namen
-#     var_name_str = var_name_cfg.get(var, var)
-#     unit_str = var_units_cfg.get(var, '')
-    
-#     label = f'{prefix}{src_label} {var_name_str}' if src_label else f'{prefix}{var_name_str}'
-#     return f'{label} ({unit_str})' if unit_str else label
-
-#%% ============================================================================
-#   PHASE 4: PLOTTING / CHECKING CLOSURE
-#   ============================================================================
-
-def sum_tendency_terms(data_dict, vars_to_sum):
-    total = 0
-    for var in vars_to_sum:
-        total = total + data_dict[var]
-    return total
-
-
-def plot_closure_panels(panel_builder, y_label, suffix):
-    month_keys = list(months_dict.keys()) if months_dict is not None else ['All']
-    n_panels = len(month_keys)
-    n_rows, n_cols = close_layout
+def plot_panel_grid(panel_series_dict, layout, panel_width, panel_height, y_range, shared_labels,
+                    mirror_y_axes, use_year_axis, y_label, save_var, suffix, zero_line=False):
+    n_panels = len(PANEL_KEYS)
+    n_rows, n_cols = layout
 
     fig, axes = plt.subplots(
         n_rows, n_cols,
-        figsize=(close_panel_width * n_cols, close_panel_height * n_rows),
+        figsize=(panel_width * n_cols, panel_height * n_rows),
         sharex=True, sharey=False
     )
-    wspace = 0.06 if close_mirror_y_axes else 0.16
+    wspace = 0.06 if mirror_y_axes else 0.16
     fig.subplots_adjust(left=0.12, right=0.98, bottom=0.10, top=0.95, wspace=wspace, hspace=0.18)
     axes = normalize_axes(axes, n_rows, n_cols)
 
-    title_fs = max(18, int(close_panel_height * 5))
-    tick_fs = max(12, int(close_panel_height * 3))
-    legend_fs = max(10, int(close_panel_height * 2.5))
+    title_fs = max(18, int(panel_height * 5))
+    tick_fs = max(12, int(panel_height * 3))
+    legend_fs = max(10, int(panel_height * 2.5))
 
-    for idx, month_key in enumerate(month_keys):
+    for idx, month_key in enumerate(PANEL_KEYS):
         ax = axes[idx // n_cols, idx % n_cols]
-        panel_series = panel_builder(month_key)
-
-        for label, data, color, linestyle in panel_series:
-            if data is None:
-                continue
-            ax.plot(
-                data['time'].values,
-                data.values,
-                c=color,
-                lw=2.5,
-                ms=4,
-                marker='o',
-                ls=linestyle,
-                label=label,
-            )
-
-        if suffix == 'closure_diff':
-            ax.axhline(0.0, color='k', lw=1.0, alpha=0.6)
-
-        ax.grid(True, alpha=0.3)
-        ax.set_title(month_key, fontsize=title_fs, fontweight='bold')
-        ax.tick_params(axis='both', labelsize=tick_fs)
-        ax.xaxis.set_major_locator(mdates.AutoDateLocator(minticks=3, maxticks=10))
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+        plot_series_list(ax, panel_series_dict[month_key], use_year_axis=use_year_axis)
+        format_time_axis(ax, format_panel_title(month_key), title_fs, tick_fs, zero_line=zero_line)
 
         is_right_col = (idx % n_cols == n_cols - 1) and n_cols > 1
-        if close_mirror_y_axes and is_right_col:
+        if mirror_y_axes and is_right_col:
             ax.yaxis.tick_right()
             ax.yaxis.set_label_position('right')
 
-        y_range = close_y_range.get(month_key) if isinstance(close_y_range, dict) else close_y_range
-        if y_range is not None:
-            ax.set_ylim(*y_range)
+        panel_y_range = y_range.get(month_key) if isinstance(y_range, dict) else y_range
+        if panel_y_range is not None:
+            ax.set_ylim(*panel_y_range)
 
-        leg = ax.legend(fontsize=legend_fs, handlelength=1.5, loc='best')
-        leg.set_zorder(20)
-        for line in leg.get_lines():
-            line.set_linewidth(3.0)
+        style_legend(ax, legend_fs)
 
     hide_unused_axes(axes, n_panels, n_rows, n_cols)
 
-    if close_shared_labels:
+    if shared_labels:
         add_shared_axis_labels(
             fig,
             axes,
             'Time',
             y_label,
-            fontsize=max(28, int(close_panel_height * 7))
+            fontsize=max(28, int(panel_height * 7))
         )
 
-    save_figure(save_name_base, var_tend_close_true, suffix)
+    save_figure(save_name_base, save_var, suffix)
     plt.show()
 
+def plot_single_panel(panel_series, panel_width, panel_height, y_range, shared_labels, y_label,
+                      save_var, suffix, title='Yearly', zero_line=False):
+    fig, ax = plt.subplots(1, 1, figsize=(panel_width * 1.4, panel_height * 1.1))
 
-def build_actual_panel(month_key):
-    tend_data = var_tend_proc.get(month_key)
-    temp_close = var_temp_close_proc.get(month_key)
-    summed_processes = sum_tendency_terms(tend_data, var_tend_close_pr)
-    true_tendency = tend_data.get(var_tend_close_true)
+    title_fs = max(18, int(panel_height * 5))
+    tick_fs = max(12, int(panel_height * 3))
+    legend_fs = max(10, int(panel_height * 2.5))
 
-    return [
-        ('Summed processes', summed_processes, 'tab:blue', '-'),
-        (var_name_cfg.get(var_tend_close_true, var_tend_close_true), true_tendency, 'tab:orange', '-'),
-        (r'$\Delta T$', temp_close, 'tab:green', '-'),
-    ]
+    plot_series_list(ax, panel_series)
+    format_time_axis(ax, title, title_fs, tick_fs, zero_line=zero_line)
 
+    if y_range is not None and not isinstance(y_range, dict):
+        ax.set_ylim(*y_range)
 
-def build_difference_panel(month_key):
-    tend_data = var_tend_proc.get(month_key)
-    temp_close = var_temp_close_proc.get(month_key)
-    summed_processes = sum_tendency_terms(tend_data, var_tend_close_pr)
-    true_tendency = tend_data.get(var_tend_close_true)
+    if shared_labels:
+        ax.set_xlabel('Time', fontsize=max(18, int(panel_height * 4)))
+        ax.set_ylabel(y_label, fontsize=max(18, int(panel_height * 4)))
 
-    diff_true = None if temp_close is None or true_tendency is None else temp_close - true_tendency
-    diff_sum = None if temp_close is None or summed_processes is None else temp_close - summed_processes
+    style_legend(ax, legend_fs)
+    save_figure(save_name_base, save_var, suffix)
+    plt.show()
 
-    return [
-        (r'$\Delta T$ - tendtot', diff_true, 'tab:red', '-'),
-        (r'$\Delta T$ - summed processes', diff_sum, 'tab:purple', '-'),
-    ]
+#%% ============================================================================
+#   PHASE 4: PLOTTING TENDENCY GROUPS
+#   ============================================================================
 
+for group_name in var_tend_main:
+    main_var = var_tend_main[group_name]
+    group_unit = var_units_cfg.get(main_var, '')
+    group_label = f'{group_name} ({group_unit})' if group_unit else group_name
+    group_panel_series = {
+        month_key: group_plot_series(group_name, group_panel_data[group_name][month_key])
+        for month_key in PANEL_KEYS
+    }
+    plot_panel_grid(
+        group_panel_series,
+        layout=group_layout,
+        panel_width=group_panel_width,
+        panel_height=group_panel_height,
+        y_range=group_y_range,
+        shared_labels=group_shared_labels,
+        mirror_y_axes=group_mirror_y_axes,
+        use_year_axis=group_x_year,
+        y_label=group_label,
+        save_var=main_var,
+        suffix='group',
+    )
+if group_yearly:
+    for group_name in var_tend_main:
+        main_var = var_tend_main[group_name]
+        group_unit = var_units_cfg.get(main_var, '')
+        group_label = f'{group_name} ({group_unit})' if group_unit else group_name
+        group_yearly_series = group_plot_series(group_name, group_yearly_data[group_name])
+        plot_single_panel(
+            group_yearly_series,
+            panel_width=group_panel_width,
+            panel_height=group_panel_height,
+            y_range=group_y_range,
+            shared_labels=group_shared_labels,
+            y_label=group_label,
+            save_var=main_var,
+            suffix='group_yearly',
+        )
+
+#%% ============================================================================
+#   PHASE 5: PLOTTING / CHECKING CLOSURE
+#   ============================================================================
 
 close_unit = var_units_cfg.get(var_tend_close_true, '')
 close_label = f'Closure ({close_unit})' if close_unit else 'Closure'
 close_diff_label = f'Closure Difference ({close_unit})' if close_unit else 'Closure Difference'
+closure_actual_series = {
+    month_key: closure_actual_plot_series(closure_panel_data[month_key])
+    for month_key in PANEL_KEYS
+}
+closure_diff_series = {
+    month_key: closure_difference_plot_series(closure_panel_data[month_key])
+    for month_key in PANEL_KEYS
+}
 
-plot_closure_panels(build_actual_panel, close_label, 'closure_actual')
-plot_closure_panels(build_difference_panel, close_diff_label, 'closure_diff')
+plot_panel_grid(
+    closure_actual_series,
+    layout=close_layout,
+    panel_width=close_panel_width,
+    panel_height=close_panel_height,
+    y_range=close_y_range,
+    shared_labels=close_shared_labels,
+    mirror_y_axes=close_mirror_y_axes,
+    use_year_axis=close_x_year,
+    y_label=close_label,
+    save_var=var_tend_close_true,
+    suffix='closure_actual',
+)
+plot_panel_grid(
+    closure_diff_series,
+    layout=close_layout,
+    panel_width=close_panel_width,
+    panel_height=close_panel_height,
+    y_range=close_y_range,
+    shared_labels=close_shared_labels,
+    mirror_y_axes=close_mirror_y_axes,
+    use_year_axis=close_x_year,
+    y_label=close_diff_label,
+    save_var=var_tend_close_true,
+    suffix='closure_diff',
+    zero_line=True,
+)
 
-# Plotting was mostly done using a LLM. The actual processing of data
-# was carefully done by myself.
+if close_yearly:
+    closure_actual_yearly_series = closure_actual_plot_series(closure_yearly_data)
+    closure_diff_yearly_series = closure_difference_plot_series(closure_yearly_data)
+    plot_single_panel(
+        closure_actual_yearly_series,
+        panel_width=close_panel_width,
+        panel_height=close_panel_height,
+        y_range=close_y_range,
+        shared_labels=close_shared_labels,
+        y_label=close_label,
+        save_var=var_tend_close_true,
+        suffix='closure_actual_yearly',
+    )
+    plot_single_panel(
+        closure_diff_yearly_series,
+        panel_width=close_panel_width,
+        panel_height=close_panel_height,
+        y_range=close_y_range,
+        shared_labels=close_shared_labels,
+        y_label=close_diff_label,
+        save_var=var_tend_close_true,
+        suffix='closure_diff_yearly',
+        zero_line=True,
+    )
 
 #%%
 
+# Alles converteren naar rates in K/day?
+# geen trends maar 11-jarige blokken. Dus vergelijk temperatuur gemiddelde blok [1965, 1975] met [1975, 1985], etc.
+# Bepaal ook tendens die verschil in deze blokken verklaart. 
+# Kijk hoe we dit kunnen opsplitsen in seizoenaal.
 
-# Plotjes maken van alle processen zelf.
+# Nieuw script maken voor trends
 
 
-# Zijn templ1 en Tg voor racmo2.4a niet per ongeluk hetzelfde???
-# Kijken naar andere processen
 # Kijken naar aftrekken van seizoenale cyclus / percentages!!!
-
-# Plotjes maken voor Ap
 # Shapefile voor Nederland
-
-
 # Sum over Ap and introduce zero
-# Ook werkelijke Ap definieren als temperatuur verschil...
+# Float64 for non-net fluxes (huge numbers)

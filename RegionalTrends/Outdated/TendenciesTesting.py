@@ -18,8 +18,8 @@ from RegionalTrends.Helpers import ProcessVar
 reload(ProcessVar)
 from RegionalTrends.Helpers.ProcessVar import load_var
 
-from RegionalTrends.Helpers import ComputeTendencies
-reload(ComputeTendencies)
+from RegionalTrends.Helpers import ComputeTendencies_old
+reload(ComputeTendencies_old)
 from RegionalTrends.Helpers.ComputeTendencies import construct_tendency
 
 import RegionalTrends.Helpers.Config.Constants as Constants

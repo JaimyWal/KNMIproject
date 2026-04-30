@@ -46,16 +46,16 @@ dask.config.set(scheduler='threads', num_workers=12)
 #%% User inputs
 
 # Main arguments
-var = 'SWin'
+var = 'SWincs'
 file_freq = 'Monthly'
 proc_type = 'Mean'
-data_base = ['ERA5', 'ERA5', 'RACMO2.4']
-data_compare = ['RACMO2.4', 'RACMO2.4A', 'RACMO2.4A']
-# data_base = ['ERA5', 'RACMO2.3', 'RACMO2.4', 'RACMO2.4A']
-# data_compare = None
+# data_base = ['ERA5', 'ERA5', 'RACMO2.4']
+# data_compare = ['RACMO2.4', 'RACMO2.4A', 'RACMO2.4A']
+data_base = ['ERA5', 'RACMO2.3', 'RACMO2.4', 'RACMO2.4A']
+data_compare = None
 save_name_base = None#'AllSeasons19802020'
 
-# Data selection arguments
+# Data selection argumentsI
 months_dict = {'DJF': [12, 1, 2], 'MAM': [3, 4, 5], 'JJA': [6, 7, 8], 'SON': [9, 10, 11], 'ALL': np.arange(1,13)}
 years = np.arange(1980, 2020 + 1)
 lats = [37.7, 63.3]

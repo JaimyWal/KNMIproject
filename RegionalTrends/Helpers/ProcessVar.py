@@ -180,6 +180,74 @@ def frictot(**kwargs):
     return confric + vdffric
 
 
+def numtot(**kwargs):
+    numbnd = load_single_var(var_to_load='numbnd', **kwargs)
+    numdif = load_single_var(var_to_load='numdif', **kwargs)
+    return numbnd + numdif
+
+
+def adiadj(**kwargs):
+    orography = load_single_var(var_to_load='orography', **kwargs)
+    adicomp = load_single_var(var_to_load='adicomp', **kwargs)
+    return orography + adicomp
+
+
+def swtop(**kwargs):
+    swtopdn = load_single_var(var_to_load='swtopdn', **kwargs)
+    swtopup = load_single_var(var_to_load='swtopup', **kwargs)
+    return swtopdn + swtopup
+
+
+def swbot(**kwargs):
+    swbotdn = load_single_var(var_to_load='swbotdn', **kwargs)
+    swbotup = load_single_var(var_to_load='swbotup', **kwargs)
+    return swbotdn + swbotup
+
+
+def lwtop(**kwargs):
+    lwtopdn = load_single_var(var_to_load='lwtopdn', **kwargs)
+    lwtopup = load_single_var(var_to_load='lwtopup', **kwargs)
+    return lwtopdn + lwtopup
+
+
+def lwbot(**kwargs):
+    lwbotdn = load_single_var(var_to_load='lwbotdn', **kwargs)
+    lwbotup = load_single_var(var_to_load='lwbotup', **kwargs)
+    return lwbotdn + lwbotup
+
+
+def sctop(**kwargs):
+    sctopdn = load_single_var(var_to_load='sctopdn', **kwargs)
+    sctopup = load_single_var(var_to_load='sctopup', **kwargs)
+    return sctopdn + sctopup
+
+
+def scbot(**kwargs):
+    scbotdn = load_single_var(var_to_load='scbotdn', **kwargs)
+    scbotup = load_single_var(var_to_load='scbotup', **kwargs)
+    return scbotdn + scbotup
+
+
+def lctop(**kwargs):
+    lctopdn = load_single_var(var_to_load='lctopdn', **kwargs)
+    lctopup = load_single_var(var_to_load='lctopup', **kwargs)
+    return lctopdn + lctopup
+
+
+def lcbot(**kwargs):
+    lcbotdn = load_single_var(var_to_load='lcbotdn', **kwargs)
+    lcbotup = load_single_var(var_to_load='lcbotup', **kwargs)
+    return lcbotdn + lcbotup
+
+
+def diabatic(**kwargs):
+    sens = senstot(**kwargs)
+    phase = phasetot(**kwargs)
+    fric = frictot(**kwargs)
+    rad = load_single_var(var_to_load='radtot', **kwargs)
+    return sens + phase + fric + rad
+
+
 DERIVED_VARS = {
     'RH_proxy': RH_proxy,
     'Bowen': Bowen,
@@ -192,6 +260,17 @@ DERIVED_VARS = {
     'senstot': senstot,
     'phasetot': phasetot,
     'frictot': frictot,
+    'numtot': numtot,
+    'adiadj': adiadj,
+    'swtop': swtop,
+    'swbot': swbot,
+    'lwtop': lwtop,
+    'lwbot': lwbot,
+    'sctop': sctop,
+    'scbot': scbot,
+    'lctop': lctop,
+    'lcbot': lcbot,
+    'diabatic': diabatic,
 }
 
 
