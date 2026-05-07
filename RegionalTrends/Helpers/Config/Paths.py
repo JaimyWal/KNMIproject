@@ -15,6 +15,7 @@ BASE_DIR_CFG = {
     'RACMO2.4A_Daily': '/nobackup_1/users/walj/racmo24/Daily',
     'RACMO2.4A_Monthly': '/nobackup_1/users/walj/racmo24/Monthly',
     'RACMO2.4A_Seasonal': '/nobackup_1/users/walj/racmo24/Seasonal',
+    'RACMO2.4_rerun': '/nobackup/users/walj/racmo24_rerun',
     'Station': '/nobackup/users/walj/knmi',
 }
 
@@ -48,6 +49,7 @@ def build_file_cfg(freq_str):
             'Ps': connect_paths('ERA5', 'Daily/era5_sp_daily_eu.nc'),
             'Tmax': connect_paths('ERA5', 'Daily/era5_tmax_daily_eu.nc'),
             'Tmin': connect_paths('ERA5', 'Daily/era5_tmin_daily_eu.nc'),
+            'Tg': connect_paths('ERA5', 'Daily/era5_t2m_europe_daily_*.nc'),
         }
 
     elif freq_str == 'Monthly':
@@ -200,6 +202,10 @@ def build_file_cfg(freq_str):
         'TLWnet': connect_paths('RACMO2.4_KEXT12', f'{freq_str}/toptr{racmo24_sep}*.nc'),
         'TSWnetcs': connect_paths('RACMO2.4_KEXT12', f'{freq_str}/tsrc{racmo24_sep}*.nc'),
         'TLWnetcs': connect_paths('RACMO2.4_KEXT12', f'{freq_str}/ttrc{racmo24_sep}*.nc'),
+    }
+
+    cfg['RACMO2.4R'] = {
+        'Tg': connect_paths('RACMO2.4_rerun', f'{freq_str}/tas{racmo24_sep}*.nc'),
     }
     
     if freq_str == 'Daily':

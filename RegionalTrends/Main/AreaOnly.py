@@ -47,27 +47,28 @@ dask.config.set(scheduler='threads', num_workers=12)
 #%% User Inputs
 
 # Main arguments
-var = 'templ1'
+var = 'Tg'
 file_freq = 'Monthly'
 proc_type = 'Mean'
 save_name_base = None#'NLAllSeasons19802020'
 
 # Common data selection arguments
-years = np.arange(1980, 2020 + 1)
+years = np.arange(1986, 2023 + 1)
 lats = [50.7, 53.6]
 lons = [3.25, 7.35]
 # lats = ['Bilt', 'Eelde', 'Vlissingen', 'Maastricht', 'Kooy']
 # lons = ['Bilt', 'Eelde', 'Vlissingen', 'Maastricht', 'Kooy']
-proj_sel = 'RACMO2.4'
+proj_sel = 'RACMO2.4A'
 land_only = True  #!!!!!!!!
 trim_border = None
 
 # Trend time series plot arguments
 plot_trends = True
-data_sources_trend = ['RACMO2.4A']
+data_sources_trend = ['Stations', 'Eobs', 'ERA5', 'RACMO2.4A']
 stations_trend = ['Bilt', 'Eelde', 'Vlissingen', 'Maastricht', 'Kooy']
-months_dict = {'DJF': [12, 1, 2], 'MAM': [3, 4, 5], 'JJA': [6, 7, 8], 'SON': [9, 10, 11]}
-trend_layout = (2, 2)
+months_dict = {'DJF': [12, 1, 2], 'MAM': [3, 4, 5], 'JJA': [6, 7, 8], 'SON': [9, 10, 11], 'ALL': np.arange(1, 13)}
+# months_dict = {'ALL': np.arange(1, 13)}
+trend_layout = (3,2)
 trend_panel_width = 6
 trend_panel_height = 4
 trend_y_range = None
@@ -156,7 +157,7 @@ SOURCE_LABELS = {
     'Eobs': 'E-OBS', 'Eobs_fine': 'E-OBS', 'Eobs_coarse': 'E-OBS',
     'ERA5': 'ERA5', 'ERA5L': 'ERA5L', 'ERA5_land': 'ERA5L', 'ERA5_coarse': 'ERA5',
     'RACMO2.3': 'R2.3', 'RACMO2.4': 'R2.4', 'RACMO2.4_KEXT06': 'R2.4',
-    'RACMO2.4_AER': 'R2.4A',
+    'RACMO2.4A': 'R2.4A',
     'Stations': 'Stations',
 }
 
@@ -302,6 +303,14 @@ def compute_trend_stats(fit_data, fit_scaling):
 def get_source_label(src):
     return SOURCE_LABELS.get(src, src)
 
+# def dataarray_scalar(data):
+#     if data is None:
+#         return np.nan
+#     vals = np.asarray(data.values if hasattr(data, 'values') else data, dtype=float)
+#     if vals.size == 0:
+#         return np.nan
+#     return float(np.squeeze(vals))
+
 #%% ============================================================================
 #   PHASE 1: LOAD ALL DATA ONCE
 #   ============================================================================
@@ -427,17 +436,17 @@ def compute_source_results(src, months, years, proc_type, source_data, weights_c
     weights = weights_cache.get(src)
     monthly_mean = area_weighted_mean(monthly_filtered, weights=weights)
     yearly_mean = area_weighted_mean(yearly, weights=weights)
-    avg_val = area_weighted_mean(cached['monthly'].mean('time'), weights=weights)
     
     # Compute fit data with GMST if requested
     fit_data = compute_fit_data(yearly_mean, fit_against_gmst, 
                                rolling_mean_var, rolling_mean_years, min_periods)
+    # avg_val = fit_data.mean('fit_against', skipna=True)
     
     return {
         'monthly': monthly_mean.compute() if hasattr(monthly_mean, 'compute') else monthly_mean,
         'yearly': yearly_mean.compute() if hasattr(yearly_mean, 'compute') else yearly_mean,
         'fit': fit_data.compute() if hasattr(fit_data, 'compute') else fit_data,
-        'avg': avg_val.compute() if hasattr(avg_val, 'compute') else avg_val,
+        # 'avg': avg_val.compute() if hasattr(avg_val, 'compute') else avg_val,
     }
 
 def compute_stations_aggregate(station_list, results_dict):
@@ -448,7 +457,7 @@ def compute_stations_aggregate(station_list, results_dict):
         'monthly': xr.concat([results_dict[k]['monthly'] for k in valid_stations], dim='station').mean('station'),
         'yearly': xr.concat([results_dict[k]['yearly'] for k in valid_stations], dim='station').mean('station'),
         'fit': xr.concat([results_dict[k]['fit'] for k in valid_stations], dim='station').mean('station'),
-        'avg': xr.concat([results_dict[k]['avg'] for k in valid_stations], dim='station').mean('station'),
+        # 'avg': xr.concat([results_dict[k]['avg'] for k in valid_stations], dim='station').mean('station'),
     }
 
 def get_expanded_sources(source_list, station_list):
@@ -559,8 +568,13 @@ print('PHASE 3: Computing trend statistics')
 print('=' * 60)
 
 all_trend_stats = {}
+# trend_summary_table = None
 
 if plot_trends and trend_results:
+    # avg_unit = var_units_cfg.get(var, '')
+    # avg_unit_plain = avg_unit.replace('$', '').replace('\\', '')
+    # avg_col = f'Average ({avg_unit_plain})' if avg_unit_plain else 'Average'
+
     for month_key in months_dict.keys():
         trend_stats = {}
         for src in data_sources_trend:
@@ -568,6 +582,23 @@ if plot_trends and trend_results:
             stats = compute_trend_stats(fit_data, fit_scaling)
             trend_stats[src] = stats
         all_trend_stats[month_key] = trend_stats
+
+    # trend_summary_rows = []
+    # for month_key in months_dict.keys():
+    #     for src in data_sources_trend:
+    #         stats = all_trend_stats.get(month_key, {}).get(src)
+    #         result = trend_results.get(month_key, {}).get(src)
+    #         if stats is None or result is None:
+    #             continue
+
+    #         trend_summary_rows.append({
+    #             'Season': month_key,
+    #             'Source': get_source_label(src),
+    #             avg_col: dataarray_scalar(result.get('avg')),
+    #         })
+
+    # if trend_summary_rows:
+    #     trend_summary_table = pd.DataFrame(trend_summary_rows)
 
 print('Trend statistics complete\n')
 
@@ -638,6 +669,22 @@ def save_figure(save_name_base, var, suffix):
     
     plt.savefig(str(pdf_dir / f'{save_name}.pdf'), format='pdf', bbox_inches='tight')
     plt.savefig(str(jpg_dir / f'{save_name}.jpg'), format='jpg', dpi=300, bbox_inches='tight')
+
+# def save_table(save_name_base, var, suffix, table):
+#     if save_name_base is None or table is None or table.empty:
+#         return None
+
+#     save_name = f'{save_name_base}_{var}_{suffix}'
+#     table_dir = Path(f'/nobackup/users/walj/Figures/tables/{var}')
+#     table_dir.mkdir(parents=True, exist_ok=True)
+
+#     tsv_path = table_dir / f'{save_name}.tsv'
+#     txt_path = table_dir / f'{save_name}.txt'
+
+#     table.round(3).to_csv(tsv_path, sep='\t', index=False)
+#     txt_path.write_text(table.round(3).to_string(index=False) + '\n')
+
+#     return {'tsv': tsv_path, 'txt': txt_path}
 
 def get_scatter_config(scatter_freq):
     configs = {
@@ -1029,6 +1076,19 @@ if plot_spatial_trends and data_sources_spatial:
     
     save_figure(save_name_base, var, 'spatialtrend')
     plt.show()
+
+# if trend_summary_table is not None and not trend_summary_table.empty:
+#     print('=' * 60)
+#     print('TREND SUMMARY TABLE')
+#     print('=' * 60)
+#     saved_table_paths = save_table(save_name_base, var, 'trend_summary', trend_summary_table)
+#     if saved_table_paths is not None:
+#         print(f"Saved summary table: {saved_table_paths['tsv']}")
+#         print(f"Saved aligned text copy: {saved_table_paths['txt']}")
+#         print()
+#     else:
+#         print(trend_summary_table.round(3).to_csv(sep='\t', index=False))
+#         print()
 
 print('=' * 60)
 print('All plots complete!')
