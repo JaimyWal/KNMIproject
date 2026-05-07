@@ -3,3 +3,6 @@ __pycache__/
 *.ipynb_checkpoints
 .vscode/
 *.pdf
+
+RegionalTrends/APIRequests/Destiny_era.py
+RegionalTrends/APIRequests/Destiny_era_daily.py
