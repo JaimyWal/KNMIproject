@@ -47,13 +47,13 @@ dask.config.set(scheduler='threads', num_workers=12)
 #%% User Inputs
 
 # Main arguments
-var = 'Tg'
+var = 'CloudTotal'
 file_freq = 'Monthly'
 proc_type = 'Mean'
 save_name_base = None#'NLAllSeasons19802020'
 
 # Common data selection arguments
-years = np.arange(1986, 2023 + 1)
+years = np.arange(1980, 2023 + 1)
 lats = [50.7, 53.6]
 lons = [3.25, 7.35]
 # lats = ['Bilt', 'Eelde', 'Vlissingen', 'Maastricht', 'Kooy']
@@ -64,7 +64,7 @@ trim_border = None
 
 # Trend time series plot arguments
 plot_trends = True
-data_sources_trend = ['Stations', 'Eobs', 'ERA5', 'RACMO2.4A']
+data_sources_trend = ['Stations', 'ERA5', 'RACMO2.4A']
 stations_trend = ['Bilt', 'Eelde', 'Vlissingen', 'Maastricht', 'Kooy']
 months_dict = {'DJF': [12, 1, 2], 'MAM': [3, 4, 5], 'JJA': [6, 7, 8], 'SON': [9, 10, 11], 'ALL': np.arange(1, 13)}
 # months_dict = {'ALL': np.arange(1, 13)}

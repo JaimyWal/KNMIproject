@@ -192,6 +192,13 @@ def adiadj(**kwargs):
     return orography + adicomp
 
 
+def sum_components(var_names, **kwargs):
+    total = load_single_var(var_to_load=var_names[0], **kwargs)
+    for var_name in var_names[1:]:
+        total = total + load_single_var(var_to_load=var_name, **kwargs)
+    return total
+
+
 def swtop(**kwargs):
     swtopdn = load_single_var(var_to_load='swtopdn', **kwargs)
     swtopup = load_single_var(var_to_load='swtopup', **kwargs)
@@ -240,12 +247,126 @@ def lcbot(**kwargs):
     return lcbotdn + lcbotup
 
 
+def swin(**kwargs):
+    return sum_components(['swtopdn', 'swbotup'], **kwargs)
+
+
+def swout(**kwargs):
+    return sum_components(['swtopup', 'swbotdn'], **kwargs)
+
+
+def lwin(**kwargs):
+    return sum_components(['lwtopdn', 'lwbotup'], **kwargs)
+
+
+def lwout(**kwargs):
+    return sum_components(['lwtopup', 'lwbotdn'], **kwargs)
+
+
+def scin(**kwargs):
+    return sum_components(['sctopdn', 'scbotup'], **kwargs)
+
+
+def scout(**kwargs):
+    return sum_components(['sctopup', 'scbotdn'], **kwargs)
+
+
+def lcin(**kwargs):
+    return sum_components(['lctopdn', 'lcbotup'], **kwargs)
+
+
+def lcout(**kwargs):
+    return sum_components(['lctopup', 'lcbotdn'], **kwargs)
+
+
 def diabatic(**kwargs):
     sens = senstot(**kwargs)
     phase = phasetot(**kwargs)
     fric = frictot(**kwargs)
     rad = load_single_var(var_to_load='radtot', **kwargs)
     return sens + phase + fric + rad
+
+
+def cld_component(all_var, clear_var, **kwargs):
+    all_sky = load_single_var(var_to_load=all_var, **kwargs)
+    clear_sky = load_single_var(var_to_load=clear_var, **kwargs)
+    return all_sky - clear_sky
+
+
+def cld_sum(all_vars, clear_vars, **kwargs):
+    return sum_components(all_vars, **kwargs) - sum_components(clear_vars, **kwargs)
+
+
+def swtopdncld(**kwargs):
+    return cld_component('swtopdn', 'sctopdn', **kwargs)
+
+
+def swtopupcld(**kwargs):
+    return cld_component('swtopup', 'sctopup', **kwargs)
+
+
+def swbotdncld(**kwargs):
+    return cld_component('swbotdn', 'scbotdn', **kwargs)
+
+
+def swbotupcld(**kwargs):
+    return cld_component('swbotup', 'scbotup', **kwargs)
+
+
+def lwtopdncld(**kwargs):
+    return cld_component('lwtopdn', 'lctopdn', **kwargs)
+
+
+def lwtopupcld(**kwargs):
+    return cld_component('lwtopup', 'lctopup', **kwargs)
+
+
+def lwbotdncld(**kwargs):
+    return cld_component('lwbotdn', 'lcbotdn', **kwargs)
+
+
+def lwbotupcld(**kwargs):
+    return cld_component('lwbotup', 'lcbotup', **kwargs)
+
+
+def swcld(**kwargs):
+    return cld_component('swnet', 'scnet', **kwargs)
+
+
+def lwcld(**kwargs):
+    return cld_component('lwnet', 'lcnet', **kwargs)
+
+
+def swtopcld(**kwargs):
+    return cld_sum(['swtopdn', 'swtopup'], ['sctopdn', 'sctopup'], **kwargs)
+
+
+def swbotcld(**kwargs):
+    return cld_sum(['swbotdn', 'swbotup'], ['scbotdn', 'scbotup'], **kwargs)
+
+
+def lwtopcld(**kwargs):
+    return cld_sum(['lwtopdn', 'lwtopup'], ['lctopdn', 'lctopup'], **kwargs)
+
+
+def lwbotcld(**kwargs):
+    return cld_sum(['lwbotdn', 'lwbotup'], ['lcbotdn', 'lcbotup'], **kwargs)
+
+
+def swincld(**kwargs):
+    return cld_sum(['swtopdn', 'swbotup'], ['sctopdn', 'scbotup'], **kwargs)
+
+
+def swoutcld(**kwargs):
+    return cld_sum(['swtopup', 'swbotdn'], ['sctopup', 'scbotdn'], **kwargs)
+
+
+def lwincld(**kwargs):
+    return cld_sum(['lwtopdn', 'lwbotup'], ['lctopdn', 'lcbotup'], **kwargs)
+
+
+def lwoutcld(**kwargs):
+    return cld_sum(['lwtopup', 'lwbotdn'], ['lctopup', 'lcbotdn'], **kwargs)
 
 
 DERIVED_VARS = {
@@ -270,7 +391,33 @@ DERIVED_VARS = {
     'scbot': scbot,
     'lctop': lctop,
     'lcbot': lcbot,
+    'swin': swin,
+    'swout': swout,
+    'lwin': lwin,
+    'lwout': lwout,
+    'scin': scin,
+    'scout': scout,
+    'lcin': lcin,
+    'lcout': lcout,
     'diabatic': diabatic,
+    'swcld': swcld,
+    'lwcld': lwcld,
+    'swtopcld': swtopcld,
+    'swbotcld': swbotcld,
+    'lwtopcld': lwtopcld,
+    'lwbotcld': lwbotcld,
+    'swincld': swincld,
+    'swoutcld': swoutcld,
+    'lwincld': lwincld,
+    'lwoutcld': lwoutcld,
+    'swtopdncld': swtopdncld,
+    'swtopupcld': swtopupcld,
+    'swbotdncld': swbotdncld,
+    'swbotupcld': swbotupcld,
+    'lwtopdncld': lwtopdncld,
+    'lwtopupcld': lwtopupcld,
+    'lwbotdncld': lwbotdncld,
+    'lwbotupcld': lwbotupcld,
 }
 
 
