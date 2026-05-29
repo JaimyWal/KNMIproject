@@ -397,7 +397,7 @@ def preprocess_netcdf(
 
     if 'RACMO' in src:
         if var_name in ['t2m', 'tas', 'tasmax', 'tasmin', 'td2m', 'tdew2m', 'ts',
-                        'templ1', 'templ1s', 'templ1spr']:
+                        'templ1', 'templ1s', 'templ1spr', 'temp40', 'temp39', 'sst']:
             da = da - 273.15
             da.attrs['units'] = 'degC'
         elif var_name == 'precip' or (var_name == 'pr' and not is_monthly_time(da['time'])):
