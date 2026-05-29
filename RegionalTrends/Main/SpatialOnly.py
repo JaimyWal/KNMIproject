@@ -46,18 +46,18 @@ dask.config.set(scheduler='threads', num_workers=12)
 #%% User inputs
 
 # Main arguments
-var = 'SWincs'
+var = 'Tg'
 file_freq = 'Monthly'
 proc_type = 'Mean'
 # data_base = ['ERA5', 'ERA5', 'RACMO2.4']
 # data_compare = ['RACMO2.4', 'RACMO2.4A', 'RACMO2.4A']
-data_base = ['ERA5', 'RACMO2.3', 'RACMO2.4', 'RACMO2.4A']
+data_base = ['ERA5', 'RACMO2.3', 'RACMO2.4A']
 data_compare = None
 save_name_base = None#'AllSeasons19802020'
 
 # Data selection argumentsI
 months_dict = {'DJF': [12, 1, 2], 'MAM': [3, 4, 5], 'JJA': [6, 7, 8], 'SON': [9, 10, 11], 'ALL': np.arange(1,13)}
-years = np.arange(1980, 2020 + 1)
+years = np.arange(1980, 2023 + 1)
 lats = [37.7, 63.3]
 lons = [-13.3, 22.3]
 proj_sel = 'RACMO2.4'
@@ -82,7 +82,7 @@ trend_calc = True
 # trend_crange = {'DJF': [-2, 2], 'MAM': [-4, 4], 'JJA': [-5, 5], 'SON': [-2, 2]}
 trend_crange = [-4, 4]
 trend_regrid = False
-fit_against_gmst = False
+fit_against_gmst = True
 shared_cbar_trend = True
 shared_cbar_label_trend = True
 short_cbar_label_trend = False
@@ -120,7 +120,7 @@ plot_lons = [-13, 22]
 switch_sign = False
 cut_boundaries = False
 cbar_orientation = 'horizontal'
-swap_rows_cols = True
+swap_rows_cols = False
 show_col_titles = True
 show_row_titles = True
 cmap_type = None
@@ -136,9 +136,9 @@ true_contour = False
 grid_contour = False
 
 # Other arguments
-rolling_mean_var = False
+rolling_mean_var = True
 rolling_mean_years = 3
-min_periods = 1
+min_periods = 3
 
 #%% Dataset configurations
 

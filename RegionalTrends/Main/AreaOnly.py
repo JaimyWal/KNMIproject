@@ -47,7 +47,7 @@ dask.config.set(scheduler='threads', num_workers=12)
 #%% User Inputs
 
 # Main arguments
-var = 'CloudTotal'
+var = 'Tg'
 file_freq = 'Monthly'
 proc_type = 'Mean'
 save_name_base = None#'NLAllSeasons19802020'
@@ -110,10 +110,10 @@ spatial_n_colors = 20
 spatial_proj_plot = 'RACMO2.4'
 
 # Fit arguments
-fit_against_gmst = False
-rolling_mean_var = False
+fit_against_gmst = True
+rolling_mean_var = True
 rolling_mean_years = 3
-min_periods = 1
+min_periods = 3
 
 #%% ============================================================================
 #   CONFIGURATION
